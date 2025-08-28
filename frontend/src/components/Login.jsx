@@ -143,11 +143,7 @@ const Login = ({ setIsAuthenticated }) => {
           </div>
         </form>
         
-        <div className="demo-credentials">
-          <p>Demo Credentials:</p>
-          <p>Email: demo@example.com</p>
-          <p>Password: password123</p>
-        </div>
+       
       </div>
     </div>
   );
