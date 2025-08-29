@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AddExpense.css';
 
 const AddExpense = () => {
-  const [categories] = useState([
+  const [categories, setCategories] = useState([
     { id: 1, name: 'Food' },
     { id: 2, name: 'Transport' },
     { id: 3, name: 'Entertainment' },
@@ -16,7 +16,8 @@ const AddExpense = () => {
     amount: '',
     category: '',
     description: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    category_id: ''
   });
   
   const [errors, setErrors] = useState({});
@@ -25,24 +26,24 @@ const AddExpense = () => {
   
   const navigate = useNavigate();
 
-  // In a real app, you would fetch categories from an API
-  // useEffect(() => {
-  //   const fetchCategories = async () => {
-  //     try {
-  //       const token = localStorage.getItem('token');
-  //       const response = await fetch('/api/categories', {
-  //         headers: { 'Authorization': `Bearer ${token}` }
-  //       });
-  //       if (response.ok) {
-  //         const data = await response.json();
-  //         setCategories(data.categories);
-  //       }
-  //     } catch (error) {
-  //       console.error('Error fetching categories:', error);
-  //     }
-  //   };
-  //   fetchCategories();
-  // }, []);
+  // Fetch categories from the API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:5000/api/expenses/categories', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -102,7 +103,7 @@ const AddExpense = () => {
         body: JSON.stringify({
           amount: parseFloat(formData.amount),
           description: formData.description,
-          category: selectedCategory, // Send the category name instead of ID
+          category_id: parseInt(formData.category_id),
           date: formData.date
         })
       });
@@ -186,11 +187,12 @@ const AddExpense = () => {
           <div className="form-group">
             <label htmlFor="category">Category</label>
             <select
-              id="category"
-              name="category"
-              value={formData.category}
+              id="category_id"
+              name="category_id"
+              value={formData.category_id}
               onChange={handleChange}
-              className={errors.category ? 'error-input' : ''}
+              className={errors.category_id ? 'error-input' : ''}
+              required
             >
               <option value="">Select a category</option>
               {categories.map(category => (
@@ -199,7 +201,7 @@ const AddExpense = () => {
                 </option>
               ))}
             </select>
-            {errors.category && <span className="error-text">{errors.category}</span>}
+            {errors.category_id && <span className="error-text">{errors.category_id}</span>}
           </div>
           
           <div className="form-group">

@@ -1,6 +1,41 @@
 const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+// Test database connection
+router.get('/test-db', (req, res) => {
+  const dbPath = path.join(__dirname, '../../expense_tracker.db');
+  const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
+    if (err) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to connect to database',
+        details: err.message 
+      });
+    }
+    
+    // Test query
+    db.all('SELECT name FROM sqlite_master WHERE type="table"', [], (err, tables) => {
+      if (err) {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to query database',
+          details: err.message 
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'Database connection successful',
+        tables: tables.map(t => t.name) 
+      });
+      
+      db.close();
+    });
+  });
+});
 
 // Middleware to protect routes
 // TODO: Create and implement auth middleware
@@ -68,6 +103,13 @@ router.get('/categories', /* auth, */ async (req, res) => {
     // Get month and year from query params (optional)
     const { month, year } = req.query;
     
+    // Use the Expense model's method to get categories
+    const Expense = require('../models/Expense');
+    
+    // If you have a method to get categories in the Expense model, use it here
+    // For now, we'll use a direct query
+    const db = Expense.db;
+    
     let sql = `
       SELECT 
         category,
@@ -88,20 +130,28 @@ router.get('/categories', /* auth, */ async (req, res) => {
     
     db.all(sql, params, (err, rows) => {
       if (err) {
-        console.error('Error getting category data:', err);
+        console.error('Error in categories route:', err);
         return res.status(500).json({ 
-          message: 'Error getting category data',
+          message: 'Server error', 
           error: err.message 
         });
       }
       
-      res.json(rows);
+      // Format the response
+      const categories = rows.map(row => ({
+        id: row.category.toLowerCase(),
+        name: row.category,
+        total: parseFloat(row.total) || 0,
+        count: row.count
+      }));
+      
+      res.json(categories);
     });
-  } catch (err) {
-    console.error('Error in categories route:', err);
+  } catch (error) {
+    console.error('Error in categories route:', error);
     res.status(500).json({ 
       message: 'Server error', 
-      error: err.message 
+      error: error.message 
     });
   }
 });

@@ -226,4 +226,6 @@ class Expense {
   }
 }
 
+// Export both the Expense class and the db instance
+Expense.db = db;
 module.exports = Expense;
