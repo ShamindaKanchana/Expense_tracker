@@ -90,21 +90,38 @@ const AddExpense = () => {
     setSubmitStatus({ success: false, message: '' });
     
     try {
-      // In a real app, you would make an API call to save the expense
-      // For demo purposes, we'll simulate an API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Find the category name from the categories array
+      const selectedCategory = categories.find(cat => cat.id.toString() === formData.category)?.name || 'Others';
       
-      // In a real app, you would handle the response from the API
-      console.log('Expense data to be saved:', {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        date: new Date(formData.date).toISOString()
+      const response = await fetch('http://localhost:5000/api/expenses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': `Bearer ${userToken}` // Uncomment when auth is implemented
+        },
+        body: JSON.stringify({
+          amount: parseFloat(formData.amount),
+          description: formData.description,
+          category: selectedCategory, // Send the category name instead of ID
+          date: formData.date
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save expense');
+      }
+
+      const savedExpense = await response.json();
       
       // Show success message
       setSubmitStatus({
         success: true,
-        message: 'Expense added successfully!'
+        message: 'Expense added successfully!',
+        expense: {
+          ...savedExpense,
+          date: new Date(formData.date).toISOString()
+        }
       });
       
       // Reset form
@@ -120,9 +137,18 @@ const AddExpense = () => {
       
     } catch (error) {
       console.error('Error adding expense:', error);
+      let errorMessage = 'Failed to add expense. Please try again.';
+      
+      // Check if the error is due to HTML response (like a 404 page)
+      if (error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
+        errorMessage = 'Server returned an HTML error page. Please check if the backend server is running and accessible at http://localhost:5000';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       setSubmitStatus({
         success: false,
-        message: 'Failed to add expense. Please try again.'
+        message: errorMessage
       });
     } finally {
       setIsSubmitting(false);

@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Pie } from 'react-chartjs-2';
 import { 
   Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
   Tooltip, 
   Legend 
 } from 'chart.js';
 import './MonthlyExpenses.css';
 
 // Register ChartJS components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Tooltip, 
+  Legend
+);
 
 const MonthlyExpenses = () => {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -43,46 +50,43 @@ const MonthlyExpenses = () => {
     setYear(parseInt(e.target.value));
   };
 
-  // Simulate fetching monthly data
+  // Fetch monthly data from the backend
   useEffect(() => {
     const fetchMonthlyData = async () => {
       setLoading(true);
       try {
-        // In a real app, you would fetch this data from your API
-        // const response = await fetch(`/api/expenses/summary?year=${year}`);
-        // const data = await response.json();
+        const response = await fetch(`http://localhost:5000/api/expenses/monthly?year=${year}`);
+        if (!response.ok) throw new Error('Failed to fetch monthly data');
         
-        // Simulated data
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const monthlyData = await response.json();
         
-        const simulatedData = Array(12).fill(0).map((_, i) => ({
-          month: i + 1,
-          total: Math.floor(Math.random() * 3000) + 500, // Random amount between 500 and 3500
-          categories: [
-            { name: 'Food', amount: Math.floor(Math.random() * 1000) + 100 },
-            { name: 'Transport', amount: Math.floor(Math.random() * 800) + 50 },
-            { name: 'Entertainment', amount: Math.floor(Math.random() * 600) + 50 },
-            { name: 'Bills', amount: Math.floor(Math.random() * 1500) + 200 },
-            { name: 'Others', amount: Math.floor(Math.random() * 400) + 50 },
-          ]
-        }));
+        // Format data for the chart - ensure we have all 12 months
+        const formattedData = Array(12).fill().map((_, index) => {
+          const monthNumber = (index + 1).toString().padStart(2, '0');
+          // Handle both string and number month formats
+          const monthData = monthlyData.find(m => 
+            m.month === monthNumber || m.month === index + 1 || m.month === String(index + 1)
+          ) || { 
+            total: 0, 
+            count: 0 
+          };
+          
+          return {
+            month: index + 1,
+            year: monthData.year || year,
+            total: parseFloat(monthData.total) || 0,
+            count: parseInt(monthData.count) || 0,
+            categories: monthData.categories || [] // Will be populated when month is selected
+          };
+        });
         
-        setMonthlyData(simulatedData);
+        setMonthlyData(formattedData);
         
-        // Set the current month as selected by default
-        const currentMonth = new Date().getMonth();
-        if (year === new Date().getFullYear()) {
-          const month = simulatedData.find(m => m.month === currentMonth + 1);
-          if (month) {
-            setSelectedMonth(month);
-            setCategoryData(month.categories);
-          }
-        } else {
-          const month = simulatedData.find(m => m.month === 1);
-          if (month) {
-            setSelectedMonth(month);
-            setCategoryData(month.categories);
-          }
+        // Set current month as selected by default
+        const currentMonth = new Date().getMonth() + 1;
+        const currentMonthData = formattedData.find(m => m.month === currentMonth);
+        if (currentMonthData) {
+          setSelectedMonth(currentMonthData);
         }
         
       } catch (err) {
@@ -103,8 +107,12 @@ const MonthlyExpenses = () => {
       {
         label: 'Monthly Expenses ($)',
         data: monthlyData.map(month => month.total),
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: monthlyData.map((_, index) => 
+          selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(75, 192, 192, 0.6)'
+        ),
+        borderColor: monthlyData.map((_, index) =>
+          selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 1)' : 'rgba(75, 192, 192, 1)'
+        ),
         borderWidth: 1,
       },
     ],
@@ -170,11 +178,25 @@ const MonthlyExpenses = () => {
       </div>
       
       <div className="chart-container">
+        {/* Monthly Bar Chart */}
         <div className="monthly-chart">
-          <h2>{selectedMonth ? months[selectedMonth.month - 1] : ''} {year} Overview</h2>
+          <h2>Monthly Expenses for {year}</h2>
           <div className="chart-wrapper">
             <Bar 
-              data={monthlyChartData} 
+              data={{
+                labels: months.map(month => month.substring(0, 3)),
+                datasets: [{
+                  label: 'Monthly Expenses ($)',
+                  data: monthlyData.map(month => month.total),
+                  backgroundColor: monthlyData.map((_, index) => 
+                    selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(75, 192, 192, 0.6)'
+                  ),
+                  borderColor: monthlyData.map((_, index) =>
+                    selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 1)' : 'rgba(75, 192, 192, 1)'
+                  ),
+                  borderWidth: 1
+                }]
+              }}
               options={{
                 responsive: true,
                 maintainAspectRatio: false,
@@ -197,33 +219,46 @@ const MonthlyExpenses = () => {
             />
           </div>
         </div>
-        
+
         {selectedMonth && (
           <div className="category-breakdown">
             <h2>Category Breakdown for {months[selectedMonth.month - 1]}</h2>
-            <div className="chart-wrapper">
-              <Bar 
-                data={categoryChartData} 
+            <div className="pie-chart-container" style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}>
+              <Pie 
+                data={{
+                  labels: categoryData.map(cat => cat.name),
+                  datasets: [{
+                    data: categoryData.map(cat => cat.amount),
+                    backgroundColor: [
+                      'rgba(255, 99, 132, 0.6)',
+                      'rgba(54, 162, 235, 0.6)',
+                      'rgba(255, 206, 86, 0.6)',
+                      'rgba(75, 192, 192, 0.6)',
+                      'rgba(153, 102, 255, 0.6)',
+                      'rgba(255, 159, 64, 0.6)'
+                    ],
+                    borderWidth: 1
+                  }]
+                }}
                 options={{
                   responsive: true,
-                  maintainAspectRatio: false,
-                  indexAxis: 'y',
-                  scales: {
-                    x: {
-                      beginAtZero: true,
-                      ticks: {
-                        callback: value => `$${value}`
-                      }
-                    }
-                  },
                   plugins: {
+                    legend: {
+                      position: 'right',
+                    },
                     tooltip: {
                       callbacks: {
-                        label: context => ` $${context.raw}`
+                        label: function(context) {
+                          const label = context.label || '';
+                          const value = context.raw || 0;
+                          const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                          const percentage = Math.round((value / total) * 100);
+                          return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                        }
                       }
                     }
                   }
-                }} 
+                }}
               />
             </div>
             
@@ -248,7 +283,7 @@ const MonthlyExpenses = () => {
                 <div className="category-item total">
                   <div className="category-name">Total</div>
                   <div className="category-amount">
-                    ${categoryData.reduce((sum, cat) => sum + cat.amount, 0).toFixed(2)}
+                    ${selectedMonth.total.toFixed(2)}
                   </div>
                   <div className="category-percentage">100%</div>
                 </div>

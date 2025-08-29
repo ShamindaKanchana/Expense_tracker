@@ -31,8 +31,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 
-// Expense routes (partially implemented - uncomment when ready)
-// app.use('/api/expenses', require('./routes/expenses'));
+// Expense routes
+app.use('/api/expenses', require('./routes/expenses'));
 
 // Categories route is not implemented yet
 // app.use('/api/categories', require('./routes/categories'));
