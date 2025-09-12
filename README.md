@@ -126,10 +126,5 @@ The application uses the following main tables:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contact
 
-For any questions or feedback, please contact [Your Name] at [your.email@example.com].
-
----
-
-Built with ❤️ by [Your Name]
+Built with ❤️ by  Shaminda Kanchana
