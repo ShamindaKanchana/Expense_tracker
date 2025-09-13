@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import './AddExpense.css';
 
 const AddExpense = () => {
@@ -39,14 +40,8 @@ const AddExpense = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/expenses/categories', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setCategories(data);
-        }
+        const response = await api.get('/expenses/categories');
+        setCategories(response.data);
       } catch (error) {
         console.error('Error fetching categories:', error);
       }
@@ -121,26 +116,14 @@ const AddExpense = () => {
       
       console.log('Sending request to backend:', requestBody);
       
-      const response = await fetch('http://localhost:5000/api/expenses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${userToken}` // Uncomment when auth is implemented
-        },
-        body: JSON.stringify({
-          amount: parseFloat(formData.amount),
-          description: formData.description,
-          category: categories.find(cat => cat.id.toString() === formData.category)?.name || formData.category,
-          date: formData.date
-        })
+      const response = await api.post('/expenses', {
+        amount: parseFloat(formData.amount),
+        description: formData.description,
+        category: categories.find(cat => cat.id.toString() === formData.category)?.name || formData.category,
+        date: formData.date
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save expense');
-      }
-
-      const savedExpense = await response.json();
+      const savedExpense = response.data;
       
       // Show success message
       setSubmitStatus({

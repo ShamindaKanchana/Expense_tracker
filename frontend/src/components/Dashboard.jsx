@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import api from '../services/api';
 import './Dashboard.css';
 
 // Register ChartJS components
@@ -43,26 +44,12 @@ const Dashboard = () => {
     const fetchCategoryData = async () => {
       console.group('=== Starting Category Data Fetch ===');
       try {
-        const token = localStorage.getItem('token');
-        console.log('🔑 Using token for categories fetch:', token ? 'Token exists' : 'No token');
+        console.log('🔑 Using token for categories fetch:', localStorage.getItem('token') ? 'Token exists' : 'No token');
         
-        const response = await fetch('http://localhost:5000/api/expenses/categories', {
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          credentials: 'include',
-          cache: 'no-store' // Prevent caching
-        });
-
+        const response = await api.get('/expenses/categories');
         console.log('📡 API Response status:', response.status);
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to fetch category data: ${response.status} ${errorText}`);
-        }
-
-        const categories = await response.json();
+        const categories = response.data;
         console.log('📊 Received categories from API:', categories);
         
         if (isMounted && categories && Array.isArray(categories) && categories.length > 0) {
@@ -145,20 +132,11 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchMonthlyData = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/expenses/monthly-summary', {
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch monthly data');
-        }
-
-        const data = await response.json();
+        setIsLoadingMonthly(true);
+        
+        const response = await api.get('/expenses/monthly-summary');
+        const data = response.data;
+        
         setMonthlyData(data.monthlyData || []);
         
         // Update max month if data is available
@@ -189,22 +167,9 @@ const Dashboard = () => {
     const fetchHighestSpendingMonth = async () => {
       try {
         setIsLoadingMonthly(true);
-        const token = localStorage.getItem('token');
         
-        const response = await fetch('http://localhost:5000/api/expenses/monthly-totals', {
-          method: 'GET',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch monthly totals');
-        }
-        
-        const data = await response.json();
+        const response = await api.get('/expenses/monthly-totals');
+        const data = response.data;
         
         if (data.highestSpendingMonth) {
           setMaxMonth({
@@ -239,17 +204,8 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchRecent = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/expenses/recent', {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          credentials: 'include'
-        });
-        if (!response.ok) throw new Error('Failed to fetch recent expenses');
-        const data = await response.json();
-        setRecentExpenses(Array.isArray(data) ? data : []);
+        const response = await api.get('/expenses/recent');
+        setRecentExpenses(Array.isArray(response.data) ? response.data : []);
       } catch (e) {
         console.error('Error fetching recent expenses:', e);
         setRecentExpenses([]);
@@ -263,38 +219,12 @@ const Dashboard = () => {
     const fetchCurrentMonthTotal = async () => {
       try {
         setIsLoading(true);
-        const token = localStorage.getItem('token');
-        
         console.log('Attempting to fetch current month total...');
-        console.log('Using token:', token ? 'Token exists' : 'No token found');
         
-        const response = await fetch('http://localhost:5000/api/expenses/current-month-total', {
-          method: 'GET',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          credentials: 'include'
-        }).catch(networkError => {
-          console.error('Network error:', networkError);
-          throw new Error('Network error. Is the backend server running?');
-        });
-        
+        const response = await api.get('/expenses/current-month-total');
         console.log('API Response status:', response.status);
         
-        if (!response.ok) {
-          let errorData;
-          try {
-            errorData = await response.json();
-            console.error('API Error response:', errorData);
-          } catch (e) {
-            console.error('Failed to parse error response as JSON');
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
+        const data = response.data;
         console.log('API Response data:', data);
         
         if (data.total === undefined) {

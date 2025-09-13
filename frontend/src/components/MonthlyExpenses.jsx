@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { 
   Chart as ChartJS, 
@@ -9,6 +9,7 @@ import {
   Tooltip, 
   Legend 
 } from 'chart.js';
+import api from '../services/api';
 import './MonthlyExpenses.css';
 
 // Register ChartJS components
@@ -38,12 +39,11 @@ const MonthlyExpenses = () => {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  const fetchCategoriesFor = React.useCallback(async (monthNumber, targetYear) => {
+  const fetchCategoriesFor = useCallback(async (monthNumber, targetYear) => {
     try {
       const monthParam = String(monthNumber).padStart(2, '0');
-      const response = await fetch(`http://localhost:5000/api/expenses/categories?month=${monthParam}&year=${targetYear}`);
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      const categories = await response.json();
+      const response = await api.get(`/expenses/categories?month=${monthParam}&year=${targetYear}`);
+      const categories = response.data;
       // Map backend { name/ category, total } to { name, amount }
       const mapped = (categories || []).map(c => ({
         name: c.name || c.category || 'Uncategorized',
@@ -73,10 +73,8 @@ const MonthlyExpenses = () => {
     const fetchMonthlyData = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:5000/api/expenses/monthly?year=${year}`);
-        if (!response.ok) throw new Error('Failed to fetch monthly data');
-        
-        const monthlyData = await response.json();
+        const response = await api.get(`/expenses/monthly?year=${year}`);
+        const monthlyData = response.data;
         
         // Format data for the chart - ensure we have all 12 months
         const formattedData = Array(12).fill().map((_, index) => {
