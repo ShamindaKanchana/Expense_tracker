@@ -123,7 +123,7 @@ const MonthlyExpenses = () => {
     labels: monthlyData.map((_, i) => months[i].substring(0, 3)),
     datasets: [
       {
-        label: 'Monthly Expenses ($)',
+        label: 'Monthly Expenses (Rs)',
         data: monthlyData.map(month => month.total),
         backgroundColor: monthlyData.map((_, index) => 
           selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(75, 192, 192, 0.6)'
@@ -204,7 +204,7 @@ const MonthlyExpenses = () => {
               data={{
                 labels: months.map(month => month.substring(0, 3)),
                 datasets: [{
-                  label: 'Monthly Expenses ($)',
+                  label: 'Monthly Expenses (Rs)',
                   data: monthlyData.map(month => month.total),
                   backgroundColor: monthlyData.map((_, index) => 
                     selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(75, 192, 192, 0.6)'
@@ -344,7 +344,7 @@ const MonthlyExpenses = () => {
                     }}>
                       {category.name}
                     </div>
-                    <div className="category-amount">${category.amount.toFixed(2)}</div>
+                    <div className="category-amount">Rs {category.amount.toFixed(2)}</div>
                     <div className="category-percentage">
                       {((category.amount / categoryData.reduce((sum, cat) => sum + cat.amount, 0)) * 100).toFixed(1)}%
                     </div>
@@ -354,7 +354,7 @@ const MonthlyExpenses = () => {
                 <div className="category-item total">
                   <div className="category-name">Total</div>
                   <div className="category-amount">
-                    ${selectedMonth.total.toFixed(2)}
+                    Rs {selectedMonth.total.toFixed(2)}
                   </div>
                   <div className="category-percentage">100%</div>
                 </div>

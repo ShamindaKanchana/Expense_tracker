@@ -401,14 +401,14 @@ const Dashboard = () => {
                   y: {
                     beginAtZero: true,
                     ticks: {
-                      callback: value => `$${value}`
+                      callback: value => `Rs ${value}`
                     }
                   }
                 },
                 plugins: {
                   tooltip: {
                     callbacks: {
-                      label: context => `$${context.raw.toFixed(2)}`
+                      label: context => `Rs ${context.raw.toFixed(2)}`
                     }
                   }
                 }
