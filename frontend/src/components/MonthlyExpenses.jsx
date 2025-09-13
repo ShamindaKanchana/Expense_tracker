@@ -224,14 +224,14 @@ const MonthlyExpenses = () => {
                   y: {
                     beginAtZero: true,
                     ticks: {
-                      callback: value => `$${value}`
+                      callback: value => `Rs ${value}`
                     }
                   }
                 },
                 plugins: {
                   tooltip: {
                     callbacks: {
-                      label: context => ` $${context.raw}`
+                      label: context => ` Rs ${context.raw}`
                     }
                   }
                 }
@@ -294,7 +294,7 @@ const MonthlyExpenses = () => {
                           const total = context.dataset.data.reduce((a, b) => a + b, 0);
                           const percentage = Math.round((value / total) * 100);
                           return [
-                            `${label}: $${value.toFixed(2)}`,
+                            `${label}: Rs ${value.toFixed(2)}`,
                             `(${percentage}% of total)`
                           ];
                         }
@@ -302,7 +302,7 @@ const MonthlyExpenses = () => {
                     },
                     // Custom center text plugin config
                     centerText: {
-                      text: `$${categoryData.reduce((sum, c) => sum + (Number(c.amount) || 0), 0).toFixed(2)}`
+                      text: `Rs ${categoryData.reduce((sum, c) => sum + (Number(c.amount) || 0), 0).toFixed(2)}`
                     }
                   },
                   layout: {

@@ -12,8 +12,8 @@ const pool = mysql.createPool({
   connectionLimit: 20,
   queueLimit: 0,
   ssl: {
-    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
-    ssl: process.env.DB_SSL === 'true'
+    rejectUnauthorized: false, // Set to false to bypass self-signed certificate error
+    ca: process.env.DB_CA_CERT // You might need to provide the CA certificate
   }
 });
 

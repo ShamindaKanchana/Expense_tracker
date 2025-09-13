@@ -358,7 +358,7 @@ const Dashboard = () => {
   const monthlyChartData = {
     labels: monthlyData.map(item => item.month),
     datasets: [{
-      label: 'Monthly Expenses ($)',
+      label: 'Monthly Expenses (Rs)',
       data: monthlyData.map(item => item.total),
       backgroundColor: 'rgba(54, 162, 235, 0.5)',
       borderColor: 'rgba(54, 162, 235, 1)',
@@ -369,7 +369,7 @@ const Dashboard = () => {
   const categoryChartData = {
     labels: categoryData.map(item => item.category),
     datasets: [{
-      label: 'Expenses by Category ($)',
+      label: 'Expenses by Category (Rs)',
       data: categoryData.map(item => item.total),
       backgroundColor: [
         'rgba(255, 99, 132, 0.5)',
@@ -394,7 +394,7 @@ const Dashboard = () => {
       <div className="summary-cards">
         <div className="card">
           <h3>Total Spent This Month</h3>
-          <p className="amount">${totalSpent.toFixed(2)}</p>
+          <p className="amount">Rs {totalSpent.toFixed(2)}</p>
           {isLoading && <div className="loading">Loading...</div>}
           {error && (
             <div className="error" style={{ 
@@ -416,7 +416,7 @@ const Dashboard = () => {
           ) : maxMonth.month ? (
             <div>
               <p>{`${maxMonth.month} ${maxMonth.year}`}</p>
-              <p className="amount">${maxMonth.total}</p>
+              <p className="amount">Rs {maxMonth.total}</p>
             </div>
           ) : (
             <p>No data available</p>
@@ -429,7 +429,7 @@ const Dashboard = () => {
           ) : maxCategoryRef.current?.category ? (
             <div>
               <p>{maxCategoryRef.current.category}</p>
-              <p className="amount">${maxCategoryRef.current.total}</p>
+              <p className="amount">Rs {maxCategoryRef.current.total}</p>
               <div style={{fontSize: '0.8em', color: '#666', marginTop: '8px'}}>
                
                
@@ -518,7 +518,7 @@ const Dashboard = () => {
                         const value = context.raw || 0;
                         const total = context.dataset.data.reduce((a, b) => a + b, 0);
                         const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                        return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                        return `${label}: Rs ${value.toFixed(2)} (${percentage}%)`;
                       }
                     }
                   },
@@ -559,7 +559,7 @@ const Dashboard = () => {
                     <td>{expense.description}</td>
                     <td>{expense.category}</td>
                     <td>{new Date(expense.date).toLocaleDateString()}</td>
-                    <td>${expense.amount.toFixed(2)}</td>
+                    <td>Rs {expense.amount.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
