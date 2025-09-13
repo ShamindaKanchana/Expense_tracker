@@ -11,6 +11,15 @@ const AddExpense = () => {
     { id: 5, name: 'Shopping' },
     { id: 6, name: 'Others' },
   ]);
+
+  const render_category=[
+    { id: 1, name: 'Food' },
+    { id: 2, name: 'Transport' },
+    { id: 3, name: 'Entertainment' },
+    { id: 4, name: 'Bills' },
+    { id: 5, name: 'Shopping' },
+    { id: 6, name: 'Others' },
+  ]
   
   const [formData, setFormData] = useState({
     amount: '',
@@ -213,9 +222,10 @@ const AddExpense = () => {
               required
             >
               <option value="">Select a category</option>
-              {categories.map(category => (
+              {render_category.map(category => (
                 <option key={category.id} value={category.id}>
-                  {category.name}
+                  {category.name} 
+
                 </option>
               ))}
             </select>
