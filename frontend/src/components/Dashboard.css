@@ -3,6 +3,9 @@
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+  position: relative;
+  min-height: calc(100vh - 3rem);
+  padding-bottom: 3rem;
 }
 
 .dashboard h1 {
@@ -110,12 +113,12 @@
 
 .expenses-list {
   overflow-x: auto;
+  margin-top: 1rem;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
 }
 
 th, td {
@@ -195,12 +198,39 @@ tr:hover {
 }
 
 .spinner {
+  display: inline-block;
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid var(--primary-color);
+  border: 4px solid rgba(0, 0, 0, 0.1);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  border-top-color: var(--primary-color);
+  animation: spin 1s ease-in-out infinite;
+  margin: 0 auto;
+}
+
+/* Developer Credit Styles */
+.developer-credit {
+  position: absolute;
+  bottom: 1rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  margin-top: 2rem;
+  padding: 0.5rem;
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.developer-credit p {
+  margin: 0;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.developer-credit:hover p {
+  opacity: 1;
+  color: var(--primary-color);
 }
 
 @keyframes spin {

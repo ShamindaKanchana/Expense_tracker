@@ -509,6 +509,11 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+      
+      {/* Professional Developer Credit */}
+      <footer className="developer-credit">
+        <p>© 2025 Expense Tracker | Developed by Shaminda Kanchana</p>
+      </footer>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../services/api';
+import './Login.css';
 
 const Login = ({ setIsAuthenticated }) => {
   const [formData, setFormData] = useState({
@@ -148,7 +149,10 @@ const Login = ({ setIsAuthenticated }) => {
           </div>
         </form>
         
-       
+        {/* Professional Developer Credit */}
+        <footer className="login-credit">
+          <p> 2025 Expense Tracker | Developed by Shaminda Kanchana</p>
+        </footer>
       </div>
     </div>
   );

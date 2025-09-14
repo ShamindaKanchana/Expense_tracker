@@ -45,6 +45,28 @@
   margin-bottom: 1.5rem;
 }
 
+/* Login Credit Footer */
+.login-credit {
+  text-align: center;
+  margin-top: 2rem;
+  padding: 1rem 0 0;
+  border-top: 1px solid #eee;
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.login-credit p {
+  margin: 0;
+  opacity: 0.8;
+  transition: all 0.3s ease;
+}
+
+.login-credit:hover p {
+  opacity: 1;
+  color: var(--primary-color);
+}
+
 .login-form label {
   display: block;
   margin-bottom: 0.5rem;
