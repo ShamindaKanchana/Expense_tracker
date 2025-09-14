@@ -36,9 +36,9 @@ router.get('/test-db', async (req, res) => {
 // @access  Private
 
 
-router.get('/monthly-totals', async (req, res) => {
+router.get('/monthly-totals', auth, async (req, res) => {
   try {
-    const userId = 1; // TODO: replace with req.user.id later
+    const userId = req.user.id;
 
     const sql = `
       SELECT 
@@ -79,9 +79,9 @@ router.get('/monthly-totals', async (req, res) => {
 // @route   GET /api/expenses/monthly-summary
 // @desc    Get monthly summary data for the dashboard
 // @access  Private
-router.get('/monthly-summary', async (req, res) => {
+router.get('/monthly-summary', auth, async (req, res) => {
   try {
-    const userId = 1;
+    const userId = req.user.id;
     const sql = `
       SELECT 
         YEAR(\`date\`) AS year,
@@ -234,9 +234,9 @@ router.get('/top-category', auth, async (req, res) => {
 // @route   GET /api/expenses/recent
 // @desc    Get latest 5 expenses for the user
 // @access  Private
-router.get('/recent', async (req, res) => {
+router.get('/recent', auth, async (req, res) => {
   try {
-    const userId = 1; // TODO: replace with req.user.id
+    const userId = req.user.id;
     const rows = await db.query(
       `SELECT id, description, category, \`date\`, amount
        FROM expenses

@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_URL = 'https://expensetracker-production-b2a5.up.railway.app/api';
+// Set the API URL based on the environment
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_URL = isDevelopment 
+  ? 'http://localhost:5000/api'  // Development
+  : 'https://expensetracker-production-b2a5.up.railway.app/api';  // Production
+
+console.log(`Using ${isDevelopment ? 'development' : 'production'} API: ${API_URL}`);
 
 // Create axios instance
 const api = axios.create({

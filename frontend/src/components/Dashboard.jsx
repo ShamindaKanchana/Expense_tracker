@@ -22,6 +22,19 @@ const Dashboard = () => {
   // Use useRef to maintain maxCategory between re-renders
   const maxCategoryRef = useRef({ category: '', total: 0 });
   const [maxCategory, setMaxCategory] = useState({ category: '', total: 0 });
+  
+  // Log the current user's ID on component mount
+  useEffect(() => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        console.log('🔐 Logged in user ID:', user.id);
+      }
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+    }
+  }, []);
 
   // Debug effect to log maxCategory changes with stack trace
   useEffect(() => {
@@ -368,10 +381,7 @@ const Dashboard = () => {
           ) : (
             <div>
               <p>No category data available</p>
-              <div style={{fontSize: '0.8em', color: '#666', marginTop: '8px'}}>
-                <div>State: {JSON.stringify(maxCategoryRef.current)}</div>
-                <div>Time: {new Date().toISOString()}</div>
-              </div>
+             
             </div>
           )}
         </div>
