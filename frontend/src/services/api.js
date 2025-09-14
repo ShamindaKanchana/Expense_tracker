@@ -32,7 +32,15 @@ export const authApi = {
       throw error.response?.data?.message || 'Login failed';
     }
   },
-  // Add other auth methods (register, logout, etc.) as needed
+  
+  register: async (userData) => {
+    try {
+      const response = await api.post('/auth/register', userData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || 'Registration failed';
+    }
+  }
 };
 
 export default api;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import Login from './components/Login';
+import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import AddExpense from './components/AddExpense';
 import MonthlyExpenses from './components/MonthlyExpenses';
@@ -34,6 +35,14 @@ function App() {
               element={
                 !isAuthenticated ? 
                 <Login setIsAuthenticated={setIsAuthenticated} /> : 
+                <Navigate to="/dashboard" />
+              } 
+            />
+            <Route 
+              path="/register" 
+              element={
+                !isAuthenticated ? 
+                <Register setIsAuthenticated={setIsAuthenticated} /> : 
                 <Navigate to="/dashboard" />
               } 
             />

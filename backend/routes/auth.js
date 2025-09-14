@@ -3,6 +3,8 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const db = require('../config/db');
+const auth = require('../middleware/auth');
 
 if (!process.env.JWT_SECRET) {
   console.error('FATAL ERROR: JWT_SECRET is not defined.');
@@ -114,11 +116,26 @@ router.post('/login', async (req, res) => {
 // @route   GET /api/auth/me
 // @desc    Get current user's profile
 // @access  Private
-router.get('/me', (req, res) => {
-  // TODO: Add authentication middleware
-  // 1. Get user ID from JWT token
-  // 2. Find user by ID
-  // 3. Return user data (without password)
+router.get('/me', auth, async (req, res) => {
+  try {
+    // User ID is available from req.user set by the auth middleware
+    const userId = req.user.id;
+    
+    // Find user by ID without the password
+    const [user] = await db.query(
+      'SELECT id, username, email, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!user || user.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user[0]);
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 module.exports = router;

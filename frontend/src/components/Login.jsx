@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../services/api';
 
 const Login = ({ setIsAuthenticated }) => {
@@ -118,9 +118,9 @@ const Login = ({ setIsAuthenticated }) => {
             </div>
 
             <div className="text-sm">
-              <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Forgot your password?
-              </a>
+              <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+                Don't have an account? Sign up
+              </Link>
             </div>
           </div>
 

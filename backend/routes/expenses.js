@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Expense = require('../models/Expense');
 const db = require('../config/db');
-
+const auth = require('../middleware/auth');
 const path = require('path');
 
 // Test database connection (MySQL)
@@ -111,9 +111,9 @@ router.get('/monthly-summary', async (req, res) => {
 // @route   GET /api/expenses/current-month-total
 // @desc    Get total expenses for the current month
 // @access  Private
-router.get('/current-month-total', /* auth, */ async (req, res) => {
+router.get('/current-month-total', auth, async (req, res) => {
   try {
-    const userId = 1; // TODO: replace with req.user.id
+    const userId = req.user.id;
     const sql = `
       SELECT COALESCE(SUM(amount), 0) AS total 
       FROM expenses 
@@ -144,11 +144,9 @@ router.get('/', /* auth, */ async (req, res) => {
 // @route   GET /api/expenses/monthly
 // @desc    Get monthly expense summary
 // @access  Private
-router.get('/monthly', /* auth, */ async (req, res) => {
+router.get('/monthly', auth, async (req, res) => {
   try {
-    // TODO: Uncomment and use this when auth is implemented
-    // const userId = req.user.id;
-    const userId = 1; // Temporary hardcoded user ID for testing
+    const userId = req.user.id;
     
     // Using the getMonthlySummary method which does the aggregation in SQL
     Expense.getMonthlySummary(userId, null, null, (err, monthlyData) => {
@@ -183,11 +181,9 @@ router.get('/monthly', /* auth, */ async (req, res) => {
 // @route   GET /api/expenses/top-category
 // @desc    Get the top spending category
 // @access  Private
-router.get('/top-category', /* auth, */ async (req, res) => {
+router.get('/top-category', auth, async (req, res) => {
   try {
-    // TODO: Uncomment and use this when auth is implemented
-    // const userId = req.user.id;
-    const userId = 1; // Temporary hardcoded user ID for testing
+    const userId = req.user.id;
     
     const sql = `
       SELECT 
@@ -267,11 +263,9 @@ router.get('/recent', async (req, res) => {
 // @route   GET /api/expenses/categories
 // @desc    Get expenses grouped by category
 // @access  Private
-router.get('/categories', /* auth, */ async (req, res) => {
+router.get('/categories', auth, async (req, res) => {
   try {
-    // TODO: Uncomment and use this when auth is implemented
-    // const userId = req.user.id;
-    const userId = 1; // Temporary hardcoded user ID for testing
+    const userId = req.user.id;
     
     // Get month and year from query params (optional)
     const { month, year } = req.query;
@@ -315,7 +309,7 @@ router.get('/categories', /* auth, */ async (req, res) => {
 // @route   POST /api/expenses
 // @desc    Add a new expense
 // @access  Private
-router.post('/', /* auth, */ async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
     // 1. Validate request data
     const { amount, description, category, date } = req.body;
@@ -334,7 +328,7 @@ router.post('/', /* auth, */ async (req, res) => {
 
     // 2. Create new expense instance
     const expense = new Expense({
-      userId: 1, // Replace with req.user.id when auth is implemented
+      userId: req.user.id,
       amount: parseFloat(amount),
       description: description.trim(),
       category: category.trim(),
@@ -361,22 +355,71 @@ router.post('/', /* auth, */ async (req, res) => {
 // @route   PUT /api/expenses/:id
 // @desc    Update an expense
 // @access  Private
-router.put('/:id', /* auth, */ async (req, res) => {
-  // TODO: Implement logic to update an expense
-  // 1. Validate request data
-  // 2. Find expense by ID and user ID
-  // 3. Update expense
-  // 4. Return updated expense
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { amount, description, category, date } = req.body;
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Validate request data
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ message: 'Please provide a valid amount' });
+    }
+    
+    if (!description || description.trim() === '') {
+      return res.status(400).json({ message: 'Please provide a description' });
+    }
+    
+    if (!category || category.trim() === '') {
+      return res.status(400).json({ message: 'Please provide a category' });
+    }
+
+    // Find and update the expense
+    const [result] = await db.query(
+      'UPDATE expenses SET amount = ?, description = ?, category = ?, date = ? WHERE id = ? AND user_id = ?',
+      [amount, description.trim(), category.trim(), date || new Date(), id, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Expense not found or unauthorized' });
+    }
+
+    // Return the updated expense
+    const [updatedExpense] = await db.query(
+      'SELECT * FROM expenses WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
+
+    res.json(updatedExpense[0]);
+  } catch (err) {
+    console.error('Error updating expense:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
 // @route   DELETE /api/expenses/:id
 // @desc    Delete an expense
 // @access  Private
-router.delete('/:id', /* auth, */ async (req, res) => {
-  // TODO: Implement logic to delete an expense
-  // 1. Find expense by ID and user ID
-  // 2. Delete expense
-  // 3. Return success message
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Delete the expense
+    const [result] = await db.query(
+      'DELETE FROM expenses WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Expense not found or unauthorized' });
+    }
+
+    res.json({ success: true, message: 'Expense deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting expense:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router;
