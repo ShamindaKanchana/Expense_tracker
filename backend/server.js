@@ -15,17 +15,19 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    // In development, allow all origins for easier development
-    if (isDevelopment) return callback(null, true);
-    
-    // In production, only allow specified origins
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      callback(new Error(msg));
+  origin(origin, callback) {
+    // In development or for non-browser clients (no origin header), allow everything
+    if (isDevelopment || !origin) {
+      return callback(null, true);
     }
+
+    if (allowedOrigins.includes(origin)) {
+      // Explicitly echo back the requesting origin so browsers accept the response
+      return callback(null, origin);
+    }
+
+    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    return callback(new Error(msg));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
