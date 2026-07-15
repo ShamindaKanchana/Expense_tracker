@@ -56,6 +56,15 @@ app.get('/', (req, res) => {
   res.send('Expense Tracker API is running');
 });
 
+// Return JSON errors (not HTML pages) so the React app can show messages in the UI
+app.use((err, req, res, next) => {
+  console.error('API error:', err.message);
+  const status = err.status || 500;
+  res.status(status).json({
+    message: err.message || 'Server error',
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

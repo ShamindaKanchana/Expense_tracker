@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../services/api';
+import { getErrorMessage } from '../utils/errorMessage';
 import './Login.css';
 
 const Login = ({ setIsAuthenticated }) => {
@@ -43,7 +44,7 @@ const Login = ({ setIsAuthenticated }) => {
       navigate('/dashboard');
       
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
+      setError(getErrorMessage(err, 'Login failed. Please try again.'));
     } finally {
       setLoading(false);
     }

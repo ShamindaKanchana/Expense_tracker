@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../services/api';
+import { getErrorMessage } from '../utils/errorMessage';
+import './Login.css';
 
 const Register = ({ setIsAuthenticated }) => {
   const [formData, setFormData] = useState({
@@ -53,7 +55,7 @@ const Register = ({ setIsAuthenticated }) => {
       navigate('/dashboard');
       
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(getErrorMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -61,21 +63,22 @@ const Register = ({ setIsAuthenticated }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            Expense Tracker
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600">Create your account</p>
+          <p className="mt-2 text-sm text-gray-600">
             Or{' '}
             <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
               sign in to your existing account
             </Link>
           </p>
         </div>
-        
+
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">

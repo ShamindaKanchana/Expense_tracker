@@ -23,16 +23,27 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // 2. Check if user already exists
-    const existingUser = await new Promise((resolve, reject) => {
+    // 2. Check if email or username is already taken
+    const existingByEmail = await new Promise((resolve, reject) => {
       User.findByEmail(email, (err, user) => {
         if (err) reject(err);
         else resolve(user);
       });
     });
 
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+    if (existingByEmail) {
+      return res.status(400).json({ message: 'An account with this email already exists' });
+    }
+
+    const existingByUsername = await new Promise((resolve, reject) => {
+      User.findByUsername(username, (err, user) => {
+        if (err) reject(err);
+        else resolve(user);
+      });
+    });
+
+    if (existingByUsername) {
+      return res.status(400).json({ message: 'This username is already taken' });
     }
 
     // 3. Create new user (password is hashed in the User.create method)
@@ -57,6 +68,14 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+
+    if (error.code === 'ER_DUP_ENTRY') {
+      const message = error.message?.includes('email')
+        ? 'An account with this email already exists'
+        : 'This username is already taken';
+      return res.status(400).json({ message });
+    }
+
     res.status(500).json({ message: 'Server error during registration' });
   }
 });
