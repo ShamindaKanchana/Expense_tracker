@@ -4,6 +4,18 @@ Guide for moving the Expense Tracker API from Railway to Render using **environm
 
 Use the checklist below as your single source of truth. Edit this file and change `[ ]` to `[x]` as you complete each item so you can stop and resume at any point.
 
+### Current status (last audited: 2026-07-15)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| **Phase 0** — Code prep | **Mostly done** | All code pushed in `afde353`; local smoke test not confirmed |
+| **Phase 1** — Render | **Not started** | No Render URL recorded |
+| **Phase 2** — Vercel | **Not started** | Production likely still on old Railway API (or broken — Railway returns 404) |
+| **Phase 3** — Verify | **Not started** | — |
+| **Phase 4** — Cleanup | **Not started** | `architecture.md` / `README.md` still reference Railway |
+
+**You are here →** Finish Phase 0 local test, then start **Phase 1 (Render)**.
+
 ---
 
 ## Migration Checklist
@@ -12,10 +24,10 @@ Use the checklist below as your single source of truth. Edit this file and chang
 
 | Item | Your value |
 |------|------------|
-| Vercel frontend URL | `https://expense-tracker-liard-nine.vercel.app` |
-| Render backend URL | `https://________________.onrender.com` |
-| Railway backend URL (old) | `https://expensetracker-production-b2a5.up.railway.app` |
-| Aiven DB host | `________________.aivencloud.com` |
+| Vercel frontend URL | `https://expense-tracker-liard-nine.vercel.app` ✅ live |
+| Render backend URL | `https://________________.onrender.com` ⬜ not created yet |
+| Railway backend URL (old) | `https://expensetracker-production-b2a5.up.railway.app` ⚠️ returns 404 |
+| Aiven DB host | `________________.aivencloud.com` ⬜ fill from Aiven console |
 
 ---
 
@@ -23,12 +35,12 @@ Use the checklist below as your single source of truth. Edit this file and chang
 
 Required code changes so URLs are not hardcoded:
 
-- [ ] `frontend/src/config.js` exists and reads `REACT_APP_API_URL`
-- [ ] `frontend/src/services/api.js` imports from `config.js` (no Railway URL)
-- [ ] `backend/server.js` reads `CORS_ALLOWED_ORIGINS` (no hardcoded Vercel URL)
-- [ ] `frontend/.env.example` documents `REACT_APP_API_URL`
-- [ ] `backend/.env.example` documents `CORS_ALLOWED_ORIGINS` and `DB_*` vars
-- [ ] Changes committed and pushed to `main`
+- [x] `frontend/src/config.js` exists and reads `REACT_APP_API_URL`
+- [x] `frontend/src/services/api.js` imports from `config.js` (no Railway URL)
+- [x] `backend/server.js` reads `CORS_ALLOWED_ORIGINS` (no hardcoded Vercel URL)
+- [x] `frontend/.env.example` documents `REACT_APP_API_URL`
+- [x] `backend/.env.example` documents `CORS_ALLOWED_ORIGINS` and `DB_*` vars
+- [x] Changes committed and pushed to `main` (`afde353`)
 
 **Verify locally before deploying:**
 
@@ -41,6 +53,10 @@ npm start
 ```
 
 - [ ] Local login and add-expense flow works
+- [ ] `frontend/.env` created locally (missing on this machine as of last audit)
+- [ ] `backend/.env` uses a **local** DB for safe dev (current local file points at Aiven — see note below)
+
+> **Safety note:** If `backend/.env` has Aiven `DB_HOST`, local dev writes to **production data**. Use `DB_HOST=localhost` for safe testing.
 
 ---
 
@@ -140,11 +156,11 @@ If you stop partway through, use this to find your place:
 
 ### What does **not** need changing
 
-- [ ] N/A — `backend/package.json` (`npm start` works on Render as-is)
-- [ ] N/A — `backend/config/db.js` (already uses `DB_*` env vars)
-- [ ] N/A — Aiven database (same instance, new connection from Render)
-- [ ] N/A — Docker / Procfile / `render.yaml` (optional, not required)
-- [ ] N/A — GitHub Actions workflow (Render native Git deploy is enough)
+- [x] N/A — `backend/package.json` (`npm start` works on Render as-is)
+- [x] N/A — `backend/config/db.js` (already uses `DB_*` env vars)
+- [x] N/A — Aiven database (same instance, new connection from Render)
+- [x] N/A — Docker / Procfile / `render.yaml` (optional, not required)
+- [x] N/A — GitHub Actions workflow (Render native Git deploy is enough)
 
 ---
 
