@@ -4,7 +4,7 @@ Guide for moving the Expense Tracker API from Railway to Render using **environm
 
 Use the checklist below as your single source of truth. Edit this file and change `[ ]` to `[x]` as you complete each item so you can stop and resume at any point.
 
-### Current status (last audited: 2026-07-15)
+### Current status (last audited: 2026-07-15, git email verified)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
