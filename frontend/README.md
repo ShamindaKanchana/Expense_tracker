@@ -65,8 +65,10 @@ This frontend application requires a backend API to function properly. You'll ne
 Create a `.env` file in the frontend root directory and add:
 
 ```
-REACT_APP_API_URL=http://localhost:5000  # Update this if your backend runs on a different port
+REACT_APP_API_URL=http://localhost:5000/api
 ```
+
+See the full guide: [docs/development.md](../docs/development.md)
 
 ### Note for Development
 If you're just testing the frontend without a backend, you can use mock data by uncommenting the mock data sections in the components. Look for comments like `// Simulated data` in the component files.

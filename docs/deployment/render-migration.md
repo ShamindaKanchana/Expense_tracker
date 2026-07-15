@@ -365,16 +365,6 @@ Using GitHub Actions **only to trigger Render deploy** duplicates what Render's 
 
 ## Local Development
 
-```bash
-# Terminal 1 — backend
-cd backend
-cp .env.example .env   # fill in DB + JWT values
-npm run dev
-
-# Terminal 2 — frontend
-cd frontend
-cp .env.example .env   # REACT_APP_API_URL=http://localhost:5000/api
-npm start
-```
+See **[docs/development.md](../development.md)** for the full localhost guide (commands, env vars, verification, and troubleshooting).
 
 No code changes are needed when switching between local, Render, or any future host — only env vars change.

@@ -2,6 +2,7 @@
 
 | Document | Purpose |
 |----------|---------|
+| [../development.md](../development.md) | **Local development** — run on localhost |
 | [architecture.md](./architecture.md) | Current production layout (Vercel + Railway + Aiven) |
 | [render-migration.md](./render-migration.md) | **Railway → Render migration guide and checklist** |
 

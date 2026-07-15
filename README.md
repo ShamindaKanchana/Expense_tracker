@@ -49,6 +49,8 @@ A full-stack expense tracking application built with React, Node.js, Express, an
 
 ## 🛠️ Getting Started
 
+> **Full local setup guide:** [docs/development.md](docs/development.md) — env vars, commands, and troubleshooting.
+
 ### 1. Clone the Repository
 
 ```bash
@@ -98,7 +100,15 @@ cd Expense_tracker
    npm install
    ```
 
-3. Start the development server:
+3. Set up environment variables (optional — defaults to local API):
+   ```bash
+   cp .env.example .env
+   ```
+   ```env
+   REACT_APP_API_URL=http://localhost:5000/api
+   ```
+
+4. Start the development server:
    ```bash
    npm start
    ```
