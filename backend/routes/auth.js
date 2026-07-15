@@ -20,7 +20,7 @@ router.post('/register', async (req, res) => {
 
     // 1. Validate request data
     if (!username || !email || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
+      return res.status(400).json({ message: 'Please fill in your username, email, and password.' });
     }
 
     // 2. Check if email or username is already taken
@@ -32,7 +32,7 @@ router.post('/register', async (req, res) => {
     });
 
     if (existingByEmail) {
-      return res.status(400).json({ message: 'An account with this email already exists' });
+      return res.status(400).json({ message: 'This email is already registered. Try signing in instead.' });
     }
 
     const existingByUsername = await new Promise((resolve, reject) => {
@@ -43,7 +43,7 @@ router.post('/register', async (req, res) => {
     });
 
     if (existingByUsername) {
-      return res.status(400).json({ message: 'This username is already taken' });
+      return res.status(400).json({ message: 'That username is taken. Please choose a different one.' });
     }
 
     // 3. Create new user (password is hashed in the User.create method)
@@ -71,12 +71,12 @@ router.post('/register', async (req, res) => {
 
     if (error.code === 'ER_DUP_ENTRY') {
       const message = error.message?.includes('email')
-        ? 'An account with this email already exists'
-        : 'This username is already taken';
+        ? 'This email is already registered. Try signing in instead.'
+        : 'That username is taken. Please choose a different one.';
       return res.status(400).json({ message });
     }
 
-    res.status(500).json({ message: 'Server error during registration' });
+    res.status(500).json({ message: "We couldn't create your account right now. Please try again in a moment." });
   }
 });
 
@@ -89,7 +89,7 @@ router.post('/login', async (req, res) => {
 
     // 1. Validate request data
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+      return res.status(400).json({ message: 'Please enter your email and password.' });
     }
 
     // 2. Find user by email
@@ -101,13 +101,13 @@ router.post('/login', async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Incorrect email or password. Please check and try again.' });
     }
 
     // 3. Compare passwords
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Incorrect email or password. Please check and try again.' });
     }
 
     // 4. Generate JWT token
@@ -128,7 +128,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    res.status(500).json({ message: "We couldn't sign you in right now. Please try again in a moment." });
   }
 });
 

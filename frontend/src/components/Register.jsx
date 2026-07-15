@@ -27,13 +27,18 @@ const Register = ({ setIsAuthenticated }) => {
     e.preventDefault();
     
     // Validate form data
+    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+      setError('Please fill in all fields before continuing.');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError("Your passwords don't match. Type the same password in both boxes.");
       return;
     }
     
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setError('Your password needs at least 6 characters.');
       return;
     }
     
@@ -56,7 +61,7 @@ const Register = ({ setIsAuthenticated }) => {
       navigate('/dashboard');
       
     } catch (err) {
-      setError(getErrorMessage(err, 'Registration failed. Please try again.'));
+      setError(getErrorMessage(err, "We couldn't create your account. Please try again."));
     } finally {
       setLoading(false);
     }

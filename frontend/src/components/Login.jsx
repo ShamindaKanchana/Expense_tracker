@@ -26,7 +26,7 @@ const Login = ({ setIsAuthenticated }) => {
     
     // Basic validation
     if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+      setError('Please enter both your email and password.');
       return;
     }
     
@@ -45,7 +45,7 @@ const Login = ({ setIsAuthenticated }) => {
       navigate('/dashboard');
       
     } catch (err) {
-      setError(getErrorMessage(err, 'Login failed. Please try again.'));
+      setError(getErrorMessage(err, "We couldn't sign you in. Please try again."));
     } finally {
       setLoading(false);
     }

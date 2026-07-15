@@ -46,7 +46,7 @@ export const authApi = {
       const response = await api.post('/auth/login', { email, password });
       return response.data;
     } catch (error) {
-      throw toRequestError(error, 'Login failed. Please try again.');
+      throw toRequestError(error, "We couldn't sign you in. Please try again.");
     }
   },
 
@@ -55,7 +55,7 @@ export const authApi = {
       const response = await api.post('/auth/register', userData);
       return response.data;
     } catch (error) {
-      throw toRequestError(error, 'Registration failed. Please try again.');
+      throw toRequestError(error, "We couldn't create your account. Please try again.");
     }
   }
 };
