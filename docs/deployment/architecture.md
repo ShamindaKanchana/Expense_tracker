@@ -31,27 +31,27 @@ flowchart TB
     end
 
     subgraph Vercel["Vercel (Frontend)"]
-        SPA["React SPA<br/>Static files from <code>frontend/build</code>"]
+        SPA["React SPA - static files from frontend/build"]
     end
 
     subgraph Railway["Railway (Backend)"]
-        API["Node.js + Express<br/><code>backend/server.js</code>"]
+        API["Node.js + Express - backend/server.js"]
         AuthMW["JWT Auth Middleware"]
         Routes["/api/auth · /api/expenses"]
     end
 
     subgraph Aiven["Aiven Cloud (Database)"]
-        MySQL[("MySQL<br/>users · expenses · categories")]
+        MySQL[("MySQL - users, expenses, categories")]
     end
 
     subgraph GitHub["GitHub Repository"]
-        Repo["Expense_tracker<br/>frontend/ · backend/"]
+        Repo["Expense_tracker - frontend and backend"]
     end
 
     Browser -->|"HTTPS — page load, assets"| SPA
-    Browser -->|"HTTPS — API calls (Axios)<br/>Bearer JWT in Authorization header"| API
+    Browser -->|"HTTPS API calls via Axios with Bearer JWT"| API
 
-    SPA -.->|"Production API base URL<br/>hardcoded in api.js"| API
+    SPA -.->|"Production API URL hardcoded in api.js"| API
 
     API --> AuthMW --> Routes
     Routes -->|"mysql2 pool · SSL"| MySQL
@@ -59,7 +59,7 @@ flowchart TB
     Repo -->|"Auto-deploy on push"| Vercel
     Repo -->|"Auto-deploy on push"| Railway
 
-    API -->|"CORS: allows<br/>expense-tracker-liard-nine.vercel.app"| SPA
+    API -->|"CORS allows Vercel frontend origin"| SPA
 ```
 
 ## Request Flow (Authenticated API Call)
@@ -81,9 +81,9 @@ sequenceDiagram
     Railway-->>Vercel: JWT token
     Vercel->>Vercel: Store token in localStorage
 
-    User->>Vercel: View dashboard / add expense
-    Vercel->>Railway: GET/POST /api/expenses/*<br/>Authorization: Bearer &lt;token&gt;
-    Railway->>Railway: Verify JWT (auth middleware)
+    User->>Vercel: View dashboard or add expense
+    Vercel->>Railway: GET or POST /api/expenses with Bearer JWT
+    Railway->>Railway: Verify JWT via auth middleware
     Railway->>Aiven: Read/write expenses
     Aiven-->>Railway: Data
     Railway-->>Vercel: JSON response
@@ -153,9 +153,9 @@ The production frontend does **not** use `REACT_APP_*` variables for the API URL
 ```mermaid
 flowchart LR
     subgraph Dev["Local Development"]
-        DevFE["localhost:3000<br/>React dev server"]
-        DevBE["localhost:5000<br/>nodemon server.js"]
-        DevDB[("MySQL or SQLite<br/>per .env")]
+        DevFE["localhost:3000 - React dev server"]
+        DevBE["localhost:5000 - nodemon server.js"]
+        DevDB[("MySQL or SQLite per .env")]
         DevFE --> DevBE --> DevDB
     end
 
@@ -187,7 +187,7 @@ flowchart LR
 
     GH --> RBuild["Railway: npm install"]
     RBuild --> RRun["Railway: npm start"]
-    RRun --> REnv["Inject env vars<br/>PORT, DB_*, JWT_SECRET"]
+    RRun --> REnv["Inject env vars PORT DB JWT_SECRET"]
     REnv --> APIUp["API live on *.up.railway.app"]
 ```
 
