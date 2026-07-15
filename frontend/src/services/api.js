@@ -1,12 +1,11 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-// Set the API URL based on the environment
-const isDevelopment = process.env.NODE_ENV === 'development';
-const API_URL = isDevelopment 
-  ? 'http://localhost:5000/api'  // Development
-  : 'https://expensetracker-production-b2a5.up.railway.app/api';  // Production
+const API_URL = API_BASE_URL;
 
-console.log(`Using ${isDevelopment ? 'development' : 'production'} API: ${API_URL}`);
+if (process.env.NODE_ENV === 'development') {
+  console.log(`API base URL: ${API_URL}`);
+}
 
 // Create axios instance
 const api = axios.create({

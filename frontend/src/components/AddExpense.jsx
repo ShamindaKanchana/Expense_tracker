@@ -152,7 +152,7 @@ const AddExpense = () => {
       
       // Check if the error is due to HTML response (like a 404 page)
       if (error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
-        errorMessage = 'Server returned an HTML error page. Please check if the backend server is running and accessible at http://localhost:5000';
+        errorMessage = 'Server returned an HTML error page. Please check that the backend API is running and REACT_APP_API_URL is configured correctly.';
       } else if (error.message) {
         errorMessage = error.message;
       }

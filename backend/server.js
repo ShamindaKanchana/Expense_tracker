@@ -6,13 +6,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration
+// CORS configuration — set CORS_ALLOWED_ORIGINS as comma-separated URLs in production
 const isDevelopment = process.env.NODE_ENV === 'development';
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'https://expense-tracker-liard-nine.vercel.app' // Production domain
-];
+const defaultDevOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : defaultDevOrigins;
 
 const corsOptions = {
   origin(origin, callback) {

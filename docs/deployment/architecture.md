@@ -2,6 +2,8 @@
 
 This document describes how the Expense Tracker application is deployed in production today.
 
+> **Migrating to Render?** Use the step-by-step [migration checklist](./render-migration.md#migration-checklist) in `render-migration.md`.
+
 ## Overview
 
 The app uses a **three-tier, multi-cloud** layout:
