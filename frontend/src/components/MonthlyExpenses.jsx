@@ -30,8 +30,9 @@ const MonthlyExpenses = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Generate years for the dropdown (current year and past 5 years)
-  const years = Array.from({ length: 6 }, (_, i) => year - i);
+  // Always anchor dropdown to the calendar year, not the selected year
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 6 }, (_, i) => currentYear - i);
   
   // Months for display
   const months = [
