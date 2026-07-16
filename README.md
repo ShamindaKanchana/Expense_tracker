@@ -52,6 +52,8 @@ A full-stack expense tracking application built with React, Node.js, Express, an
 > **Full local setup guide:** [docs/development.md](docs/development.md) — env vars, commands, and troubleshooting.
 >
 > **API reference:** [docs/api.md](docs/api.md) — all endpoints, auth requirements, and request/response formats.
+>
+> **Database schema:** [docs/database.md](docs/database.md) — ER diagram, tables, models, and relationships.
 
 ### 1. Clone the Repository
 
@@ -144,32 +146,9 @@ The application is configured for deployment with:
 
 ## 📊 Database Schema
 
-The application uses the following main tables:
+MySQL with two active tables (`users`, `expenses`) and an optional unused `categories` table.
 
-### Users Table
-```sql
-CREATE TABLE users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  username VARCHAR(50) NOT NULL UNIQUE,
-  email VARCHAR(100) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Expenses Table
-```sql
-CREATE TABLE expenses (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  amount DECIMAL(10, 2) NOT NULL,
-  description VARCHAR(255),
-  category VARCHAR(50) NOT NULL,
-  date DATE NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-```
+See **[docs/database.md](docs/database.md)** for the ER diagram, full column definitions, model methods, and how tables are created.
 
 ## 🤝 Contributing
 

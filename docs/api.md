@@ -511,5 +511,6 @@ Methods: `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`
 
 ## Related docs
 
+- [database.md](./database.md) — tables, ER diagram, and model layer
 - [development.md](./development.md) — local setup and env vars
 - [deployment/README.md](./deployment/README.md) — production deployment
