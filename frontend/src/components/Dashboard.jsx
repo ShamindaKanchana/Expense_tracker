@@ -16,7 +16,6 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMonthly, setIsLoadingMonthly] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [isLoadingRecent, setIsLoadingRecent] = useState(true);
   const [error, setError] = useState(null);
   const [maxMonth, setMaxMonth] = useState({ month: '', year: '', total: 0 });
   // Use useRef to maintain maxCategory between re-renders
@@ -296,39 +295,7 @@ const Dashboard = () => {
       );
       setMaxCategory(`${maxCat.category} ($${maxCat.total})`);
     }
-  }, [monthlyData, categoryData]);
-
-  const monthlyChartData = {
-    labels: monthlyData.map(item => item.month),
-    datasets: [{
-      label: 'Monthly Expenses (Rs)',
-      data: monthlyData.map(item => item.total),
-      backgroundColor: 'rgba(54, 162, 235, 0.5)',
-      borderColor: 'rgba(54, 162, 235, 1)',
-      borderWidth: 1,
-    }],
-  };
-
-  const categoryChartData = {
-    labels: categoryData.map(item => item.category),
-    datasets: [{
-      label: 'Expenses by Category (Rs)',
-      data: categoryData.map(item => item.total),
-      backgroundColor: [
-        'rgba(255, 99, 132, 0.5)',
-        'rgba(54, 162, 235, 0.5)',
-        'rgba(255, 206, 86, 0.5)',
-        'rgba(75, 192, 192, 0.5)',
-      ],
-      borderColor: [
-        'rgba(255, 99, 132, 1)',
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        'rgba(75, 192, 192, 1)',
-      ],
-      borderWidth: 1,
-    }],
-  };
+  }, [monthlyData, categoryData, maxMonth.month]);
 
   return (
     <div className="dashboard">

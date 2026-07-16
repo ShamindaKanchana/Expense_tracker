@@ -118,49 +118,6 @@ const MonthlyExpenses = () => {
     fetchMonthlyData();
   }, [year, fetchCategoriesFor]);
 
-  // Prepare chart data
-  const monthlyChartData = {
-    labels: monthlyData.map((_, i) => months[i].substring(0, 3)),
-    datasets: [
-      {
-        label: 'Monthly Expenses (Rs)',
-        data: monthlyData.map(month => month.total),
-        backgroundColor: monthlyData.map((_, index) => 
-          selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(75, 192, 192, 0.6)'
-        ),
-        borderColor: monthlyData.map((_, index) =>
-          selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 1)' : 'rgba(75, 192, 192, 1)'
-        ),
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  const categoryChartData = {
-    labels: categoryData.map(item => item.name),
-    datasets: [
-      {
-        label: 'Expenses by Category ($)',
-        data: categoryData.map(item => item.amount),
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.6)',
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
-
   if (loading) {
     return <div className="loading">Loading expense data...</div>;
   }
