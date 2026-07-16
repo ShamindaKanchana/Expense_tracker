@@ -33,6 +33,8 @@ npm start
 
 The browser should open automatically. If not, go to http://localhost:3000.
 
+For endpoint details (what each API does, which require login), see [api.md](./api.md).
+
 ---
 
 ## Environment variables

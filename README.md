@@ -50,6 +50,8 @@ A full-stack expense tracking application built with React, Node.js, Express, an
 ## 🛠️ Getting Started
 
 > **Full local setup guide:** [docs/development.md](docs/development.md) — env vars, commands, and troubleshooting.
+>
+> **API reference:** [docs/api.md](docs/api.md) — all endpoints, auth requirements, and request/response formats.
 
 ### 1. Clone the Repository
 
