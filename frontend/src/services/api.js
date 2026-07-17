@@ -33,10 +33,31 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Normalize API errors so UI always gets an Error with a readable message (never raw HTML pages)
+const clearSession = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
+
+// Normalize API errors; on expired/invalid JWT, force sign-in instead of broken empty pages
 api.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(toRequestError(error, 'Request failed'))
+  (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || '';
+    // Login/register 401 means wrong credentials — do not treat as session expiry
+    const isAuthForm = /\/auth\/(login|register)/.test(url);
+
+    if (status === 401 && !isAuthForm) {
+      clearSession();
+      sessionStorage.setItem(
+        'authMessage',
+        'Your session has expired. Please sign in again.'
+      );
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+    }
+
+    return Promise.reject(toRequestError(error, 'Request failed'));
+  }
 );
 
 // Auth API

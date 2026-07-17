@@ -13,12 +13,21 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Check if user is already logged in (token presence only; validity is enforced by API 401s)
     const token = localStorage.getItem('token');
     if (token) {
       setIsAuthenticated(true);
     }
     setLoading(false);
+  }, []);
+
+  // When API returns 401 (expired/invalid JWT), clear auth and route guards send user to login
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setIsAuthenticated(false);
+    };
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
   }, []);
 
   if (loading) {

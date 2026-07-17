@@ -8,6 +8,7 @@ const Navbar = ({ setIsAuthenticated }) => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setIsAuthenticated(false);
     navigate('/login');
   };

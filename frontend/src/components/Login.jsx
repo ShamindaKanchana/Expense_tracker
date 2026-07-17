@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
@@ -13,6 +13,15 @@ const Login = ({ setIsAuthenticated }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Show message after session expiry redirect (set by api interceptor)
+  useEffect(() => {
+    const authMessage = sessionStorage.getItem('authMessage');
+    if (authMessage) {
+      setError(authMessage);
+      sessionStorage.removeItem('authMessage');
+    }
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
