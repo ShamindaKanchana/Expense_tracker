@@ -358,91 +358,113 @@ const Dashboard = () => {
         <div className="chart-container">
           <h3>Monthly Expenses</h3>
           {isLoadingMonthly ? (
-            <p>Loading monthly data...</p>
+            <p className="chart-status">Loading monthly data...</p>
           ) : monthlyData && monthlyData.length > 0 ? (
-            <Bar 
-              data={{
-                labels: monthlyData.map(item => item.month || ''),
-                datasets: [{
-                  label: 'Monthly Expenses',
-                  data: monthlyData.map(item => parseFloat(item.total) || 0),
-                  backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                  borderColor: 'rgba(54, 162, 235, 1)',
-                  borderWidth: 1
-                }]
-              }}
-              options={{ 
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: value => `Rs ${value}`
-                    }
-                  }
-                },
-                plugins: {
-                  tooltip: {
-                    callbacks: {
-                      label: context => `Rs ${context.raw.toFixed(2)}`
-                    }
-                  }
-                }
-              }} 
-            />
-          ) : (
-            <p>No monthly data available</p>
-          )}
-        </div>
-        
-        <div className="chart-container">
-          <h3>Expenses by Category</h3>
-          {isLoadingCategories ? (
-            <p>Loading categories...</p>
-          ) : categoryData && categoryData.length > 0 ? (
-            <Doughnut 
-              data={{
-                labels: categoryData.map(item => item.name || item.category || 'Uncategorized'),
-                datasets: [{
-                  data: categoryData.map(item => parseFloat(item.total) || 0),
-                  backgroundColor: [
-                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-                    '#9966FF', '#FF9F40', '#8AC24A', '#FF5252',
-                    '#607D8B', '#9C27B0'
-                  ],
-                  borderWidth: 1
-                }]
-              }}
-              options={{ 
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  tooltip: {
-                    callbacks: {
-                      label: (context) => {
-                        const label = context.label || '';
-                        const value = context.raw || 0;
-                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                        return `${label}: Rs ${value.toFixed(2)} (${percentage}%)`;
+            <div className="chart-wrapper">
+              <Bar
+                data={{
+                  labels: monthlyData.map(item => item.month || ''),
+                  datasets: [{
+                    label: 'Monthly Expenses',
+                    data: monthlyData.map(item => parseFloat(item.total) || 0),
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                  }]
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  layout: {
+                    padding: { top: 4, right: 8, bottom: 0, left: 0 }
+                  },
+                  scales: {
+                    x: {
+                      ticks: {
+                        maxRotation: 45,
+                        minRotation: 0,
+                        autoSkip: true
+                      }
+                    },
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        callback: value => `Rs ${value}`
                       }
                     }
                   },
-                  legend: {
-                    position: 'right',
-                    labels: {
-                      boxWidth: 15,
-                      padding: 15,
-                      usePointStyle: true
+                  plugins: {
+                    legend: {
+                      display: true,
+                      position: 'top',
+                      labels: { boxWidth: 12, padding: 10 }
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: context => `Rs ${Number(context.raw).toFixed(2)}`
+                      }
                     }
                   }
-                },
-                cutout: '60%'
-              }} 
-            />
+                }}
+              />
+            </div>
           ) : (
-            <p>No category data available</p>
+            <p className="chart-status">No monthly data available</p>
+          )}
+        </div>
+
+        <div className="chart-container">
+          <h3>Expenses by Category</h3>
+          {isLoadingCategories ? (
+            <p className="chart-status">Loading categories...</p>
+          ) : categoryData && categoryData.length > 0 ? (
+            <div className="chart-wrapper">
+              <Doughnut
+                data={{
+                  labels: categoryData.map(item => item.name || item.category || 'Uncategorized'),
+                  datasets: [{
+                    data: categoryData.map(item => parseFloat(item.total) || 0),
+                    backgroundColor: [
+                      '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                      '#9966FF', '#FF9F40', '#8AC24A', '#FF5252',
+                      '#607D8B', '#9C27B0'
+                    ],
+                    borderWidth: 1
+                  }]
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  layout: {
+                    padding: 4
+                  },
+                  plugins: {
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const label = context.label || '';
+                          const value = context.raw || 0;
+                          const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                          const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                          return `${label}: Rs ${Number(value).toFixed(2)} (${percentage}%)`;
+                        }
+                      }
+                    },
+                    legend: {
+                      position: 'right',
+                      labels: {
+                        boxWidth: 12,
+                        padding: 10,
+                        usePointStyle: true
+                      }
+                    }
+                  },
+                  cutout: '55%'
+                }}
+              />
+            </div>
+          ) : (
+            <p className="chart-status">No category data available</p>
           )}
         </div>
       </div>
