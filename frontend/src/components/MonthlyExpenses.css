@@ -227,6 +227,10 @@
   margin-top: 1rem;
 }
 
+/*
+ * Detail rows keep a light surface in both themes (progress-card look).
+ * Force dark text so dark-mode theme text colors do not wash out on white.
+ */
 .category-item {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -234,8 +238,10 @@
   gap: 1rem;
   padding: 0.75rem 1rem;
   background-color: #f8f9fa;
+  border: 1px solid #e2e8f0;
   border-radius: var(--border-radius);
   transition: var(--transition);
+  color: #0f172a;
 }
 
 .category-item:hover {
@@ -245,7 +251,8 @@
 
 .category-item.total {
   background-color: var(--primary-color);
-  color: white;
+  border-color: var(--primary-color);
+  color: #ffffff;
   font-weight: 600;
   margin-top: 1rem;
 }
@@ -257,17 +264,25 @@
   font-size: 0.95rem;
   display: flex;
   align-items: center;
+  color: #0f172a;
 }
 
 .category-amount {
   font-weight: 600;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #0f172a;
 }
 
 .category-percentage {
   font-size: 0.85rem;
-  color: var(--gray-color);
+  color: #475569;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.category-item.total .category-name,
+.category-item.total .category-amount,
+.category-item.total .category-percentage {
+  color: #ffffff;
 }
 
 .category-item.total .category-percentage {

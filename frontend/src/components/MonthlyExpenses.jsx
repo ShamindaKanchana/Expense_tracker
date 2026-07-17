@@ -355,15 +355,16 @@ const MonthlyExpenses = () => {
                     if (!meta || !meta.data || !meta.data[0]) return;
                     const centerX = meta.data[0].x;
                     const centerY = meta.data[0].y;
+                    // Canvas text is not CSS-driven — use theme colors (white/light in dark mode)
+                    const labelColor = chartTheme.textMuted;
+                    const valueColor = chartTheme.text;
                     ctx.save();
-                    // small title
-                    ctx.fillStyle = '#666';
+                    ctx.fillStyle = labelColor;
                     ctx.font = '12px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('Total', centerX, centerY - 14);
-                    // value
-                    ctx.fillStyle = '#333';
+                    ctx.fillStyle = valueColor;
                     ctx.font = 'bold 20px sans-serif';
                     const text = pluginOptions?.text || '';
                     ctx.fillText(text, centerX, centerY + 8);
