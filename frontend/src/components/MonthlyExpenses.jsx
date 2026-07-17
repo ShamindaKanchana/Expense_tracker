@@ -204,31 +204,40 @@ const MonthlyExpenses = () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
-                  padding: { top: 4, right: 4, bottom: 2, left: 0 }
+                  // Extra bottom room so rotated month labels are not clipped
+                  padding: {
+                    top: 4,
+                    right: isNarrow ? 2 : 6,
+                    bottom: isNarrow ? 4 : 2,
+                    left: 0
+                  }
                 },
                 scales: {
                   x: {
                     grid: { display: false },
                     ticks: {
-                      maxRotation: 0,
-                      minRotation: 0,
+                      // Horizontal labels overlap on phones — angle them on narrow screens
+                      maxRotation: isNarrow ? 65 : 0,
+                      minRotation: isNarrow ? 45 : 0,
                       autoSkip: false,
-                      font: { size: 10 }
+                      font: { size: isNarrow ? 9 : 11 },
+                      padding: isNarrow ? 2 : 4
                     }
                   },
                   y: {
                     beginAtZero: true,
                     grace: '10%',
                     ticks: {
-                      maxTicksLimit: 6,
-                      font: { size: 10 },
+                      maxTicksLimit: isNarrow ? 5 : 6,
+                      font: { size: isNarrow ? 9 : 10 },
                       callback: (value) => `Rs ${value}`
                     }
                   }
                 },
                 plugins: {
+                  // Title already describes the chart; free vertical space for labels on mobile
                   legend: {
-                    display: true,
+                    display: !isNarrow,
                     position: 'top',
                     align: 'center',
                     labels: {
@@ -239,7 +248,11 @@ const MonthlyExpenses = () => {
                   },
                   tooltip: {
                     callbacks: {
-                      label: (context) => ` Rs ${context.raw}`
+                      title: (items) => {
+                        const i = items[0]?.dataIndex;
+                        return i != null ? months[i] : '';
+                      },
+                      label: (context) => `Rs ${Number(context.raw).toFixed(2)}`
                     }
                   }
                 }

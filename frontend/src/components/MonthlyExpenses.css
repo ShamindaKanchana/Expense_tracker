@@ -356,8 +356,13 @@
     padding-bottom: 0.6rem;
   }
 
+  /* Taller plot so 45° month labels fit under the bars */
   .chart-wrapper {
-    height: 240px;
+    height: 280px;
+  }
+
+  .monthly-chart .chart-wrapper {
+    height: 300px;
   }
 
   .donut-chart-container {
@@ -387,7 +392,11 @@
   }
 
   .chart-wrapper {
-    height: 220px;
+    height: 260px;
+  }
+
+  .monthly-chart .chart-wrapper {
+    height: 290px;
   }
 
   .details-grid {
