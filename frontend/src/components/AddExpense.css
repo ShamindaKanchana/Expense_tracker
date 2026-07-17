@@ -4,11 +4,12 @@
   align-items: flex-start;
   min-height: calc(100vh - 120px);
   padding: 2rem 1rem;
-  background-color: #f5f7fa;
+  background-color: transparent;
 }
 
 .add-expense-card {
-  background: white;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
   padding: 2rem;
@@ -61,11 +62,12 @@
 .form-group select {
   width: 100%;
   padding: 0.8rem 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
   font-size: 1rem;
   transition: var(--transition);
-  background-color: #f8f9fa;
+  background-color: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .form-group input[type="text"]:focus,
@@ -74,7 +76,7 @@
 .form-group select:focus {
   outline: none;
   border-color: var(--primary-color);
-  background-color: white;
+  background-color: var(--bg-surface);
   box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
 }
 

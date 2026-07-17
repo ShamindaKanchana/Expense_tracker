@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import ThemeToggle from './ThemeToggle';
 import './AuthHelp.css';
 
 const PANELS = {
@@ -78,6 +79,10 @@ const AuthHelp = () => {
   return (
     <>
       <div className="auth-help-bar" role="group" aria-label="App information">
+        <ThemeToggle className="theme-toggle--compact" />
+        <span className="auth-help-sep" aria-hidden="true">
+          ·
+        </span>
         <button
           type="button"
           className="auth-help-btn"

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
 import './Navbar.css';
 
 const readUsername = () => {
@@ -88,6 +89,7 @@ const Navbar = ({ setIsAuthenticated }) => {
         </div>
 
         <div className="navbar-actions navbar-actions-desktop">
+          <ThemeToggle />
           <Link
             to="/account"
             className={`nav-account ${isActive('/account')}`}
@@ -105,6 +107,11 @@ const Navbar = ({ setIsAuthenticated }) => {
           <button type="button" onClick={handleLogout} className="logout-button">
             Logout
           </button>
+        </div>
+
+        {/* Mobile top: theme only (tabs are in the bottom bar) */}
+        <div className="navbar-actions navbar-actions-mobile">
+          <ThemeToggle className="theme-toggle--compact" />
         </div>
       </header>
 

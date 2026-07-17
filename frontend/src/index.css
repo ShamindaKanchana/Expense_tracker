@@ -8,29 +8,8 @@
 }
 
 :root {
-  /* Color Palette */
-  --primary-color: #4361ee;
-  --primary-light: #eef2ff;
-  --primary-dark: #3a56d4;
-  --secondary-color: #3f37c9;
-  --accent-color: #4895ef;
-  --success-color: #4bb543;
-  --danger-color: #f44336;
-  --warning-color: #ff9800;
+  /* Colors: see theme/tokens.css (light/dark). Keep non-color tokens here. */
   --info-color: #2196f3;
-  --light-color: #f8f9fa;
-  --dark-color: #212529;
-  --gray-100: #f8f9fa;
-  --gray-200: #e9ecef;
-  --gray-300: #dee2e6;
-  --gray-400: #ced4da;
-  --gray-500: #adb5bd;
-  --gray-600: #6c757d;
-  --gray-700: #495057;
-  --gray-800: #343a40;
-  --gray-900: #212529;
-  
-  /* Typography */
   --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   
@@ -81,8 +60,8 @@ html {
 body {
   font-family: var(--font-sans);
   line-height: 1.6;
-  color: var(--gray-900);
-  background-color: var(--gray-100);
+  color: var(--text-primary);
+  background-color: var(--bg-page);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -94,7 +73,7 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 0.5em;
   font-weight: 600;
   line-height: 1.2;
-  color: var(--gray-900);
+  color: var(--text-primary);
 }
 
 h1 { font-size: 2.5rem; }
