@@ -29,10 +29,21 @@ const MonthlyExpenses = () => {
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isNarrow, setIsNarrow] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false
+  );
 
   // Always anchor dropdown to the calendar year, not the selected year
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 6 }, (_, i) => currentYear - i);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const onChange = () => setIsNarrow(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
   
   // Months for display
   const months = [
@@ -168,40 +179,71 @@ const MonthlyExpenses = () => {
             </p>
           ) : (
           <div className="chart-wrapper">
-            <Bar 
+            <Bar
               data={{
-                labels: months.map(month => month.substring(0, 3)),
+                labels: months.map((month) => month.substring(0, 3)),
                 datasets: [{
                   label: 'Monthly Expenses (Rs)',
-                  data: monthlyData.map(month => month.total),
-                  backgroundColor: monthlyData.map((_, index) => 
-                    selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 0.8)' : 'rgba(75, 192, 192, 0.6)'
+                  data: monthlyData.map((m) => m.total),
+                  backgroundColor: monthlyData.map((_, index) =>
+                    selectedMonth?.month === index + 1
+                      ? 'rgba(54, 162, 235, 0.85)'
+                      : 'rgba(75, 192, 192, 0.65)'
                   ),
                   borderColor: monthlyData.map((_, index) =>
-                    selectedMonth?.month === index + 1 ? 'rgba(54, 162, 235, 1)' : 'rgba(75, 192, 192, 1)'
+                    selectedMonth?.month === index + 1
+                      ? 'rgba(54, 162, 235, 1)'
+                      : 'rgba(75, 192, 192, 1)'
                   ),
-                  borderWidth: 1
+                  borderWidth: 1,
+                  borderRadius: 3,
+                  maxBarThickness: 36
                 }]
               }}
               options={{
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                  padding: { top: 4, right: 4, bottom: 2, left: 0 }
+                },
                 scales: {
+                  x: {
+                    grid: { display: false },
+                    ticks: {
+                      maxRotation: 0,
+                      minRotation: 0,
+                      autoSkip: false,
+                      font: { size: 10 }
+                    }
+                  },
                   y: {
                     beginAtZero: true,
+                    grace: '10%',
                     ticks: {
-                      callback: value => `Rs ${value}`
+                      maxTicksLimit: 6,
+                      font: { size: 10 },
+                      callback: (value) => `Rs ${value}`
                     }
                   }
                 },
                 plugins: {
+                  legend: {
+                    display: true,
+                    position: 'top',
+                    align: 'center',
+                    labels: {
+                      boxWidth: 10,
+                      font: { size: 11 },
+                      padding: 8
+                    }
+                  },
                   tooltip: {
                     callbacks: {
-                      label: context => ` Rs ${context.raw}`
+                      label: (context) => ` Rs ${context.raw}`
                     }
                   }
                 }
-              }} 
+              }}
             />
           </div>
           )}
@@ -210,7 +252,7 @@ const MonthlyExpenses = () => {
         {hasYearData && selectedMonth && (
           <div className="category-breakdown">
             <h2>Category Breakdown for {months[selectedMonth.month - 1]} {year}</h2>
-            <div className="donut-chart-container" style={{ width: '100%', maxWidth: '400px', margin: '0 auto' }}>
+            <div className="donut-chart-container chart-wrapper">
               <Doughnut 
                 data={{
                   labels: categoryData.map(cat => cat.name),
@@ -228,22 +270,22 @@ const MonthlyExpenses = () => {
                     ],
                     borderColor: 'white',
                     borderWidth: 2,
-                    hoverOffset: 10
+                    hoverOffset: 6
                   }]
                 }}
                 options={{
                   responsive: true,
-                  maintainAspectRatio: true,
-                  cutout: '70%',
+                  maintainAspectRatio: false,
+                  cutout: '65%',
                   plugins: {
                     legend: {
-                      position: 'right',
+                      position: isNarrow ? 'bottom' : 'right',
                       labels: {
-                        padding: 20,
+                        padding: 12,
                         usePointStyle: true,
                         pointStyle: 'circle',
                         font: {
-                          size: 12
+                          size: 11
                         }
                       }
                     },
