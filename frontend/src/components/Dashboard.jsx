@@ -362,46 +362,66 @@ const Dashboard = () => {
           ) : monthlyData && monthlyData.length > 0 ? (
             <div className="chart-wrapper">
               <Bar
-                data={{
-                  labels: monthlyData.map(item => item.month || ''),
-                  datasets: [{
-                    label: 'Monthly Expenses',
-                    data: monthlyData.map(item => parseFloat(item.total) || 0),
-                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                  }]
-                }}
+                data={(() => {
+                  const monthOrder = [
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'
+                  ];
+                  const sorted = [...monthlyData].sort((a, b) => {
+                    const ya = Number(a.year) || 0;
+                    const yb = Number(b.year) || 0;
+                    if (ya !== yb) return ya - yb;
+                    return monthOrder.indexOf(a.month) - monthOrder.indexOf(b.month);
+                  });
+                  return {
+                    labels: sorted.map((item) => {
+                      const m = item.month || '';
+                      const short = m.length > 3 ? m.slice(0, 3) : m;
+                      return item.year ? `${short} ${item.year}` : short;
+                    }),
+                    datasets: [{
+                      label: 'Monthly Expenses',
+                      data: sorted.map((item) => parseFloat(item.total) || 0),
+                      backgroundColor: 'rgba(54, 162, 235, 0.55)',
+                      borderColor: 'rgba(54, 162, 235, 1)',
+                      borderWidth: 1,
+                      borderRadius: 4,
+                      maxBarThickness: 48
+                    }]
+                  };
+                })()}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
                   layout: {
-                    padding: { top: 4, right: 8, bottom: 0, left: 0 }
+                    padding: { top: 8, right: 12, bottom: 4, left: 4 }
                   },
                   scales: {
                     x: {
+                      grid: { display: false },
                       ticks: {
-                        maxRotation: 45,
+                        maxRotation: 40,
                         minRotation: 0,
-                        autoSkip: true
+                        autoSkip: true,
+                        font: { size: 11 }
                       }
                     },
                     y: {
                       beginAtZero: true,
+                      grace: '8%',
+                      grid: { color: 'rgba(0,0,0,0.06)' },
                       ticks: {
-                        callback: value => `Rs ${value}`
+                        font: { size: 11 },
+                        callback: (value) => `Rs ${value}`
                       }
                     }
                   },
                   plugins: {
-                    legend: {
-                      display: true,
-                      position: 'top',
-                      labels: { boxWidth: 12, padding: 10 }
-                    },
+                    // Card title already says "Monthly Expenses"
+                    legend: { display: false },
                     tooltip: {
                       callbacks: {
-                        label: context => `Rs ${Number(context.raw).toFixed(2)}`
+                        label: (context) => `Rs ${Number(context.raw).toFixed(2)}`
                       }
                     }
                   }
@@ -436,7 +456,7 @@ const Dashboard = () => {
                   responsive: true,
                   maintainAspectRatio: false,
                   layout: {
-                    padding: 4
+                    padding: { top: 4, right: 8, bottom: 4, left: 4 }
                   },
                   plugins: {
                     tooltip: {
@@ -452,14 +472,16 @@ const Dashboard = () => {
                     },
                     legend: {
                       position: 'right',
+                      align: 'center',
                       labels: {
-                        boxWidth: 12,
-                        padding: 10,
-                        usePointStyle: true
+                        boxWidth: 10,
+                        padding: 12,
+                        usePointStyle: true,
+                        font: { size: 11 }
                       }
                     }
                   },
-                  cutout: '55%'
+                  cutout: '58%'
                 }}
               />
             </div>
