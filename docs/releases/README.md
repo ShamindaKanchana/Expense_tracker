@@ -17,7 +17,7 @@ Each release note describes:
 | **Status** | Current |
 | **Git tag** | [`v0.3.0`](https://github.com/ShamindaKanchana/Expense_tracker/releases/tag/v0.3.0) |
 | **GitHub release** | [Expense Tracker v0.3.0](https://github.com/ShamindaKanchana/Expense_tracker/releases/tag/v0.3.0) |
-| **Git (approx)** | `7edf161` / `b828a5f` and related commits on `main` |
+| **Git (approx)** | Tag `v0.3.0` → `33c3d1e` (includes Navbar CI fix; release re-published) |
 
 ## Release index
 
