@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 
@@ -16,7 +16,13 @@ const readUsername = () => {
 const Navbar = ({ setIsAuthenticated }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const username = useMemo(() => readUsername(), [location.pathname]);
+  // Re-read when route changes so Account chip stays in sync with localStorage
+  const [username, setUsername] = useState(() => readUsername());
+
+  useEffect(() => {
+    setUsername(readUsername());
+  }, [location.pathname]);
+
   const initial = (username || 'U').charAt(0).toUpperCase();
 
   const handleLogout = () => {
