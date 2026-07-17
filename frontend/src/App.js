@@ -5,6 +5,7 @@ import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import AddExpense from './components/AddExpense';
 import MonthlyExpenses from './components/MonthlyExpenses';
+import Account from './components/Account';
 import Navbar from './components/Navbar';
 import './App.css';
 
@@ -78,6 +79,16 @@ function App() {
                 <MonthlyExpenses /> : 
                 <Navigate to="/login" />
               } 
+            />
+            <Route
+              path="/account"
+              element={
+                isAuthenticated ? (
+                  <Account setIsAuthenticated={setIsAuthenticated} />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              }
             />
             <Route 
               path="/" 

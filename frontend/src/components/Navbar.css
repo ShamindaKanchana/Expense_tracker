@@ -68,6 +68,75 @@
   border-radius: 3px;
 }
 
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.nav-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 11rem;
+  padding: 0.25rem 0.55rem 0.25rem 0.25rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.nav-account:hover,
+.nav-account.active {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+  text-decoration: none;
+}
+
+.nav-account-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-account-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.nav-account-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.nav-account.active .nav-account-label,
+.nav-account:hover .nav-account-label {
+  color: #6366f1;
+}
+
+.nav-account-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 7.5rem;
+}
+
 .logout-button {
   background-color: transparent;
   color: var(--danger-color);
@@ -105,11 +174,32 @@
     width: 100%;
     display: flex;
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .nav-account {
+    max-width: none;
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 2.5rem;
+  }
+
+  .nav-account-name {
+    max-width: 10rem;
   }
   
   .logout-button {
-    width: 100%;
+    width: auto;
+    min-width: 6rem;
     max-width: 200px;
+  }
+}
+
+/* Very small screens: avatar + Account label only (username still on Account page) */
+@media (max-width: 480px) {
+  .nav-account-name {
+    display: none;
   }
 }
 

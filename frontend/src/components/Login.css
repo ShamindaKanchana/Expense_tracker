@@ -114,6 +114,83 @@
   text-align: left;
 }
 
+/* Username field: small info icon (right-aligned) + tip on click */
+.auth-field-with-tip {
+  position: relative;
+}
+
+.auth-field-with-tip input {
+  padding-right: 2.25rem;
+}
+
+.auth-field-info-btn {
+  appearance: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 100%;
+  min-height: 2.5rem;
+  max-height: 2.75rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 0 0.25rem 0 0;
+}
+
+.auth-field-info-btn:hover,
+.auth-field-info-btn:focus-visible {
+  color: #4f46e5;
+}
+
+.auth-field-info-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: -2px;
+}
+
+.auth-field-info-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.auth-field-tip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 5;
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  text-align: left;
+}
+
+@media (min-width: 640px) {
+  .auth-field-tip {
+    font-size: 0.78rem;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .auth-field-info-icon {
+    width: 15px;
+    height: 15px;
+  }
+}
+
 /* Login Button */
 .login-button {
   width: 100%;

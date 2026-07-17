@@ -146,23 +146,88 @@ router.post('/login', async (req, res) => {
 // @access  Private
 router.get('/me', auth, async (req, res) => {
   try {
-    // User ID is available from req.user set by the auth middleware
     const userId = req.user.id;
-    
-    // Find user by ID without the password
-    const [user] = await db.query(
+    const rows = await db.query(
       'SELECT id, username, email, created_at FROM users WHERE id = ?',
       [userId]
     );
 
-    if (!user || user.length === 0) {
+    if (!rows || rows.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(user[0]);
+    const user = rows[0];
+    res.json({
+      id: user.id,
+      username: user.username,
+      email: user.email || null,
+      created_at: user.created_at
+    });
   } catch (error) {
     console.error('Error fetching user profile:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/change-password
+// @desc    Change password for the logged-in user
+// @access  Private
+router.post('/change-password', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        message: 'Please enter your current password and a new password.'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: 'Your new password needs at least 6 characters.'
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        message: 'Your new password must be different from your current password.'
+      });
+    }
+
+    const rows = await db.query(
+      'SELECT id, password FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      // 400 (not 401) so the client does not treat this as a session expiry
+      return res.status(400).json({
+        message: 'Current password is incorrect. Please try again.'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.query('UPDATE users SET password = ? WHERE id = ?', [
+      hashedPassword,
+      userId
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully.'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({
+      message: "We couldn't update your password right now. Please try again in a moment."
+    });
   }
 });
 

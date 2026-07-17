@@ -181,7 +181,7 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
 {
   "id": 1,
   "username": "jane",
-  "email": "jane@example.com",
+  "email": null,
   "created_at": "2025-01-15T10:00:00.000Z"
 }
 ```
@@ -190,6 +190,42 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
 
 | Status | When |
 |--------|------|
+| `401` | Invalid or missing token |
+| `404` | User not found |
+| `500` | Server error |
+
+---
+
+### `POST /api/auth/change-password`
+
+| | |
+|--|--|
+| **Access** | Private |
+| **Description** | Change the logged-in user's password. |
+
+**Request body**
+
+```json
+{
+  "currentPassword": "oldpass1",
+  "newPassword": "newpass1"
+}
+```
+
+**Success:** `200`
+
+```json
+{
+  "success": true,
+  "message": "Password updated successfully."
+}
+```
+
+**Errors**
+
+| Status | When |
+|--------|------|
+| `400` | Missing fields, weak password, or incorrect current password |
 | `401` | Invalid or missing token |
 | `404` | User not found |
 | `500` | Server error |
@@ -493,6 +529,7 @@ If no expenses exist: `data` is `null`.
 | `POST` | `/api/auth/register` | Public | Create account (username + password) + JWT |
 | `POST` | `/api/auth/login` | Public | Sign in (username or email + password) + JWT |
 | `GET` | `/api/auth/me` | Private | Current user profile |
+| `POST` | `/api/auth/change-password` | Private | Change password |
 | `GET` | `/api/expenses/test-db` | Public | DB diagnostic |
 | `GET` | `/api/expenses` | Private* | List expenses (*not implemented) |
 | `POST` | `/api/expenses` | Private | Add expense |

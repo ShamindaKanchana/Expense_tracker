@@ -79,6 +79,27 @@ export const authApi = {
     } catch (error) {
       throw toRequestError(error, "We couldn't create your account. Please try again.");
     }
+  },
+
+  getMe: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      return response.data;
+    } catch (error) {
+      throw toRequestError(error, "We couldn't load your profile. Please try again.");
+    }
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await api.post('/auth/change-password', {
+        currentPassword,
+        newPassword
+      });
+      return response.data;
+    } catch (error) {
+      throw toRequestError(error, "We couldn't update your password. Please try again.");
+    }
   }
 };
 
