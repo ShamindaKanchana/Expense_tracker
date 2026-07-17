@@ -88,11 +88,12 @@ const Navbar = ({ setIsAuthenticated }) => {
           </Link>
         </div>
 
-        <div className="navbar-actions navbar-actions-desktop">
-          <ThemeToggle />
+        {/* Single theme toggle for all viewports (avoid duplicate desktop controls) */}
+        <div className="navbar-actions">
+          <ThemeToggle className="theme-toggle--nav" />
           <Link
             to="/account"
-            className={`nav-account ${isActive('/account')}`}
+            className={`nav-account nav-desktop-only ${isActive('/account')}`}
             title={username ? `Account (${username})` : 'Account'}
             aria-label={username ? `Account, signed in as ${username}` : 'Account'}
           >
@@ -104,14 +105,13 @@ const Navbar = ({ setIsAuthenticated }) => {
               {username ? <span className="nav-account-name">{username}</span> : null}
             </span>
           </Link>
-          <button type="button" onClick={handleLogout} className="logout-button">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="logout-button nav-desktop-only"
+          >
             Logout
           </button>
-        </div>
-
-        {/* Mobile top: theme only (tabs are in the bottom bar) */}
-        <div className="navbar-actions navbar-actions-mobile">
-          <ThemeToggle className="theme-toggle--compact" />
         </div>
       </header>
 

@@ -14,10 +14,6 @@
   box-sizing: border-box;
 }
 
-.navbar-actions-mobile {
-  display: none;
-}
-
 .navbar-brand {
   font-size: 1.25rem;
   font-weight: 700;
@@ -183,14 +179,24 @@
   }
 
   /* Hide stacked desktop links — they waste vertical space */
-  .navbar-links-desktop,
-  .navbar-actions-desktop {
+  .navbar-links-desktop {
     display: none !important;
   }
 
-  .navbar-actions-mobile {
-    display: flex;
-    align-items: center;
+  /* Keep only the single theme toggle in the top bar on mobile */
+  .nav-desktop-only {
+    display: none !important;
+  }
+
+  .theme-toggle--nav .theme-toggle-label {
+    display: none;
+  }
+
+  .theme-toggle--nav {
+    padding: 0.4rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    justify-content: center;
   }
 
   .mobile-bottom-nav {
