@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
 import './Navbar.css';
 
 const readUsername = () => {
@@ -87,10 +88,12 @@ const Navbar = ({ setIsAuthenticated }) => {
           </Link>
         </div>
 
-        <div className="navbar-actions navbar-actions-desktop">
+        {/* Single theme toggle for all viewports (avoid duplicate desktop controls) */}
+        <div className="navbar-actions">
+          <ThemeToggle className="theme-toggle--nav" />
           <Link
             to="/account"
-            className={`nav-account ${isActive('/account')}`}
+            className={`nav-account nav-desktop-only ${isActive('/account')}`}
             title={username ? `Account (${username})` : 'Account'}
             aria-label={username ? `Account, signed in as ${username}` : 'Account'}
           >
@@ -102,7 +105,11 @@ const Navbar = ({ setIsAuthenticated }) => {
               {username ? <span className="nav-account-name">{username}</span> : null}
             </span>
           </Link>
-          <button type="button" onClick={handleLogout} className="logout-button">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="logout-button nav-desktop-only"
+          >
             Logout
           </button>
         </div>

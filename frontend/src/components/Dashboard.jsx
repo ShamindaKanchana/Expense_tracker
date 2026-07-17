@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import api from '../services/api';
+import { useTheme } from '../theme/ThemeContext';
+import { getChartTheme } from '../theme/chartTheme';
 import './Dashboard.css';
 
 // Register ChartJS components
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const Dashboard = () => {
+  const { theme } = useTheme();
+  const chartTheme = useMemo(() => getChartTheme(theme), [theme]);
+
   // State for storing data from backend
   const [monthlyData, setMonthlyData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
@@ -362,6 +367,7 @@ const Dashboard = () => {
           ) : monthlyData && monthlyData.length > 0 ? (
             <div className="chart-wrapper">
               <Bar
+                key={`dash-bar-${theme}`}
                 data={(() => {
                   const monthOrder = [
                     'January', 'February', 'March', 'April', 'May', 'June',
@@ -400,6 +406,7 @@ const Dashboard = () => {
                     x: {
                       grid: { display: false },
                       ticks: {
+                        color: chartTheme.text,
                         maxRotation: 40,
                         minRotation: 0,
                         autoSkip: true,
@@ -409,8 +416,9 @@ const Dashboard = () => {
                     y: {
                       beginAtZero: true,
                       grace: '8%',
-                      grid: { color: 'rgba(0,0,0,0.06)' },
+                      grid: { color: chartTheme.grid },
                       ticks: {
+                        color: chartTheme.text,
                         font: { size: 11 },
                         callback: (value) => `Rs ${value}`
                       }
@@ -420,6 +428,9 @@ const Dashboard = () => {
                     // Card title already says "Monthly Expenses"
                     legend: { display: false },
                     tooltip: {
+                      backgroundColor: chartTheme.tooltipBg,
+                      titleColor: chartTheme.tooltipText,
+                      bodyColor: chartTheme.tooltipText,
                       callbacks: {
                         label: (context) => `Rs ${Number(context.raw).toFixed(2)}`
                       }
@@ -440,6 +451,7 @@ const Dashboard = () => {
           ) : categoryData && categoryData.length > 0 ? (
             <div className="chart-wrapper">
               <Doughnut
+                key={`dash-donut-${theme}`}
                 data={{
                   labels: categoryData.map(item => item.name || item.category || 'Uncategorized'),
                   datasets: [{
@@ -449,6 +461,7 @@ const Dashboard = () => {
                       '#9966FF', '#FF9F40', '#8AC24A', '#FF5252',
                       '#607D8B', '#9C27B0'
                     ],
+                    borderColor: chartTheme.border,
                     borderWidth: 1
                   }]
                 }}
@@ -460,6 +473,9 @@ const Dashboard = () => {
                   },
                   plugins: {
                     tooltip: {
+                      backgroundColor: chartTheme.tooltipBg,
+                      titleColor: chartTheme.tooltipText,
+                      bodyColor: chartTheme.tooltipText,
                       callbacks: {
                         label: (context) => {
                           const label = context.label || '';
@@ -474,6 +490,7 @@ const Dashboard = () => {
                       position: 'right',
                       align: 'center',
                       labels: {
+                        color: chartTheme.text,
                         boxWidth: 10,
                         padding: 12,
                         usePointStyle: true,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { 
   Chart as ChartJS, 
@@ -10,6 +10,8 @@ import {
   Legend 
 } from 'chart.js';
 import api from '../services/api';
+import { useTheme } from '../theme/ThemeContext';
+import { getChartTheme } from '../theme/chartTheme';
 import './MonthlyExpenses.css';
 
 // Register ChartJS components
@@ -23,6 +25,8 @@ ChartJS.register(
 );
 
 const MonthlyExpenses = () => {
+  const { theme } = useTheme();
+  const chartTheme = useMemo(() => getChartTheme(theme), [theme]);
   const [year, setYear] = useState(new Date().getFullYear());
   const [monthlyData, setMonthlyData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
@@ -180,6 +184,7 @@ const MonthlyExpenses = () => {
           ) : (
           <div className="chart-wrapper">
             <Bar
+              key={`monthly-bar-${theme}`}
               data={{
                 labels: months.map((month) => month.substring(0, 3)),
                 datasets: [{
@@ -216,6 +221,7 @@ const MonthlyExpenses = () => {
                   x: {
                     grid: { display: false },
                     ticks: {
+                      color: chartTheme.text,
                       // Horizontal labels overlap on phones — angle them on narrow screens
                       maxRotation: isNarrow ? 65 : 0,
                       minRotation: isNarrow ? 45 : 0,
@@ -227,7 +233,9 @@ const MonthlyExpenses = () => {
                   y: {
                     beginAtZero: true,
                     grace: '10%',
+                    grid: { color: chartTheme.grid },
                     ticks: {
+                      color: chartTheme.text,
                       maxTicksLimit: isNarrow ? 5 : 6,
                       font: { size: isNarrow ? 9 : 10 },
                       callback: (value) => `Rs ${value}`
@@ -241,12 +249,16 @@ const MonthlyExpenses = () => {
                     position: 'top',
                     align: 'center',
                     labels: {
+                      color: chartTheme.text,
                       boxWidth: 10,
                       font: { size: 11 },
                       padding: 8
                     }
                   },
                   tooltip: {
+                    backgroundColor: chartTheme.tooltipBg,
+                    titleColor: chartTheme.tooltipText,
+                    bodyColor: chartTheme.tooltipText,
                     callbacks: {
                       title: (items) => {
                         const i = items[0]?.dataIndex;
@@ -266,7 +278,8 @@ const MonthlyExpenses = () => {
           <div className="category-breakdown">
             <h2>Category Breakdown for {months[selectedMonth.month - 1]} {year}</h2>
             <div className="donut-chart-container chart-wrapper">
-              <Doughnut 
+              <Doughnut
+                key={`monthly-donut-${theme}`}
                 data={{
                   labels: categoryData.map(cat => cat.name),
                   datasets: [{
@@ -281,7 +294,7 @@ const MonthlyExpenses = () => {
                       'rgba(63, 81, 181, 0.8)',
                       'rgba(233, 30, 99, 0.8)'
                     ],
-                    borderColor: 'white',
+                    borderColor: chartTheme.border,
                     borderWidth: 2,
                     hoverOffset: 6
                   }]
@@ -294,6 +307,7 @@ const MonthlyExpenses = () => {
                     legend: {
                       position: isNarrow ? 'bottom' : 'right',
                       labels: {
+                        color: chartTheme.text,
                         padding: 12,
                         usePointStyle: true,
                         pointStyle: 'circle',
@@ -303,7 +317,9 @@ const MonthlyExpenses = () => {
                       }
                     },
                     tooltip: {
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      backgroundColor: chartTheme.tooltipBg,
+                      titleColor: chartTheme.tooltipText,
+                      bodyColor: chartTheme.tooltipText,
                       titleFont: { size: 14, weight: 'bold' },
                       bodyFont: { size: 13 },
                       padding: 12,
@@ -339,15 +355,16 @@ const MonthlyExpenses = () => {
                     if (!meta || !meta.data || !meta.data[0]) return;
                     const centerX = meta.data[0].x;
                     const centerY = meta.data[0].y;
+                    // Canvas text is not CSS-driven — use theme colors (white/light in dark mode)
+                    const labelColor = chartTheme.textMuted;
+                    const valueColor = chartTheme.text;
                     ctx.save();
-                    // small title
-                    ctx.fillStyle = '#666';
+                    ctx.fillStyle = labelColor;
                     ctx.font = '12px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('Total', centerX, centerY - 14);
-                    // value
-                    ctx.fillStyle = '#333';
+                    ctx.fillStyle = valueColor;
                     ctx.font = 'bold 20px sans-serif';
                     const text = pluginOptions?.text || '';
                     ctx.fillText(text, centerX, centerY + 8);

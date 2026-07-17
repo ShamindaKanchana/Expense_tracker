@@ -39,9 +39,10 @@
 
 .year-selector select {
   padding: 0.5rem 1rem;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  background-color: white;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
   font-size: 1rem;
   cursor: pointer;
   transition: var(--transition);
@@ -67,8 +68,9 @@
 
 .month-button {
   padding: 0.75rem 0.5rem;
-  border: 1px solid #dee2e6;
-  background-color: white;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
   border-radius: var(--border-radius);
   cursor: pointer;
   font-weight: 500;
@@ -78,9 +80,9 @@
 }
 
 .month-button:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-hover);
   transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
 }
 
 .month-button.active {
@@ -120,11 +122,11 @@
   margin: 2rem 1rem;
   padding: 1.25rem 1rem;
   text-align: center;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.95rem;
   line-height: 1.45;
-  background: #f8fafc;
-  border: 1px dashed #e2e8f0;
+  background: var(--bg-surface-muted);
+  border: 1px dashed var(--border-color);
   border-radius: var(--border-radius);
 }
 
@@ -139,14 +141,6 @@
   position: relative;
 }
 
-.category-breakdown {
-  background: white;
-  border-radius: var(--border-radius);
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  margin-top: 2rem;
-}
-
 .category-breakdown h2 {
   color: var(--dark-color);
   margin-bottom: 1.5rem;
@@ -155,10 +149,11 @@
 
 .monthly-chart,
 .category-breakdown {
-  background: white;
+  background: var(--bg-surface);
   border-radius: var(--border-radius);
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
   transition: box-shadow 0.3s ease;
   margin-bottom: 2rem;
   width: 100%;
@@ -232,6 +227,10 @@
   margin-top: 1rem;
 }
 
+/*
+ * Detail rows keep a light surface in both themes (progress-card look).
+ * Force dark text so dark-mode theme text colors do not wash out on white.
+ */
 .category-item {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -239,8 +238,10 @@
   gap: 1rem;
   padding: 0.75rem 1rem;
   background-color: #f8f9fa;
+  border: 1px solid #e2e8f0;
   border-radius: var(--border-radius);
   transition: var(--transition);
+  color: #0f172a;
 }
 
 .category-item:hover {
@@ -250,7 +251,8 @@
 
 .category-item.total {
   background-color: var(--primary-color);
-  color: white;
+  border-color: var(--primary-color);
+  color: #ffffff;
   font-weight: 600;
   margin-top: 1rem;
 }
@@ -262,17 +264,25 @@
   font-size: 0.95rem;
   display: flex;
   align-items: center;
+  color: #0f172a;
 }
 
 .category-amount {
   font-weight: 600;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #0f172a;
 }
 
 .category-percentage {
   font-size: 0.85rem;
-  color: var(--gray-color);
+  color: #475569;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.category-item.total .category-name,
+.category-item.total .category-amount,
+.category-item.total .category-percentage {
+  color: #ffffff;
 }
 
 .category-item.total .category-percentage {

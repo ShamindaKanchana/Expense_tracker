@@ -1,0 +1,138 @@
+/**
+ * Theme tokens — light (default) and dark.
+ * data-theme is set on <html>. Default light keeps current look.
+ */
+
+:root,
+[data-theme='light'] {
+  --primary-color: #4361ee;
+  --primary-light: #eef2ff;
+  --primary-dark: #3a56d4;
+  --secondary-color: #3f37c9;
+  --accent-color: #4895ef;
+  --success-color: #4bb543;
+  --danger-color: #f44336;
+  --warning-color: #ff9800;
+
+  /* Semantic surfaces / text (new) */
+  --bg-page: #f5f7fa;
+  --bg-surface: #ffffff;
+  --bg-surface-muted: #f8fafc;
+  --bg-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border-color: #e2e8f0;
+  --navbar-bg: #ffffff;
+  --navbar-border: #e2e8f0;
+  --shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 6px 16px rgba(15, 23, 42, 0.12);
+  --input-bg: #f8fafc;
+  --input-border: #e2e8f0;
+  --danger-soft-bg: #fef2f2;
+  --success-soft-bg: #ecfdf5;
+  --warning-soft-bg: #fffbeb;
+  --warning-soft-text: #b45309;
+  --warning-soft-border: #fde68a;
+
+  /* Legacy aliases used across components */
+  --light-color: #f8f9fa;
+  --dark-color: #212529;
+  --gray-color: #6c757d;
+  --light-gray: #e9ecef;
+  --gray-100: #f8f9fa;
+  --gray-200: #e9ecef;
+  --gray-300: #dee2e6;
+  --gray-600: #6c757d;
+  --gray-700: #495057;
+  --gray-800: #343a40;
+  --gray-900: #212529;
+
+  --border-radius: 8px;
+  --box-shadow: var(--shadow);
+  --transition: all 0.2s ease;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --primary-color: #818cf8;
+  --primary-light: #312e81;
+  --primary-dark: #a5b4fc;
+  --secondary-color: #6366f1;
+  --accent-color: #60a5fa;
+  --success-color: #4ade80;
+  --danger-color: #f87171;
+  --warning-color: #fbbf24;
+
+  --bg-page: #0b1220;
+  --bg-surface: #151e2e;
+  --bg-surface-muted: #1e293b;
+  --bg-hover: #243044;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #2d3a4f;
+  --navbar-bg: #111827;
+  --navbar-border: #1f2937;
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --input-bg: #1e293b;
+  --input-border: #334155;
+  --danger-soft-bg: #3f1d1d;
+  --success-soft-bg: #14352a;
+  --warning-soft-bg: #3b2f14;
+  --warning-soft-text: #fcd34d;
+  --warning-soft-border: #854d0e;
+
+  /* Legacy aliases remap so existing var(--dark-color) text stays readable */
+  --light-color: #1e293b;
+  --dark-color: #e2e8f0;
+  --gray-color: #94a3b8;
+  --light-gray: #334155;
+  --gray-100: #1e293b;
+  --gray-200: #334155;
+  --gray-300: #475569;
+  --gray-600: #94a3b8;
+  --gray-700: #cbd5e1;
+  --gray-800: #e2e8f0;
+  --gray-900: #f1f5f9;
+
+  --box-shadow: var(--shadow);
+  color-scheme: dark;
+}
+
+/* Global surfaces driven by tokens */
+html {
+  background-color: var(--bg-page);
+}
+
+body {
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+}
+
+/* Soft overrides for Tailwind utility classes on auth pages (no JSX rewrite) */
+[data-theme='dark'] .bg-white {
+  background-color: var(--bg-surface) !important;
+}
+[data-theme='dark'] .bg-gray-50 {
+  background-color: var(--bg-page) !important;
+}
+[data-theme='dark'] .text-gray-900 {
+  color: var(--text-primary) !important;
+}
+[data-theme='dark'] .text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+[data-theme='dark'] .text-gray-500 {
+  color: var(--text-muted) !important;
+}
+[data-theme='dark'] .border-gray-300 {
+  border-color: var(--border-color) !important;
+}
+[data-theme='dark'] .placeholder-gray-500::placeholder {
+  color: var(--text-muted) !important;
+}
+[data-theme='dark'] .shadow-md {
+  box-shadow: var(--shadow) !important;
+}

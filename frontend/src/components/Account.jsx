@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
 import AuthFormError from './AuthFormError';
+import ThemeToggle from './ThemeToggle';
 import './Account.css';
 
 const readStoredUser = () => {
@@ -170,6 +171,19 @@ const Account = ({ setIsAuthenticated }) => {
               </p>
             </div>
           ) : null}
+        </section>
+
+        <section className="account-section" aria-labelledby="account-theme-heading">
+          <h2 id="account-theme-heading">Appearance</h2>
+          <div className="account-theme-row">
+            <div>
+              <span className="account-label">Theme</span>
+              <p className="account-hint" style={{ marginTop: 0 }}>
+                Light is the default. Your choice is saved on this device.
+              </p>
+            </div>
+            <ThemeToggle />
+          </div>
         </section>
 
         <section className="account-section" aria-labelledby="account-password-heading">
