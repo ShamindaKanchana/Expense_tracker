@@ -69,53 +69,55 @@ const MonthlyExpenses = () => {
     setYear(parseInt(e.target.value));
   };
 
-  // Fetch monthly data from the backend
+  // Fetch monthly data for the selected year only
   useEffect(() => {
     const fetchMonthlyData = async () => {
       setLoading(true);
+      setError('');
+      setCategoryData([]);
       try {
         const response = await api.get(`/expenses/monthly?year=${year}`);
-        const monthlyData = response.data;
-        
-        // Format data for the chart - ensure we have all 12 months
-        const formattedData = Array(12).fill().map((_, index) => {
-          const monthNumber = (index + 1).toString().padStart(2, '0');
-          // Handle both string and number month formats
-          const monthData = monthlyData.find(m => 
-            m.month === monthNumber || m.month === index + 1 || m.month === String(index + 1)
-          ) || { 
-            total: 0, 
-            count: 0 
-          };
-          
+        const rows = Array.isArray(response.data) ? response.data : [];
+
+        // Build 12 months for this year; match only rows for the selected year
+        const formattedData = Array.from({ length: 12 }, (_, index) => {
+          const monthNumber = index + 1;
+          const monthData = rows.find((m) => {
+            const mMonth = Number(m.month);
+            const mYear = Number(m.year);
+            return mMonth === monthNumber && (!m.year || mYear === year);
+          });
+
           return {
-            month: index + 1,
-            year: monthData.year || year,
-            total: parseFloat(monthData.total) || 0,
-            count: parseInt(monthData.count) || 0,
-            categories: monthData.categories || [] // Will be populated when month is selected
+            month: monthNumber,
+            year,
+            total: monthData ? parseFloat(monthData.total) || 0 : 0,
+            count: monthData ? parseInt(monthData.count, 10) || 0 : 0,
+            categories: []
           };
         });
-        
+
         setMonthlyData(formattedData);
-        
-        // Set current month as selected by default
-        const currentMonth = new Date().getMonth() + 1;
-        const currentMonthData = formattedData.find(m => m.month === currentMonth);
-        if (currentMonthData) {
-          setSelectedMonth(currentMonthData);
-          // Fetch categories for current month so donut shows immediately
-          fetchCategoriesFor(currentMonth, currentMonthData.year || year);
-        }
-        
+
+        // Prefer current calendar month when viewing this year; otherwise first month with spend
+        const now = new Date();
+        const preferMonth =
+          year === now.getFullYear()
+            ? now.getMonth() + 1
+            : formattedData.find((m) => m.total > 0)?.month || 1;
+        const selected = formattedData.find((m) => m.month === preferMonth) || formattedData[0];
+        setSelectedMonth(selected);
+        fetchCategoriesFor(selected.month, year);
       } catch (err) {
         console.error('Error fetching monthly data:', err);
         setError('Failed to load expense data. Please try again later.');
+        setMonthlyData([]);
+        setSelectedMonth(null);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchMonthlyData();
   }, [year, fetchCategoriesFor]);
 
@@ -126,6 +128,9 @@ const MonthlyExpenses = () => {
   if (error) {
     return <div className="error-message">{error}</div>;
   }
+
+  const yearTotal = monthlyData.reduce((sum, m) => sum + (m.total || 0), 0);
+  const hasYearData = yearTotal > 0;
 
   return (
     <div className="monthly-expenses">
@@ -157,6 +162,11 @@ const MonthlyExpenses = () => {
         {/* Monthly Bar Chart */}
         <div className="monthly-chart">
           <h2>Monthly Expenses for {year}</h2>
+          {!hasYearData ? (
+            <p className="empty-year-message">
+              No expenses recorded for {year}. Try another year or add an expense.
+            </p>
+          ) : (
           <div className="chart-wrapper">
             <Bar 
               data={{
@@ -194,11 +204,12 @@ const MonthlyExpenses = () => {
               }} 
             />
           </div>
+          )}
         </div>
 
-        {selectedMonth && (
+        {hasYearData && selectedMonth && (
           <div className="category-breakdown">
-            <h2>Category Breakdown for {months[selectedMonth.month - 1]}</h2>
+            <h2>Category Breakdown for {months[selectedMonth.month - 1]} {year}</h2>
             <div className="donut-chart-container" style={{ width: '100%', maxWidth: '400px', margin: '0 auto' }}>
               <Doughnut 
                 data={{

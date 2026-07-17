@@ -447,16 +447,16 @@ If the user has no expenses: `highestSpendingMonth` is `null`.
 | | |
 |--|--|
 | **Access** | Private |
-| **Description** | Monthly expense totals grouped by month. |
+| **Description** | Monthly expense totals grouped by month, optionally filtered by year. |
 | **Used by** | Monthly Report page |
 
 **Query parameters**
 
 | Param | Required | Notes |
 |-------|----------|-------|
-| `year` | No | Sent by the frontend, but **not currently applied** by the backend — returns all months with data |
+| `year` | No | Four-digit year (e.g. `2025`). When set, SQL filters `YEAR(date) = year`. Omit for all years. |
 
-**Success:** `200` — array
+**Success:** `200` — array (empty if the user has no expenses for that year)
 
 ```json
 [

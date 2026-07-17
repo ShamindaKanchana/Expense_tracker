@@ -101,6 +101,18 @@
   position: relative;
 }
 
+.empty-year-message {
+  margin: 2rem 1rem;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  border-radius: var(--border-radius);
+}
+
 .pie-chart-container {
   width: 100%;
   max-width: 500px;

@@ -142,38 +142,45 @@ router.get('/', /* auth, */ async (req, res) => {
 });
 
 // @route   GET /api/expenses/monthly
-// @desc    Get monthly expense summary
+// @desc    Get monthly expense summary (optional ?year=YYYY filter)
 // @access  Private
 router.get('/monthly', auth, async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    // Using the getMonthlySummary method which does the aggregation in SQL
-    Expense.getMonthlySummary(userId, null, null, (err, monthlyData) => {
+    const yearParam = req.query.year;
+    const year =
+      yearParam !== undefined && yearParam !== '' && yearParam !== null
+        ? parseInt(yearParam, 10)
+        : null;
+
+    if (yearParam && (Number.isNaN(year) || year < 1970 || year > 2100)) {
+      return res.status(400).json({ message: 'Please provide a valid year.' });
+    }
+
+    // Pass year into the model so SQL filters YEAR(date) = ?
+    Expense.getMonthlySummary(userId, year, null, (err, monthlyData) => {
       if (err) {
         console.error('Error getting monthly summary:', err);
-        return res.status(500).json({ 
-          message: 'Error getting monthly summary', 
-          error: err.message 
+        return res.status(500).json({
+          message: 'Error getting monthly summary',
+          error: err.message
         });
       }
-      
-      // The data is already in the correct format from the model
-      // Just ensure numbers are properly typed
-      const formattedData = monthlyData.map(item => ({
-        month: item.month,
-        year: item.year,
+
+      const formattedData = (monthlyData || []).map((item) => ({
+        month: Number(item.month),
+        year: Number(item.year),
         total: parseFloat(item.total) || 0,
-        count: parseInt(item.count) || 0
+        count: parseInt(item.count, 10) || 0
       }));
-      
+
       res.json(formattedData);
     });
   } catch (err) {
     console.error('Error in monthly summary route:', err);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: err.message 
+    res.status(500).json({
+      message: 'Server error',
+      error: err.message
     });
   }
 });
