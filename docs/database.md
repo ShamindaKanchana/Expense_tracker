@@ -62,8 +62,8 @@ Stores registered accounts. Passwords are hashed with bcrypt (10 rounds) before 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | `INT` | PK, AUTO_INCREMENT | User ID (used in JWT as `userId`) |
-| `username` | `VARCHAR(50)` | UNIQUE, NOT NULL | Display name / login identifier |
-| `email` | `VARCHAR(100)` | UNIQUE, NOT NULL | Login email |
+| `username` | `VARCHAR(50)` | UNIQUE, NOT NULL | Primary login identifier (required for all accounts) |
+| `email` | `VARCHAR(100)` | UNIQUE, NULL | Optional; set for older accounts, `NULL` for new username-only signups |
 | `password` | `TEXT` | NOT NULL | bcrypt hash (never returned by API) |
 | `created_at` | `TIMESTAMP` | DEFAULT `CURRENT_TIMESTAMP` | Account creation time |
 | `updated_at` | `TIMESTAMP` | DEFAULT `CURRENT_TIMESTAMP ON UPDATE` | Last update time |
@@ -74,20 +74,30 @@ Stores registered accounts. Passwords are hashed with bcrypt (10 rounds) before 
 CREATE TABLE IF NOT EXISTS users (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) UNIQUE NOT NULL,
-  email VARCHAR(100) UNIQUE NOT NULL,
+  email VARCHAR(100) UNIQUE NULL,
   password TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
+On startup the model also runs `ALTER TABLE users MODIFY email VARCHAR(100) UNIQUE NULL` so existing databases accept username-only accounts.
+
+**Auth model (practical):**
+
+| Account type | Signup | Sign-in |
+|--------------|--------|---------|
+| New users | username + password (`email` = `NULL`) | username + password |
+| Existing email users | had email at signup | **email or username** + password |
+
 **Model methods (`User`):**
 
 | Method | Description |
 |--------|-------------|
-| `User.create(userData, cb)` | Hash password, insert user, return `{ id, username, email, created_at }` |
+| `User.create(userData, cb)` | Hash password, insert user (`email` optional/`NULL`), return profile |
 | `User.findByEmail(email, cb)` | Find user by email (includes password hash) |
 | `User.findByUsername(username, cb)` | Find user by username |
+| `User.findByLogin(login, cb)` | Find by username **or** email (used by login) |
 | `User.comparePassword(plain, hash, cb)` | bcrypt compare |
 
 ---

@@ -81,17 +81,22 @@ Expense Tracker API is running
 | | |
 |--|--|
 | **Access** | Public |
-| **Description** | Create a new user account and return a JWT. |
+| **Description** | Create a new account with **username + password** (email not required). Returns a JWT. |
 
 **Request body**
 
 ```json
 {
   "username": "jane",
-  "email": "jane@example.com",
   "password": "secret123"
 }
 ```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `username` | Yes | Min 3 characters, unique |
+| `password` | Yes | Min 6 characters |
+| `email` | No | Optional; stored if provided (legacy). New UI does not send it |
 
 **Success:** `201`
 
@@ -101,7 +106,7 @@ Expense Tracker API is running
   "user": {
     "id": 1,
     "username": "jane",
-    "email": "jane@example.com"
+    "email": null
   }
 }
 ```
@@ -110,7 +115,7 @@ Expense Tracker API is running
 
 | Status | When |
 |--------|------|
-| `400` | Missing fields, duplicate email, or duplicate username |
+| `400` | Missing fields, short username/password, or duplicate username/email |
 | `500` | Server error |
 
 ---
@@ -120,16 +125,23 @@ Expense Tracker API is running
 | | |
 |--|--|
 | **Access** | Public |
-| **Description** | Sign in with email and password; returns a JWT. |
+| **Description** | Sign in with **username or email** + password; returns a JWT. Existing email users and new username-only users both work. |
 
 **Request body**
 
 ```json
 {
-  "email": "jane@example.com",
+  "login": "jane",
   "password": "secret123"
 }
 ```
+
+Also accepted for compatibility: `identifier`, `username`, or `email` instead of `login`.
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `login` | Yes | Username **or** email of an existing account |
+| `password` | Yes | Account password |
 
 **Success:** `200`
 
@@ -139,7 +151,7 @@ Expense Tracker API is running
   "user": {
     "id": 1,
     "username": "jane",
-    "email": "jane@example.com"
+    "email": null
   }
 }
 ```
@@ -148,8 +160,8 @@ Expense Tracker API is running
 
 | Status | When |
 |--------|------|
-| `400` | Missing email or password |
-| `401` | Incorrect email or password |
+| `400` | Missing login or password |
+| `401` | Incorrect username/email or password |
 | `500` | Server error |
 
 ---
@@ -478,8 +490,8 @@ If no expenses exist: `data` is `null`.
 | Method | Endpoint | Access | Purpose |
 |--------|----------|--------|---------|
 | `GET` | `/` | Public | API health check |
-| `POST` | `/api/auth/register` | Public | Create account + JWT |
-| `POST` | `/api/auth/login` | Public | Sign in + JWT |
+| `POST` | `/api/auth/register` | Public | Create account (username + password) + JWT |
+| `POST` | `/api/auth/login` | Public | Sign in (username or email + password) + JWT |
 | `GET` | `/api/auth/me` | Private | Current user profile |
 | `GET` | `/api/expenses/test-db` | Public | DB diagnostic |
 | `GET` | `/api/expenses` | Private* | List expenses (*not implemented) |

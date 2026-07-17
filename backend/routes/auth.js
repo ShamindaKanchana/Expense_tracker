@@ -12,27 +12,25 @@ if (!process.env.JWT_SECRET) {
 }
 
 // @route   POST /api/auth/register
-// @desc    Register a new user
+// @desc    Register with username + password (email optional, not required)
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const username = String(req.body.username || '').trim();
+    const password = req.body.password;
+    // Optional for backward compatibility; new UI does not collect email
+    const email = req.body.email ? String(req.body.email).trim() : null;
 
-    // 1. Validate request data
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: 'Please fill in your username, email, and password.' });
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Please choose a username and password.' });
     }
 
-    // 2. Check if email or username is already taken
-    const existingByEmail = await new Promise((resolve, reject) => {
-      User.findByEmail(email, (err, user) => {
-        if (err) reject(err);
-        else resolve(user);
-      });
-    });
+    if (username.length < 3) {
+      return res.status(400).json({ message: 'Username must be at least 3 characters.' });
+    }
 
-    if (existingByEmail) {
-      return res.status(400).json({ message: 'This email is already registered. Try signing in instead.' });
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Your password needs at least 6 characters.' });
     }
 
     const existingByUsername = await new Promise((resolve, reject) => {
@@ -46,7 +44,19 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'That username is taken. Please choose a different one.' });
     }
 
-    // 3. Create new user (password is hashed in the User.create method)
+    if (email) {
+      const existingByEmail = await new Promise((resolve, reject) => {
+        User.findByEmail(email, (err, user) => {
+          if (err) reject(err);
+          else resolve(user);
+        });
+      });
+
+      if (existingByEmail) {
+        return res.status(400).json({ message: 'This email is already registered. Try signing in instead.' });
+      }
+    }
+
     const newUser = await new Promise((resolve, reject) => {
       User.create({ username, email, password }, (err, user) => {
         if (err) reject(err);
@@ -54,17 +64,15 @@ router.post('/register', async (req, res) => {
       });
     });
 
-    // 4. Generate JWT token
     const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    // 5. Return token and user data (without password)
-    res.status(201).json({ 
-      token, 
-      user: { 
-        id: newUser.id, 
-        username: newUser.username, 
-        email: newUser.email 
-      } 
+    res.status(201).json({
+      token,
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email || null
+      }
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -81,49 +89,50 @@ router.post('/register', async (req, res) => {
 });
 
 // @route   POST /api/auth/login
-// @desc    Authenticate user & get token
+// @desc    Sign in with username or email + password
 // @access  Public
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // Accept: login, identifier, username, or email (for older clients)
+    const login =
+      req.body.login ||
+      req.body.identifier ||
+      req.body.username ||
+      req.body.email;
+    const { password } = req.body;
 
-    // 1. Validate request data
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please enter your email and password.' });
+    if (!login || !password) {
+      return res.status(400).json({ message: 'Please enter your username or email, and your password.' });
     }
 
-    // 2. Find user by email
     const user = await new Promise((resolve, reject) => {
-      User.findByEmail(email, (err, user) => {
+      User.findByLogin(login, (err, found) => {
         if (err) reject(err);
-        else resolve(user);
+        else resolve(found);
       });
     });
 
     if (!user) {
-      return res.status(401).json({ message: 'Incorrect email or password. Please check and try again.' });
+      return res.status(401).json({ message: 'Incorrect username/email or password. Please check and try again.' });
     }
 
-    // 3. Compare passwords
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Incorrect email or password. Please check and try again.' });
+      return res.status(401).json({ message: 'Incorrect username/email or password. Please check and try again.' });
     }
 
-    // 4. Generate JWT token
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    // 5. Return token and user data (without password)
     res.json({
       token,
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email || null
       }
     });
   } catch (error) {

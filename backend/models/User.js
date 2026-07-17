@@ -2,11 +2,12 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
 // Create users table if it doesn't exist
+// email is optional (NULL) so new accounts can use username + password only
 const createTableQuery = `
   CREATE TABLE IF NOT EXISTS users (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NULL,
     password TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -17,6 +18,12 @@ const createTableQuery = `
 const initTable = async () => {
   try {
     await db.query(createTableQuery);
+    // Existing databases may still have email NOT NULL — allow username-only accounts
+    try {
+      await db.query('ALTER TABLE users MODIFY email VARCHAR(100) UNIQUE NULL');
+    } catch (alterErr) {
+      console.warn('Note: could not alter users.email (may already be nullable):', alterErr.message);
+    }
     console.log('✅ Users table is ready');
   } catch (err) {
     console.error('❌ Error creating users table:', err.message);
@@ -28,11 +35,12 @@ const initTable = async () => {
 initTable().catch(console.error);
 
 class User {
-  // Create a new user
+  // Create a new user (email optional)
   static async create(userData, callback) {
     try {
       const hashedPassword = await bcrypt.hash(userData.password, 10);
-      const { username, email } = userData;
+      const username = String(userData.username || '').trim();
+      const email = userData.email ? String(userData.email).trim() : null;
       
       const result = await db.query(
         'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
@@ -63,6 +71,7 @@ class User {
   // Find user by email
   static async findByEmail(email, callback) {
     try {
+      if (!email) return callback(null, null);
       const rows = await db.query('SELECT * FROM users WHERE email = ?', [email]);
       callback(null, rows[0] || null);
     } catch (err) {
@@ -78,6 +87,22 @@ class User {
       callback(null, rows[0] || null);
     } catch (err) {
       console.error('Error finding user by username:', err);
+      callback(err);
+    }
+  }
+
+  // Find by username or email (for login field that accepts either)
+  static async findByLogin(login, callback) {
+    try {
+      const value = String(login || '').trim();
+      if (!value) return callback(null, null);
+      const rows = await db.query(
+        'SELECT * FROM users WHERE username = ? OR (email IS NOT NULL AND email = ?)',
+        [value, value]
+      );
+      callback(null, rows[0] || null);
+    } catch (err) {
+      console.error('Error finding user by login:', err);
       callback(err);
     }
   }

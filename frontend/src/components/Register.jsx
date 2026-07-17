@@ -8,7 +8,6 @@ import './Login.css';
 const Register = ({ setIsAuthenticated }) => {
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
     password: '',
     confirmPassword: ''
   });
@@ -26,9 +25,15 @@ const Register = ({ setIsAuthenticated }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate form data
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
-      setError('Please fill in all fields before continuing.');
+    const username = formData.username.trim();
+
+    if (!username || !formData.password || !formData.confirmPassword) {
+      setError('Please choose a username and password.');
+      return;
+    }
+
+    if (username.length < 3) {
+      setError('Username must be at least 3 characters.');
       return;
     }
 
@@ -46,9 +51,9 @@ const Register = ({ setIsAuthenticated }) => {
     setError('');
 
     try {
+      // New accounts: username + password only (no email required)
       const response = await authApi.register({
-        username: formData.username,
-        email: formData.email,
+        username,
         password: formData.password
       });
       
@@ -74,7 +79,7 @@ const Register = ({ setIsAuthenticated }) => {
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
             Expense Tracker
           </h2>
-          <p className="mt-2 text-sm text-gray-600">Create your account</p>
+          <p className="mt-2 text-sm text-gray-600">Create your account with a username and password</p>
           <p className="mt-2 text-sm text-gray-600">
             Or{' '}
             <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
@@ -91,24 +96,12 @@ const Register = ({ setIsAuthenticated }) => {
                 id="username"
                 name="username"
                 type="text"
+                autoComplete="username"
                 required
+                minLength={3}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Username"
+                placeholder="Username (min 3 characters)"
                 value={formData.username}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <label htmlFor="email-address" className="sr-only">Email address</label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={formData.email}
                 onChange={handleChange}
               />
             </div>

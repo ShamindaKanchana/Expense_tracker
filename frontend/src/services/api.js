@@ -62,9 +62,10 @@ api.interceptors.response.use(
 
 // Auth API
 export const authApi = {
-  login: async (email, password) => {
+  // login accepts username or email (single identifier field)
+  login: async (login, password) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', { login, password });
       return response.data;
     } catch (error) {
       throw toRequestError(error, "We couldn't sign you in. Please try again.");
