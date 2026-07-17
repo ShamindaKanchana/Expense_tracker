@@ -116,8 +116,8 @@ const Register = ({ setIsAuthenticated }) => {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
+        <form className="mt-8 auth-form" onSubmit={handleSubmit}>
+          <div className="auth-form-fields rounded-md shadow-sm -space-y-px">
             <div className="auth-field-with-tip" ref={usernameFieldRef}>
               <label htmlFor="username" className="sr-only">Username</label>
               <input
@@ -195,9 +195,8 @@ const Register = ({ setIsAuthenticated }) => {
             </div>
           </div>
 
-          <AuthFormError message={error} />
-
-          <div>
+          <div className="auth-form-submit">
+            <AuthFormError message={error} />
             <button
               type="submit"
               disabled={loading}
@@ -206,8 +205,8 @@ const Register = ({ setIsAuthenticated }) => {
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </div>
-          
-          <div className="text-sm text-center">
+
+          <div className="auth-form-footer text-sm text-center">
             <p className="text-gray-600">
               Already have an account?{' '}
               <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
