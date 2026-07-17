@@ -54,6 +54,8 @@ A full-stack expense tracking application built with React, Node.js, Express, an
 > **API reference:** [docs/api.md](docs/api.md) — all endpoints, auth requirements, and request/response formats.
 >
 > **Database schema:** [docs/database.md](docs/database.md) — ER diagram, tables, models, and relationships.
+>
+> **Releases:** [docs/releases/README.md](docs/releases/README.md) — version history and what changed vs the previous release.
 
 ### 1. Clone the Repository
 
