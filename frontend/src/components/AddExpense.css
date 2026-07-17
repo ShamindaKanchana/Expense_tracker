@@ -121,38 +121,47 @@
   gap: 1rem;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color);
 }
 
+/* Explicit theme colors — global `button { color: white }` must not win in dark mode */
+button.cancel-button,
 .cancel-button {
-  background-color: #f8f9fa;
-  color: var(--dark-color);
-  border: 1px solid #dee2e6;
+  background-color: var(--bg-surface-muted);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
+button.cancel-button:hover,
 .cancel-button:hover {
-  background-color: #e9ecef;
-  color: var(--dark-color);
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-color);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
 }
 
+button.submit-button,
 .submit-button {
   background-color: var(--primary-color);
-  color: white;
+  color: #ffffff;
   border: none;
   padding: 0.8rem 1.5rem;
   font-weight: 500;
 }
 
+button.submit-button:hover,
 .submit-button:hover {
   background-color: var(--secondary-color);
+  color: #ffffff;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
 }
 
+button.submit-button:disabled,
 .submit-button:disabled {
-  background-color: #a0a0a0;
+  background-color: var(--text-muted);
+  color: #ffffff;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
