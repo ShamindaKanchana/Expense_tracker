@@ -205,15 +205,6 @@ const Register = ({ setIsAuthenticated }) => {
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </div>
-
-          <div className="auth-form-footer text-sm text-center">
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Sign in
-              </Link>
-            </p>
-          </div>
         </form>
       </div>
     </div>
