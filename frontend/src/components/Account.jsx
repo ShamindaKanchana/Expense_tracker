@@ -4,6 +4,7 @@ import { authApi } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
 import AuthFormError from './AuthFormError';
 import ThemeToggle from './ThemeToggle';
+import PasswordInput from './PasswordInput';
 import './Account.css';
 
 const readStoredUser = () => {
@@ -192,10 +193,9 @@ const Account = ({ setIsAuthenticated }) => {
             <label className="account-input-label" htmlFor="currentPassword">
               Current password
             </label>
-            <input
+            <PasswordInput
               id="currentPassword"
               name="currentPassword"
-              type="password"
               autoComplete="current-password"
               value={passwords.currentPassword}
               onChange={handlePasswordChange}
@@ -205,10 +205,9 @@ const Account = ({ setIsAuthenticated }) => {
             <label className="account-input-label" htmlFor="newPassword">
               New password
             </label>
-            <input
+            <PasswordInput
               id="newPassword"
               name="newPassword"
-              type="password"
               autoComplete="new-password"
               minLength={6}
               value={passwords.newPassword}
@@ -220,10 +219,9 @@ const Account = ({ setIsAuthenticated }) => {
             <label className="account-input-label" htmlFor="confirmPassword">
               Confirm new password
             </label>
-            <input
+            <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
               autoComplete="new-password"
               value={passwords.confirmPassword}
               onChange={handlePasswordChange}
