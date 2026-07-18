@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { getErrorMessage } from '../utils/errorMessage';
+import { clearAuth, getToken } from '../utils/authStorage';
 
 const API_URL = API_BASE_URL;
 
@@ -24,7 +25,7 @@ const api = axios.create({
 // Add a request interceptor to include the auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -34,8 +35,7 @@ api.interceptors.request.use(
 );
 
 const clearSession = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  clearAuth();
 };
 
 // Normalize API errors; on expired/invalid JWT, force sign-in instead of broken empty pages

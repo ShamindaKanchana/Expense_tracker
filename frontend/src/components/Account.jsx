@@ -5,16 +5,10 @@ import { getErrorMessage } from '../utils/errorMessage';
 import AuthFormError from './AuthFormError';
 import ThemeToggle from './ThemeToggle';
 import PasswordInput from './PasswordInput';
+import { clearAuth, getUser, setStoredUser } from '../utils/authStorage';
 import './Account.css';
 
-const readStoredUser = () => {
-  try {
-    const raw = localStorage.getItem('user');
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
+const readStoredUser = () => getUser();
 
 const Account = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
@@ -41,14 +35,11 @@ const Account = ({ setIsAuthenticated }) => {
         const data = await authApi.getMe();
         if (cancelled) return;
         setProfile(data);
-        localStorage.setItem(
-          'user',
-          JSON.stringify({
-            id: data.id,
-            username: data.username,
-            email: data.email || null
-          })
-        );
+        setStoredUser({
+          id: data.id,
+          username: data.username,
+          email: data.email || null
+        });
       } catch (err) {
         if (cancelled) return;
         // Keep localStorage user as fallback while showing a soft error
@@ -121,8 +112,7 @@ const Account = ({ setIsAuthenticated }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
     setIsAuthenticated(false);
     navigate('/login');
   };

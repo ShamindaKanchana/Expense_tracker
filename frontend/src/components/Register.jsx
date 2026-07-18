@@ -5,6 +5,7 @@ import { getErrorMessage } from '../utils/errorMessage';
 import AuthFormError from './AuthFormError';
 import AuthHelp from './AuthHelp';
 import PasswordInput from './PasswordInput';
+import { setAuth } from '../utils/authStorage';
 import './Login.css';
 
 const USERNAME_TIP =
@@ -85,11 +86,9 @@ const Register = ({ setIsAuthenticated }) => {
         password: formData.password
       });
       
-      // Save token and user data
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
-      // Update auth state and redirect
+      // New accounts: stay signed in (same as Remember me checked)
+      setAuth(response.token, response.user, true);
+
       setIsAuthenticated(true);
       navigate('/dashboard');
       

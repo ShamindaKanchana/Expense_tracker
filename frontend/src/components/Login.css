@@ -146,9 +146,11 @@
 }
 
 .remember-me-row {
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -169,6 +171,51 @@
   color: var(--text-primary);
   cursor: pointer;
   line-height: 1.25;
+}
+
+.remember-me-info-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.remember-me-info-btn:hover,
+.remember-me-info-btn:focus-visible {
+  color: var(--primary-color);
+}
+
+.remember-me-info-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
+
+.remember-me-info-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.remember-me-tip {
+  flex: 1 1 100%;
+  margin: 0.15rem 0 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--bg-surface-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  text-align: left;
 }
 
 /* Username field: small info icon (right-aligned) + tip on click */
