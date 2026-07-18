@@ -4,7 +4,7 @@
 |-------|--------|
 | **Product** | Expense Tracker |
 | **Feature** | Administration panel (account oversight & removal) |
-| **Status** | Draft requirements — **no implementation until product owner approves** |
+| **Status** | Prototype implemented on `dev` (see change log) |
 | **Branch intent** | Implement later on `dev`, then PR to `main` |
 | **Related docs** | [database.md](../database.md), [api.md](../api.md), [development.md](../development.md) |
 
@@ -325,3 +325,4 @@ Suggested order (for a future PR plan):
 |------|--------|
 | 2026-07-18 | Initial draft: overview, hidden admin login, list users, delete accounts, no passwords in UI |
 | 2026-07-18 | Added **§2.5 Prototype UI**: no tabs, two screens only (login + dashboard), wireframe, optional one-page polish |
+| 2026-07-18 | Prototype coded on `dev`: `/admin/login`, `/admin`, `POST/GET/DELETE /api/admin/*`, env seed `ADMIN_USERNAME` / `ADMIN_PASSWORD` |

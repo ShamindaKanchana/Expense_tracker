@@ -2,6 +2,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { getErrorMessage } from '../utils/errorMessage';
 import { clearAuth, getToken } from '../utils/authStorage';
+import { clearAdminAuth, getAdminToken } from '../utils/adminStorage';
 
 const API_URL = API_BASE_URL;
 
@@ -14,7 +15,6 @@ if (process.env.NODE_ENV === 'development') {
   console.log(`API base URL: ${API_URL}`);
 }
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -22,47 +22,57 @@ const api = axios.create({
   },
 });
 
-// Add a request interceptor to include the auth token
+// Attach the correct token for user vs admin API calls
 api.interceptors.request.use(
   (config) => {
-    const token = getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const url = config.url || '';
+    const isAdminApi = url.includes('/admin');
+    const isAdminLogin = /\/admin\/login/.test(url);
+
+    if (isAdminApi && !isAdminLogin) {
+      const token = getAdminToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } else if (!isAdminApi) {
+      const token = getToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-const clearSession = () => {
-  clearAuth();
-};
-
-// Normalize API errors; on expired/invalid JWT, force sign-in instead of broken empty pages
+// Normalize API errors; handle user vs admin session expiry separately
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
     const url = error.config?.url || '';
-    // Login/register 401 means wrong credentials — do not treat as session expiry
-    const isAuthForm = /\/auth\/(login|register)/.test(url);
+    const isUserAuthForm = /\/auth\/(login|register)/.test(url);
+    const isAdminLogin = /\/admin\/login/.test(url);
+    const isAdminApi = url.includes('/admin');
 
-    if (status === 401 && !isAuthForm) {
-      clearSession();
-      sessionStorage.setItem(
-        'authMessage',
-        'Your session has expired. Please sign in again.'
-      );
-      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+    if (status === 401 && !isUserAuthForm && !isAdminLogin) {
+      if (isAdminApi) {
+        clearAdminAuth();
+      } else {
+        clearAuth();
+        sessionStorage.setItem(
+          'authMessage',
+          'Your session has expired. Please sign in again.'
+        );
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      }
     }
 
     return Promise.reject(toRequestError(error, 'Request failed'));
   }
 );
 
-// Auth API
 export const authApi = {
-  // login accepts username or email (single identifier field)
   login: async (login, password) => {
     try {
       const response = await api.post('/auth/login', { login, password });
