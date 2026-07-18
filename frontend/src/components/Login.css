@@ -137,6 +137,40 @@
   text-align: left;
 }
 
+/* Remember me: checkbox + label on one row (do not rely on Tailwind alone) */
+.login-form-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.remember-me-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.remember-me-row input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+.remember-me-row label {
+  display: inline;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  cursor: pointer;
+  line-height: 1.25;
+}
+
 /* Username field: small info icon (right-aligned) + tip on click */
 .auth-field-with-tip {
   position: relative;

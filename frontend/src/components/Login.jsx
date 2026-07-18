@@ -105,19 +105,14 @@ const Login = ({ setIsAuthenticated }) => {
 
           <AuthFormError message={error} />
 
-          <div className="flex flex-col space-y-4 mt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
+          <div className="login-form-extras">
+            <div className="remember-me-row">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+              />
+              <label htmlFor="remember-me">Remember me</label>
             </div>
 
             <div className="text-center">
