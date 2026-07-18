@@ -74,7 +74,6 @@ Security must rely on **authentication + authorization**, not only on “secret 
 ```
 /admin/login          ← not linked from user app
 /admin                ← dashboard (requires admin auth)
-/admin/users          ← optional same page as dashboard for v1
 ```
 
 **Admin dashboard (v1 content):**
@@ -87,6 +86,102 @@ Security must rely on **authentication + authorization**, not only on “secret 
 | Never shown | Password, password hash, JWT secrets |
 
 Mobile: simple table or card list is enough; no need for bottom-tab parity with the user app.
+
+### 2.5 Prototype UI (agreed — keep it simple)
+
+The admin prototype is intentionally **simpler than the user app**. It is an operator tool, not a second full product.
+
+#### Tabs
+
+| Decision | Detail |
+|----------|--------|
+| **User app** | Keeps Home / Add / Report / Account (bottom tabs on mobile) |
+| **Admin prototype** | **No tab bar** — zero navigation tabs |
+
+Multi-tab admin (Users / Analytics / Settings / …) is **out of scope for the prototype**. Tabs only become useful later (exports, audit log, multi-admin settings).
+
+#### Screens (exactly two)
+
+| # | Route | Purpose |
+|---|--------|---------|
+| 1 | `/admin/login` | Admin sign-in only (username + password, show/hide password optional) |
+| 2 | `/admin` | Single dashboard: count + list + delete + logout |
+
+Optional later (not prototype):
+
+| Route | When to add |
+|-------|-------------|
+| `/admin/users` | Only if the list needs its own page (search, pagination at scale) |
+| `/admin/settings` | Only if admin password change, audit log, etc. are required |
+
+#### Information architecture
+
+```
+User app (public)          Admin (hidden)
+─────────────────          ────────────────
+/login                     /admin/login  ──►  /admin
+/register                         │              │
+/dashboard                        │              ├─ Total accounts
+/add-expense                      │              ├─ User list (usernames)
+/monthly-expenses                 │              └─ Delete + confirm
+/account                          │
+     (no link to /admin)          └── not linked from user UI
+```
+
+#### Prototype flow
+
+1. Operator opens `/admin/login` (bookmarked or known URL — not shown in user app).
+2. Signs in with admin credentials.
+3. Lands on `/admin` — sees account **count** and **usernames**.
+4. Can **delete** a user after confirmation.
+5. **Logout** returns to `/admin/login`.
+
+#### Single dashboard wireframe
+
+```
+┌─────────────────────────────────────────────┐
+│  Admin · Expense Tracker          [Logout]  │
+├─────────────────────────────────────────────┤
+│                                             │
+│  Total accounts:  12                        │
+│                                             │
+│  Users                                      │
+│  ┌───────────────────────────────────────┐  │
+│  │ Username  │ Email (opt) │ Joined │    │  │
+│  │ shaminda  │ —           │ …      │ 🗑 │  │
+│  │ jane      │ a@b.com     │ …      │ 🗑 │  │
+│  └───────────────────────────────────────┘  │
+│                                             │
+│  Delete → confirmation dialog               │
+│  (e.g. “Type username to confirm”)          │
+└─────────────────────────────────────────────┘
+```
+
+#### Layout rules
+
+| Surface | Rule |
+|---------|------|
+| Desktop | One page; table is fine |
+| Mobile | Same single page: summary card on top, list/cards below; **no** bottom tab bar |
+| Theme | May follow app light/dark tokens later; prototype can stay light-only |
+| Branding | Clear “Admin” label so it is not confused with the user dashboard |
+
+#### Optional polish (still one page — not new tabs)
+
+| Enhancement | Priority |
+|-------------|----------|
+| Search / filter by username | Could |
+| Sort by newest or name | Should |
+| Expense count per user | Could (helps decide whom to delete) |
+| Empty state when zero users | Should |
+
+#### Why not many tabs?
+
+| Multi-tab admin | One-page admin (chosen) |
+|-----------------|-------------------------|
+| Overkill for count + list + delete | Matches real v1 needs |
+| More routes and design work | Faster prototype |
+| Feels like a second full product | Feels like an operator tool |
 
 ---
 
@@ -229,3 +324,4 @@ Suggested order (for a future PR plan):
 | Date | Change |
 |------|--------|
 | 2026-07-18 | Initial draft: overview, hidden admin login, list users, delete accounts, no passwords in UI |
+| 2026-07-18 | Added **§2.5 Prototype UI**: no tabs, two screens only (login + dashboard), wireframe, optional one-page polish |
