@@ -442,6 +442,24 @@ If the user has no expenses: `highestSpendingMonth` is `null`.
 
 ---
 
+### `GET /api/expenses/years`
+
+| | |
+|--|--|
+| **Access** | Private |
+| **Description** | Distinct calendar years that have at least one expense for the logged-in user (newest first). |
+| **Used by** | Monthly Report year dropdown |
+
+**Success:** `200`
+
+```json
+{ "years": [2026, 2025] }
+```
+
+Empty list if the user has no expenses: `{ "years": [] }`.
+
+---
+
 ### `GET /api/expenses/monthly`
 
 | | |
@@ -539,6 +557,7 @@ If no expenses exist: `data` is `null`.
 | `GET` | `/api/expenses/current-month-total` | Private | Current month total |
 | `GET` | `/api/expenses/monthly-summary` | Private | All monthly totals |
 | `GET` | `/api/expenses/monthly-totals` | Private | Highest spending month |
+| `GET` | `/api/expenses/years` | Private | Years with expense data |
 | `GET` | `/api/expenses/monthly` | Private | Monthly breakdown |
 | `GET` | `/api/expenses/categories` | Private | Category breakdown |
 | `GET` | `/api/expenses/top-category` | Private | Top category |
