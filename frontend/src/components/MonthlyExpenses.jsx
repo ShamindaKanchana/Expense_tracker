@@ -391,14 +391,6 @@ const MonthlyExpenses = () => {
                     </div>
                   </div>
                 ))}
-                
-                <div className="category-item total">
-                  <div className="category-name">Total</div>
-                  <div className="category-amount">
-                    Rs {selectedMonth.total.toFixed(2)}
-                  </div>
-                  <div className="category-percentage">100%</div>
-                </div>
               </div>
             </div>
           </div>

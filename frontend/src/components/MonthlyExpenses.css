@@ -249,14 +249,6 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.category-item.total {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: #ffffff;
-  font-weight: 600;
-  margin-top: 1rem;
-}
-
 .category-name {
   font-weight: 500;
   padding: 0.5rem 0.75rem;
@@ -277,16 +269,6 @@
   font-size: 0.85rem;
   color: #475569;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.category-item.total .category-name,
-.category-item.total .category-amount,
-.category-item.total .category-percentage {
-  color: #ffffff;
-}
-
-.category-item.total .category-percentage {
-  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Loading and Error States */
