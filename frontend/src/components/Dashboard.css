@@ -239,31 +239,6 @@ tr:hover {
   margin: 0 auto;
 }
 
-/* Developer Credit Styles */
-.developer-credit {
-  position: absolute;
-  bottom: 1rem;
-  left: 0;
-  right: 0;
-  text-align: center;
-  margin-top: 2rem;
-  padding: 0.5rem;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  font-weight: 400;
-}
-
-.developer-credit p {
-  margin: 0;
-  opacity: 0.8;
-  transition: opacity 0.3s ease;
-}
-
-.developer-credit:hover p {
-  opacity: 1;
-  color: var(--primary-color);
-}
-
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
