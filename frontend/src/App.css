@@ -127,11 +127,20 @@ select,
 textarea {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: var(--border-radius);
   font-size: 1rem;
   transition: var(--transition);
-  background-color: white;
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="number"]::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
 }
 
 input[type="text"]:focus,
@@ -143,12 +152,14 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--primary-color);
+  background-color: var(--bg-surface);
   box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
 }
 
 /* Cards */
 .card {
-  background: white;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
   padding: 1.5rem;
