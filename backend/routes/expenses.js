@@ -141,6 +141,29 @@ router.get('/', /* auth, */ async (req, res) => {
   // 4. Return expenses
 });
 
+// @route   GET /api/expenses/years
+// @desc    Distinct years that have expenses for the logged-in user
+// @access  Private
+router.get('/years', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const rows = await db.query(
+      `SELECT DISTINCT YEAR(\`date\`) AS year
+       FROM expenses
+       WHERE user_id = ?
+       ORDER BY year DESC`,
+      [userId]
+    );
+    const years = (rows || [])
+      .map((r) => Number(r.year))
+      .filter((y) => !Number.isNaN(y) && y >= 1970 && y <= 2100);
+    res.json({ years });
+  } catch (error) {
+    console.error('Error fetching expense years:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // @route   GET /api/expenses/monthly
 // @desc    Get monthly expense summary (optional ?year=YYYY filter)
 // @access  Private

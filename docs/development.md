@@ -35,6 +35,19 @@ The browser should open automatically. If not, go to http://localhost:3000.
 
 For endpoint details (what each API does, which require login), see [api.md](./api.md).
 
+### Admin panel (local)
+
+1. In `backend/.env` set:
+   ```
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=your_secure_password
+   ```
+2. Restart the backend (seeds `admins` table on first start if missing).
+3. Open **http://localhost:3000/admin/login** (not linked from the normal app UI).
+4. Dashboard: account count, usernames, delete with confirmation.
+
+See [srs/admin-panel.md](./srs/admin-panel.md).
+
 ---
 
 ## Environment variables

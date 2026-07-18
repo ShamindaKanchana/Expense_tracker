@@ -442,6 +442,24 @@ If the user has no expenses: `highestSpendingMonth` is `null`.
 
 ---
 
+### `GET /api/expenses/years`
+
+| | |
+|--|--|
+| **Access** | Private |
+| **Description** | Distinct calendar years that have at least one expense for the logged-in user (newest first). |
+| **Used by** | Monthly Report year dropdown |
+
+**Success:** `200`
+
+```json
+{ "years": [2026, 2025] }
+```
+
+Empty list if the user has no expenses: `{ "years": [] }`.
+
+---
+
 ### `GET /api/expenses/monthly`
 
 | | |
@@ -539,6 +557,7 @@ If no expenses exist: `data` is `null`.
 | `GET` | `/api/expenses/current-month-total` | Private | Current month total |
 | `GET` | `/api/expenses/monthly-summary` | Private | All monthly totals |
 | `GET` | `/api/expenses/monthly-totals` | Private | Highest spending month |
+| `GET` | `/api/expenses/years` | Private | Years with expense data |
 | `GET` | `/api/expenses/monthly` | Private | Monthly breakdown |
 | `GET` | `/api/expenses/categories` | Private | Category breakdown |
 | `GET` | `/api/expenses/top-category` | Private | Top category |
@@ -558,8 +577,70 @@ Methods: `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`
 
 ---
 
+## Admin (`/api/admin`)
+
+Separate from user auth. Admin UI: `/admin/login` (not linked from the user app). See [srs/admin-panel.md](./srs/admin-panel.md).
+
+Seed admin via `ADMIN_USERNAME` and `ADMIN_PASSWORD` in backend `.env` (created on server start if missing).
+
+### `POST /api/admin/login`
+
+| | |
+|--|--|
+| **Access** | Public (admin credentials only) |
+| **Description** | Sign in as admin; returns admin JWT (`role: admin`). |
+
+**Request body**
+
+```json
+{ "username": "admin", "password": "secret" }
+```
+
+**Success:** `200` — `{ "token": "<jwt>", "admin": { "id", "username" } }`
+
+### `GET /api/admin/me`
+
+| | |
+|--|--|
+| **Access** | Admin JWT |
+| **Description** | Current admin profile. |
+
+### `GET /api/admin/users`
+
+| | |
+|--|--|
+| **Access** | Admin JWT |
+| **Description** | List all **user** accounts + total count. Never includes passwords. |
+
+**Success:** `200`
+
+```json
+{
+  "total": 2,
+  "users": [
+    {
+      "id": 1,
+      "username": "jane",
+      "email": null,
+      "created_at": "2026-07-01T00:00:00.000Z",
+      "expense_count": 5
+    }
+  ]
+}
+```
+
+### `DELETE /api/admin/users/:id`
+
+| | |
+|--|--|
+| **Access** | Admin JWT |
+| **Description** | Hard-delete a user account; expenses cascade. |
+
+---
+
 ## Related docs
 
 - [database.md](./database.md) — tables, ER diagram, and model layer
+- [srs/admin-panel.md](./srs/admin-panel.md) — admin panel requirements
 - [development.md](./development.md) — local setup and env vars
 - [deployment/README.md](./deployment/README.md) — production deployment

@@ -7,3 +7,4 @@
 | [database.md](./database.md) | **Database schema** — ER diagram, tables, models, relationships |
 | [deployment/README.md](./deployment/README.md) | Production deployment and Render migration |
 | [releases/README.md](./releases/README.md) | **Release log** — versions, features vs previous release, bug fixes |
+| [srs/README.md](./srs/README.md) | **SRS** — product requirements (e.g. planned admin panel) |

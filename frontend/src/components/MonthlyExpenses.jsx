@@ -27,7 +27,9 @@ ChartJS.register(
 const MonthlyExpenses = () => {
   const { theme } = useTheme();
   const chartTheme = useMemo(() => getChartTheme(theme), [theme]);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [year, setYear] = useState(null);
+  const [years, setYears] = useState([]);
+  const [yearsLoaded, setYearsLoaded] = useState(false);
   const [monthlyData, setMonthlyData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
@@ -36,10 +38,6 @@ const MonthlyExpenses = () => {
   const [isNarrow, setIsNarrow] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false
   );
-
-  // Always anchor dropdown to the calendar year, not the selected year
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
@@ -72,6 +70,33 @@ const MonthlyExpenses = () => {
     }
   }, []);
 
+  // Load years that have expense data for this user only
+  useEffect(() => {
+    const loadYears = async () => {
+      setYearsLoaded(false);
+      try {
+        const response = await api.get('/expenses/years');
+        const list = Array.isArray(response.data?.years)
+          ? response.data.years.map(Number).filter((y) => !Number.isNaN(y))
+          : [];
+        setYears(list);
+        if (list.length > 0) {
+          setYear((prev) => (prev && list.includes(prev) ? prev : list[0]));
+        } else {
+          setYear(null);
+        }
+      } catch (err) {
+        console.error('Error fetching expense years:', err);
+        setYears([]);
+        setYear(null);
+        setError('Failed to load expense years. Please try again later.');
+      } finally {
+        setYearsLoaded(true);
+      }
+    };
+    loadYears();
+  }, []);
+
   const handleMonthSelect = React.useCallback((monthNumber) => {
     const month = monthlyData.find(m => m.month === monthNumber);
     if (month) {
@@ -81,11 +106,21 @@ const MonthlyExpenses = () => {
   }, [monthlyData, fetchCategoriesFor, year]);
 
   const handleYearChange = (e) => {
-    setYear(parseInt(e.target.value));
+    setYear(parseInt(e.target.value, 10));
   };
 
   // Fetch monthly data for the selected year only
   useEffect(() => {
+    if (!yearsLoaded) return undefined;
+
+    if (!year || years.length === 0) {
+      setMonthlyData([]);
+      setSelectedMonth(null);
+      setCategoryData([]);
+      setLoading(false);
+      return undefined;
+    }
+
     const fetchMonthlyData = async () => {
       setLoading(true);
       setError('');
@@ -134,14 +169,28 @@ const MonthlyExpenses = () => {
     };
 
     fetchMonthlyData();
-  }, [year, fetchCategoriesFor]);
+    return undefined;
+  }, [year, yearsLoaded, years.length, fetchCategoriesFor]);
 
-  if (loading) {
+  if (!yearsLoaded || loading) {
     return <div className="loading">Loading expense data...</div>;
   }
 
   if (error) {
     return <div className="error-message">{error}</div>;
+  }
+
+  if (years.length === 0) {
+    return (
+      <div className="monthly-expenses">
+        <div className="header">
+          <h1>Monthly Expense Report</h1>
+        </div>
+        <p className="empty-year-message">
+          No expenses recorded yet. Add an expense to see years and reports here.
+        </p>
+      </div>
+    );
   }
 
   const yearTotal = monthlyData.reduce((sum, m) => sum + (m.total || 0), 0);
@@ -153,8 +202,8 @@ const MonthlyExpenses = () => {
         <h1>Monthly Expense Report</h1>
         <div className="year-selector">
           <label htmlFor="year">Select Year: </label>
-          <select id="year" value={year} onChange={handleYearChange}>
-            {years.map(y => (
+          <select id="year" value={year ?? ''} onChange={handleYearChange}>
+            {years.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
