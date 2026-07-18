@@ -1,18 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
+import { setAuth } from '../utils/authStorage';
 import AuthFormError from './AuthFormError';
 import AuthHelp from './AuthHelp';
+import PasswordInput from './PasswordInput';
 import './Login.css';
+
+const REMEMBER_TIP =
+  'When checked, you stay signed in after closing the browser. When unchecked, you are signed out when this browser tab is closed.';
 
 const Login = ({ setIsAuthenticated }) => {
   const [formData, setFormData] = useState({
     login: '',
     password: ''
   });
+  const [rememberMe, setRememberMe] = useState(true);
+  const [showRememberTip, setShowRememberTip] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const rememberTipRef = useRef(null);
   const navigate = useNavigate();
 
   // Show message after session expiry redirect (set by api interceptor)
@@ -24,6 +32,24 @@ const Login = ({ setIsAuthenticated }) => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!showRememberTip) return undefined;
+    const onPointerDown = (e) => {
+      if (rememberTipRef.current && !rememberTipRef.current.contains(e.target)) {
+        setShowRememberTip(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setShowRememberTip(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showRememberTip]);
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -33,27 +59,22 @@ const Login = ({ setIsAuthenticated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Basic validation — login field accepts username or email
+
     if (!formData.login || !formData.password) {
       setError('Please enter your username or email, and your password.');
       return;
     }
-    
+
     setLoading(true);
     setError('');
 
     try {
       const { token, user } = await authApi.login(formData.login.trim(), formData.password);
-      
-      // Save token and user data
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      // Update auth state and redirect
+
+      setAuth(token, user, rememberMe);
+
       setIsAuthenticated(true);
       navigate('/dashboard');
-      
     } catch (err) {
       setError(getErrorMessage(err, "We couldn't sign you in. Please try again."));
     } finally {
@@ -69,9 +90,8 @@ const Login = ({ setIsAuthenticated }) => {
           <h2 className="text-3xl font-extrabold text-gray-900">Expense Tracker</h2>
           <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <input type="hidden" name="remember" defaultValue="true" />
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="login" className="sr-only">Username or email</label>
@@ -89,10 +109,9 @@ const Login = ({ setIsAuthenticated }) => {
             </div>
             <div>
               <label htmlFor="password" className="sr-only">Password</label>
-              <input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="current-password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
@@ -105,19 +124,42 @@ const Login = ({ setIsAuthenticated }) => {
 
           <AuthFormError message={error} />
 
-          <div className="flex flex-col space-y-4 mt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
+          <div className="login-form-extras">
+            <div className="remember-me-row" ref={rememberTipRef}>
+              <input
+                id="remember-me"
+                name="rememberMe"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <label htmlFor="remember-me">Remember me</label>
+              <button
+                type="button"
+                className="remember-me-info-btn"
+                onClick={() => setShowRememberTip((open) => !open)}
+                aria-label="What does Remember me mean"
+                aria-expanded={showRememberTip}
+                aria-controls="remember-me-tip"
+                title="What does Remember me mean?"
+              >
+                <svg
+                  className="remember-me-info-icon"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.25" />
+                  <path d="M8 7.25V11" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+                  <circle cx="8" cy="5.25" r="0.75" fill="currentColor" />
+                </svg>
+              </button>
+              {showRememberTip && (
+                <p id="remember-me-tip" className="remember-me-tip" role="tooltip">
+                  {REMEMBER_TIP}
+                </p>
+              )}
             </div>
 
             <div className="text-center">
@@ -148,8 +190,7 @@ const Login = ({ setIsAuthenticated }) => {
             </button>
           </div>
         </form>
-        
-        {/* Professional Developer Credit */}
+
         <footer className="login-credit">
           <p> 2025 Expense Tracker | Developed by Shaminda Kanchana</p>
         </footer>

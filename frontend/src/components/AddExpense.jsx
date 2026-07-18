@@ -79,6 +79,10 @@ const AddExpense = () => {
     if (!formData.category) {
       newErrors.category = 'Please select a category';
     }
+
+    if (!formData.description || !String(formData.description).trim()) {
+      newErrors.description = 'Please fill in the description.';
+    }
     
     if (!formData.date) {
       newErrors.date = 'Please select a date';
@@ -216,7 +220,7 @@ const AddExpense = () => {
           </div>
           
           <div className="form-group">
-            <label htmlFor="description">Description (Optional)</label>
+            <label htmlFor="description">Description</label>
             <input
               type="text"
               id="description"
@@ -224,7 +228,10 @@ const AddExpense = () => {
               value={formData.description}
               onChange={handleChange}
               placeholder="e.g., Grocery shopping"
+              className={errors.description ? 'error-input' : ''}
+              required
             />
+            {errors.description && <span className="error-text">{errors.description}</span>}
           </div>
           
           <div className="form-group">

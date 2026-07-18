@@ -7,6 +7,7 @@ import AddExpense from './components/AddExpense';
 import MonthlyExpenses from './components/MonthlyExpenses';
 import Account from './components/Account';
 import Navbar from './components/Navbar';
+import { getToken } from './utils/authStorage';
 import './App.css';
 
 function App() {
@@ -15,8 +16,7 @@ function App() {
 
   useEffect(() => {
     // Check if user is already logged in (token presence only; validity is enforced by API 401s)
-    const token = localStorage.getItem('token');
-    if (token) {
+    if (getToken()) {
       setIsAuthenticated(true);
     }
     setLoading(false);

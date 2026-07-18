@@ -1,17 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
+import { clearAuth, getUser } from '../utils/authStorage';
 import './Navbar.css';
 
 const readUsername = () => {
-  try {
-    const raw = localStorage.getItem('user');
-    if (!raw) return '';
-    const user = JSON.parse(raw);
-    return user?.username || '';
-  } catch {
-    return '';
-  }
+  const user = getUser();
+  return user?.username || '';
 };
 
 /** Compact icons for mobile bottom bar (no extra icon library). */
@@ -60,8 +55,7 @@ const Navbar = ({ setIsAuthenticated }) => {
   const initial = (username || 'U').charAt(0).toUpperCase();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
     setIsAuthenticated(false);
     navigate('/login');
   };

@@ -132,7 +132,8 @@
   margin-top: 0;
 }
 
-.account-input {
+.account-input,
+.password-input-wrap .account-input {
   width: 100%;
   box-sizing: border-box;
   margin-top: 0.25rem;
@@ -140,16 +141,21 @@
   font-size: 1rem;
   border: 1px solid var(--input-border);
   border-radius: 8px;
-  background: var(--input-bg);
-  color: var(--text-primary);
+  background-color: var(--input-bg) !important;
+  color: var(--text-primary) !important;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.account-input:focus {
+.account-input:focus,
+.password-input-wrap .account-input:focus {
   outline: none;
   border-color: var(--primary-color);
-  background: var(--bg-surface);
+  background-color: var(--bg-surface) !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.account-input::placeholder {
+  color: var(--text-muted);
 }
 
 .account-password-form .auth-form-error {
