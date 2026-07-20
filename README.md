@@ -7,7 +7,11 @@ A free personal expense tracking app: record spending by category, see monthly t
 Built with React, Node.js, Express, and MySQL.
 
 <p align="center">
-  <img src="docs/assets/og-image.png" alt="Expense Tracker — mobile charts illustration" width="320" />
+  <img
+    src="docs/assets/app-preview.png"
+    alt="Expense Tracker mobile app preview — phone with expense charts"
+    width="280"
+  />
 </p>
 
 ## Live demo
