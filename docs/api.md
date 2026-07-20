@@ -166,6 +166,28 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
 
 ---
 
+### `POST /api/auth/forgot-password`
+
+| | |
+|--|--|
+| **Access** | Public |
+| **Description** | Create a pending password-reset request for a username (admin must approve). Always returns a generic success message. |
+
+**Request body:** `{ "username": "jane" }`
+
+**Success:** `200` — `{ "success": true, "message": "If this account exists, …" }`
+
+### `POST /api/auth/reset-password`
+
+| | |
+|--|--|
+| **Access** | Public |
+| **Description** | Set a new password using username + one-time admin code. |
+
+**Request body:** `{ "username", "code", "newPassword" }`
+
+**Success:** `200` — `{ "success": true, "message": "…" }`
+
 ### `GET /api/auth/me`
 
 | | |
@@ -635,6 +657,27 @@ Seed admin via `ADMIN_USERNAME` and `ADMIN_PASSWORD` in backend `.env` (created 
 |--|--|
 | **Access** | Admin JWT |
 | **Description** | Hard-delete a user account; expenses cascade. |
+
+### `GET /api/admin/password-resets`
+
+| | |
+|--|--|
+| **Access** | Admin JWT |
+| **Description** | List **pending** password reset requests (no raw codes). |
+
+### `POST /api/admin/password-resets/:id/approve`
+
+| | |
+|--|--|
+| **Access** | Admin JWT |
+| **Description** | Approve request; response includes **one-time code once** (30 min expiry). |
+
+### `POST /api/admin/password-resets/:id/reject`
+
+| | |
+|--|--|
+| **Access** | Admin JWT |
+| **Description** | Reject a pending request. Optional body: `{ "reason" }`. |
 
 ---
 

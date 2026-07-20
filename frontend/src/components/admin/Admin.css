@@ -214,6 +214,79 @@
   cursor: not-allowed;
 }
 
+.admin-resets {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.admin-actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-approve-btn {
+  appearance: none;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--primary-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--primary-color);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.admin-approve-btn:hover:not(:disabled) {
+  background: var(--primary-light);
+}
+
+.admin-approve-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-code-box {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--primary-color);
+  background: var(--primary-light);
+}
+
+.admin-code-box h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.admin-code-value {
+  margin: 0.65rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--primary-color);
+  font-family: ui-monospace, monospace;
+}
+
+.admin-secondary-btn {
+  appearance: none;
+  margin-right: 0.5rem;
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.admin-secondary-btn:hover {
+  background: var(--bg-hover);
+}
+
 @media (max-width: 640px) {
   .admin-table thead {
     display: none;

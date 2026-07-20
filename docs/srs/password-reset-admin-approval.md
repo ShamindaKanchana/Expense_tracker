@@ -4,7 +4,7 @@
 |-------|--------|
 | **Product** | Expense Tracker |
 | **Feature** | Forgot password with administrator approval + one-time code |
-| **Status** | Draft requirements — **no implementation until product owner approves** |
+| **Status** | Implemented on `dev` (see change log) |
 | **Branch intent** | Implement later on `dev`, then PR to `main` |
 | **Depends on** | [admin-panel.md](./admin-panel.md) (admin login + dashboard) |
 | **Related docs** | [api.md](../api.md), [database.md](../database.md), [development.md](../development.md) |
@@ -267,7 +267,7 @@ Optional: filter or history below the pending list.
 6. Admin dashboard section  
 7. Rate limiting + polish  
 
-**No application code is required by this document** until explicit approval to implement.
+Implementation lives on `dev` (user pages + admin section + APIs).
 
 ---
 
@@ -287,3 +287,4 @@ Optional: filter or history below the pending list.
 | Date | Change |
 |------|--------|
 | 2026-07-20 | Initial draft: admin-approved reset, one-time code, integrity rules, APIs, UI, acceptance criteria |
+| 2026-07-20 | Implemented on `dev`: forgot/reset pages, admin pending list + approve/reject, `password_reset_requests` table |
