@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { authApi } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
 import { setAuth } from '../utils/authStorage';
@@ -8,10 +9,8 @@ import AuthHelp from './AuthHelp';
 import PasswordInput from './PasswordInput';
 import './Login.css';
 
-const REMEMBER_TIP =
-  'When checked, you stay signed in after closing the browser. When unchecked, you are signed out when this browser tab is closed.';
-
 const Login = ({ setIsAuthenticated }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     login: '',
     password: ''
@@ -23,7 +22,6 @@ const Login = ({ setIsAuthenticated }) => {
   const rememberTipRef = useRef(null);
   const navigate = useNavigate();
 
-  // Show message after session expiry redirect (set by api interceptor)
   useEffect(() => {
     const authMessage = sessionStorage.getItem('authMessage');
     if (authMessage) {
@@ -61,7 +59,7 @@ const Login = ({ setIsAuthenticated }) => {
     e.preventDefault();
 
     if (!formData.login || !formData.password) {
-      setError('Please enter your username or email, and your password.');
+      setError(t('login.fillRequired'));
       return;
     }
 
@@ -76,7 +74,7 @@ const Login = ({ setIsAuthenticated }) => {
       setIsAuthenticated(true);
       navigate('/dashboard');
     } catch (err) {
-      setError(getErrorMessage(err, "We couldn't sign you in. Please try again."));
+      setError(getErrorMessage(err, t('login.failed')));
     } finally {
       setLoading(false);
     }
@@ -87,14 +85,16 @@ const Login = ({ setIsAuthenticated }) => {
       <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-lg shadow-md">
         <AuthHelp />
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900">Expense Tracker</h2>
-          <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
+          <h2 className="text-3xl font-extrabold text-gray-900">{t('login.title')}</h2>
+          <p className="mt-2 text-sm text-gray-600">{t('login.subtitle')}</p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="login" className="sr-only">Username or email</label>
+              <label htmlFor="login" className="sr-only">
+                {t('login.loginPlaceholder')}
+              </label>
               <input
                 id="login"
                 name="login"
@@ -102,20 +102,22 @@ const Login = ({ setIsAuthenticated }) => {
                 autoComplete="username"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Username or email"
+                placeholder={t('login.loginPlaceholder')}
                 value={formData.login}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">Password</label>
+              <label htmlFor="password" className="sr-only">
+                {t('common.password')}
+              </label>
               <PasswordInput
                 id="password"
                 name="password"
                 autoComplete="current-password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
+                placeholder={t('login.passwordPlaceholder')}
                 value={formData.password}
                 onChange={handleChange}
               />
@@ -133,15 +135,15 @@ const Login = ({ setIsAuthenticated }) => {
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
               />
-              <label htmlFor="remember-me">Remember me</label>
+              <label htmlFor="remember-me">{t('login.rememberMe')}</label>
               <button
                 type="button"
                 className="remember-me-info-btn"
                 onClick={() => setShowRememberTip((open) => !open)}
-                aria-label="What does Remember me mean"
+                aria-label={t('login.rememberAria')}
                 aria-expanded={showRememberTip}
                 aria-controls="remember-me-tip"
-                title="What does Remember me mean?"
+                title={t('login.rememberAria')}
               >
                 <svg
                   className="remember-me-info-icon"
@@ -157,7 +159,7 @@ const Login = ({ setIsAuthenticated }) => {
               </button>
               {showRememberTip && (
                 <p id="remember-me-tip" className="remember-me-tip" role="tooltip">
-                  {REMEMBER_TIP}
+                  {t('login.rememberTip')}
                 </p>
               )}
             </div>
@@ -165,13 +167,13 @@ const Login = ({ setIsAuthenticated }) => {
             <div className="text-center space-y-2">
               <p className="text-sm">
                 <Link to="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
-                  Forgot password?
+                  {t('login.forgotPassword')}
                 </Link>
               </p>
               <p className="text-sm text-gray-600">
-                Don't have an account?{' '}
+                {t('login.noAccount')}{' '}
                 <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-                  Sign up
+                  {t('login.signUp')}
                 </Link>
               </p>
             </div>
@@ -189,15 +191,17 @@ const Login = ({ setIsAuthenticated }) => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Signing in...
+                  {t('login.signingIn')}
                 </>
-              ) : 'Sign in'}
+              ) : (
+                t('login.signIn')
+              )}
             </button>
           </div>
         </form>
 
         <footer className="login-credit">
-          <p> 2025 Expense Tracker | Developed by Shaminda Kanchana</p>
+          <p>{t('login.credit', { year: new Date().getFullYear() })}</p>
         </footer>
       </div>
     </div>

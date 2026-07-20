@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import ThemeToggle from './ThemeToggle';
+import LanguageSwitcher from './LanguageSwitcher';
 import { clearAuth, getUser } from '../utils/authStorage';
 import './Navbar.css';
 
@@ -9,7 +11,6 @@ const readUsername = () => {
   return user?.username || '';
 };
 
-/** Compact icons for mobile bottom bar (no extra icon library). */
 const IconHome = () => (
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75">
     <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" strokeLinejoin="round" />
@@ -36,14 +37,8 @@ const IconAccount = () => (
   </svg>
 );
 
-const BOTTOM_TABS = [
-  { to: '/dashboard', label: 'Home', Icon: IconHome },
-  { to: '/add-expense', label: 'Add', Icon: IconAdd },
-  { to: '/monthly-expenses', label: 'Report', Icon: IconReport },
-  { to: '/account', label: 'Account', Icon: IconAccount }
-];
-
 const Navbar = ({ setIsAuthenticated }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [username, setUsername] = useState(() => readUsername());
@@ -62,40 +57,48 @@ const Navbar = ({ setIsAuthenticated }) => {
 
   const isActive = (path) => (location.pathname === path ? 'active' : '');
 
+  const bottomTabs = [
+    { to: '/dashboard', label: t('nav.home'), Icon: IconHome },
+    { to: '/add-expense', label: t('nav.add'), Icon: IconAdd },
+    { to: '/monthly-expenses', label: t('nav.report'), Icon: IconReport },
+    { to: '/account', label: t('nav.account'), Icon: IconAccount }
+  ];
+
   return (
     <>
-      {/* Top bar: compact on mobile (title only); full nav on desktop */}
       <header className="navbar">
         <div className="navbar-brand">
-          <Link to="/dashboard">Expense Tracker</Link>
+          <Link to="/dashboard">{t('app.name')}</Link>
         </div>
 
         <div className="navbar-links navbar-links-desktop">
           <Link to="/dashboard" className={`nav-link ${isActive('/dashboard')}`}>
-            Dashboard
+            {t('nav.dashboard')}
           </Link>
           <Link to="/add-expense" className={`nav-link ${isActive('/add-expense')}`}>
-            Add Expense
+            {t('nav.addExpense')}
           </Link>
           <Link to="/monthly-expenses" className={`nav-link ${isActive('/monthly-expenses')}`}>
-            Monthly Report
+            {t('nav.monthlyReport')}
           </Link>
         </div>
 
-        {/* Single theme toggle for all viewports (avoid duplicate desktop controls) */}
         <div className="navbar-actions">
+          <LanguageSwitcher variant="compact" />
           <ThemeToggle className="theme-toggle--nav" />
           <Link
             to="/account"
             className={`nav-account nav-desktop-only ${isActive('/account')}`}
-            title={username ? `Account (${username})` : 'Account'}
-            aria-label={username ? `Account, signed in as ${username}` : 'Account'}
+            title={username ? `${t('nav.account')} (${username})` : t('nav.account')}
+            aria-label={
+              username ? t('nav.accountAs', { username }) : t('nav.account')
+            }
           >
             <span className="nav-account-avatar" aria-hidden="true">
               {initial}
             </span>
             <span className="nav-account-text">
-              <span className="nav-account-label">Account</span>
+              <span className="nav-account-label">{t('nav.account')}</span>
               {username ? <span className="nav-account-name">{username}</span> : null}
             </span>
           </Link>
@@ -104,14 +107,13 @@ const Navbar = ({ setIsAuthenticated }) => {
             onClick={handleLogout}
             className="logout-button nav-desktop-only"
           >
-            Logout
+            {t('nav.logout')}
           </button>
         </div>
       </header>
 
-      {/* Mobile: thumb-friendly bottom tabs (primary destinations) */}
-      <nav className="mobile-bottom-nav" aria-label="Main navigation">
-        {BOTTOM_TABS.map(({ to, label, Icon }) => (
+      <nav className="mobile-bottom-nav" aria-label={t('nav.dashboard')}>
+        {bottomTabs.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}

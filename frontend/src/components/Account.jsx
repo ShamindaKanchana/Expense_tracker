@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { authApi } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
 import AuthFormError from './AuthFormError';
 import ThemeToggle from './ThemeToggle';
+import LanguageSwitcher from './LanguageSwitcher';
 import PasswordInput from './PasswordInput';
 import { clearAuth, getUser, setStoredUser } from '../utils/authStorage';
 import './Account.css';
@@ -11,6 +13,7 @@ import './Account.css';
 const readStoredUser = () => getUser();
 
 const Account = ({ setIsAuthenticated }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(readStoredUser);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -42,10 +45,7 @@ const Account = ({ setIsAuthenticated }) => {
         });
       } catch (err) {
         if (cancelled) return;
-        // Keep localStorage user as fallback while showing a soft error
-        setProfileError(
-          getErrorMessage(err, "We couldn't load your profile. Showing saved details.")
-        );
+        setProfileError(getErrorMessage(err, t('account.profileFailed')));
       } finally {
         if (!cancelled) setLoadingProfile(false);
       }
@@ -55,7 +55,7 @@ const Account = ({ setIsAuthenticated }) => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const handlePasswordChange = (e) => {
     setPasswords({
@@ -74,38 +74,36 @@ const Account = ({ setIsAuthenticated }) => {
     const { currentPassword, newPassword, confirmPassword } = passwords;
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordError('Please fill in all password fields.');
+      setPasswordError(t('account.fillPasswords'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setPasswordError('Your new password needs at least 6 characters.');
+      setPasswordError(t('account.passwordMin'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError("New passwords don't match. Type the same password in both boxes.");
+      setPasswordError(t('account.passwordMismatch'));
       return;
     }
 
     if (currentPassword === newPassword) {
-      setPasswordError('Your new password must be different from your current password.');
+      setPasswordError(t('account.passwordSame'));
       return;
     }
 
     setSavingPassword(true);
     try {
       const result = await authApi.changePassword(currentPassword, newPassword);
-      setPasswordSuccess(result.message || 'Password updated successfully.');
+      setPasswordSuccess(result.message || t('account.passwordUpdated'));
       setPasswords({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
     } catch (err) {
-      setPasswordError(
-        getErrorMessage(err, "We couldn't update your password. Please try again.")
-      );
+      setPasswordError(getErrorMessage(err, t('account.passwordFailed')));
     } finally {
       setSavingPassword(false);
     }
@@ -129,48 +127,55 @@ const Account = ({ setIsAuthenticated }) => {
             {initial}
           </div>
           <div>
-            <h1>Account</h1>
-            <p className="account-subtitle">Your profile and password</p>
+            <h1>{t('account.title')}</h1>
+            <p className="account-subtitle">{t('account.subtitle')}</p>
           </div>
         </header>
 
         <section className="account-section" aria-labelledby="account-profile-heading">
-          <h2 id="account-profile-heading">Profile</h2>
-          {loadingProfile && (
-            <p className="account-muted">Loading your details…</p>
-          )}
+          <h2 id="account-profile-heading">{t('account.profile')}</h2>
+          {loadingProfile && <p className="account-muted">{t('account.loadingDetails')}</p>}
           {profileError && (
             <p className="account-soft-error" role="status">
               {profileError}
             </p>
           )}
           <div className="account-field">
-            <span className="account-label">Username</span>
+            <span className="account-label">{t('common.username')}</span>
             <span className="account-value" data-testid="account-username">
               {username}
             </span>
-            <p className="account-hint">
-              Use this username to sign in. Keep it somewhere safe — new accounts do not use email.
-            </p>
+            <p className="account-hint">{t('account.usernameHint')}</p>
           </div>
           {email ? (
             <div className="account-field">
-              <span className="account-label">Email</span>
+              <span className="account-label">{t('common.email')}</span>
               <span className="account-value">{email}</span>
-              <p className="account-hint">
-                Linked to an older account. You can still sign in with this email or your username.
-              </p>
+              <p className="account-hint">{t('account.emailHint')}</p>
             </div>
           ) : null}
         </section>
 
-        <section className="account-section" aria-labelledby="account-theme-heading">
-          <h2 id="account-theme-heading">Appearance</h2>
+        <section className="account-section" aria-labelledby="account-language-heading">
+          <h2 id="account-language-heading">{t('language.label')}</h2>
           <div className="account-theme-row">
             <div>
-              <span className="account-label">Theme</span>
+              <span className="account-label">{t('language.label')}</span>
               <p className="account-hint" style={{ marginTop: 0 }}>
-                Light is the default. Your choice is saved on this device.
+                EN · සිංහල · தமிழ்
+              </p>
+            </div>
+            <LanguageSwitcher />
+          </div>
+        </section>
+
+        <section className="account-section" aria-labelledby="account-theme-heading">
+          <h2 id="account-theme-heading">{t('account.appearance')}</h2>
+          <div className="account-theme-row">
+            <div>
+              <span className="account-label">{t('account.theme')}</span>
+              <p className="account-hint" style={{ marginTop: 0 }}>
+                {t('account.themeHint')}
               </p>
             </div>
             <ThemeToggle />
@@ -178,10 +183,10 @@ const Account = ({ setIsAuthenticated }) => {
         </section>
 
         <section className="account-section" aria-labelledby="account-password-heading">
-          <h2 id="account-password-heading">Change password</h2>
+          <h2 id="account-password-heading">{t('account.changePassword')}</h2>
           <form className="account-password-form" onSubmit={handlePasswordSubmit} noValidate>
             <label className="account-input-label" htmlFor="currentPassword">
-              Current password
+              {t('account.currentPassword')}
             </label>
             <PasswordInput
               id="currentPassword"
@@ -193,7 +198,7 @@ const Account = ({ setIsAuthenticated }) => {
             />
 
             <label className="account-input-label" htmlFor="newPassword">
-              New password
+              {t('account.newPassword')}
             </label>
             <PasswordInput
               id="newPassword"
@@ -203,11 +208,11 @@ const Account = ({ setIsAuthenticated }) => {
               value={passwords.newPassword}
               onChange={handlePasswordChange}
               className="account-input"
-              placeholder="At least 6 characters"
+              placeholder={t('account.passwordMinPlaceholder')}
             />
 
             <label className="account-input-label" htmlFor="confirmPassword">
-              Confirm new password
+              {t('account.confirmNewPassword')}
             </label>
             <PasswordInput
               id="confirmPassword"
@@ -225,19 +230,15 @@ const Account = ({ setIsAuthenticated }) => {
               </p>
             )}
 
-            <button
-              type="submit"
-              className="account-primary-btn"
-              disabled={savingPassword}
-            >
-              {savingPassword ? 'Updating…' : 'Update password'}
+            <button type="submit" className="account-primary-btn" disabled={savingPassword}>
+              {savingPassword ? t('account.updating') : t('account.updatePassword')}
             </button>
           </form>
         </section>
 
         <section className="account-section account-section-danger">
           <button type="button" className="account-logout-btn" onClick={handleLogout}>
-            Sign out
+            {t('account.signOut')}
           </button>
         </section>
       </div>

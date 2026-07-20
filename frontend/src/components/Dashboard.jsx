@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useTheme } from '../theme/ThemeContext';
 import { getChartTheme } from '../theme/chartTheme';
+import { translateCategory } from '../utils/categories';
+import { EN_MONTHS, translateEnglishMonth } from '../utils/months';
 import './Dashboard.css';
 
 // Register ChartJS components
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const chartTheme = useMemo(() => getChartTheme(theme), [theme]);
 
@@ -304,13 +308,13 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      <h1>Dashboard</h1>
+      <h1>{t('dashboard.title')}</h1>
       
       <div className="summary-cards">
         <div className="card">
-          <h3>Total Spent This Month</h3>
+          <h3>{t('dashboard.totalThisMonth')}</h3>
           <p className="amount">Rs {totalSpent.toFixed(2)}</p>
-          {isLoading && <div className="loading">Loading...</div>}
+          {isLoading && <div className="loading">{t('dashboard.loading')}</div>}
           {error && (
             <div className="error" style={{ 
               color: '#721c24', 
@@ -325,25 +329,25 @@ const Dashboard = () => {
           )}
         </div>
         <div className="card">
-          <h3>Highest Spending Month</h3>
+          <h3>{t('dashboard.highestMonth')}</h3>
           {isLoadingMonthly ? (
-            <p>Loading...</p>
+            <p>{t('dashboard.loading')}</p>
           ) : maxMonth.month ? (
             <div>
-              <p>{`${maxMonth.month} ${maxMonth.year}`}</p>
+              <p>{`${translateEnglishMonth(t, maxMonth.month, 'full')} ${maxMonth.year}`}</p>
               <p className="amount">Rs {maxMonth.total}</p>
             </div>
           ) : (
-            <p>No data available</p>
+            <p>{t('dashboard.noData')}</p>
           )}
         </div>
         <div className="card">
-          <h3>Top Category</h3>
+          <h3>{t('dashboard.topCategory')}</h3>
           {isLoadingCategories ? (
-            <p>Loading...</p>
+            <p>{t('dashboard.loading')}</p>
           ) : maxCategoryRef.current?.category ? (
             <div>
-              <p>{maxCategoryRef.current.category}</p>
+              <p>{translateCategory(t, maxCategoryRef.current.category)}</p>
               <p className="amount">Rs {maxCategoryRef.current.total}</p>
               <div style={{fontSize: '0.8em', color: '#666', marginTop: '8px'}}>
                
@@ -352,7 +356,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div>
-              <p>No category data available</p>
+              <p>{t('dashboard.noCategoryData')}</p>
              
             </div>
           )}
@@ -361,18 +365,15 @@ const Dashboard = () => {
       
       <div className="charts-row">
         <div className="chart-container">
-          <h3>Monthly Expenses</h3>
+          <h3>{t('dashboard.monthlyExpenses')}</h3>
           {isLoadingMonthly ? (
-            <p className="chart-status">Loading monthly data...</p>
+            <p className="chart-status">{t('dashboard.loadingMonthly')}</p>
           ) : monthlyData && monthlyData.length > 0 ? (
             <div className="chart-wrapper">
               <Bar
                 key={`dash-bar-${theme}`}
                 data={(() => {
-                  const monthOrder = [
-                    'January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December'
-                  ];
+                  const monthOrder = EN_MONTHS;
                   const sorted = [...monthlyData].sort((a, b) => {
                     const ya = Number(a.year) || 0;
                     const yb = Number(b.year) || 0;
@@ -381,12 +382,11 @@ const Dashboard = () => {
                   });
                   return {
                     labels: sorted.map((item) => {
-                      const m = item.month || '';
-                      const short = m.length > 3 ? m.slice(0, 3) : m;
+                      const short = translateEnglishMonth(t, item.month, 'short');
                       return item.year ? `${short} ${item.year}` : short;
                     }),
                     datasets: [{
-                      label: 'Monthly Expenses',
+                      label: t('dashboard.monthlyExpenses'),
                       data: sorted.map((item) => parseFloat(item.total) || 0),
                       backgroundColor: 'rgba(54, 162, 235, 0.55)',
                       borderColor: 'rgba(54, 162, 235, 1)',
@@ -440,20 +440,22 @@ const Dashboard = () => {
               />
             </div>
           ) : (
-            <p className="chart-status">No monthly data available</p>
+            <p className="chart-status">{t('dashboard.noData')}</p>
           )}
         </div>
 
         <div className="chart-container">
-          <h3>Expenses by Category</h3>
+          <h3>{t('dashboard.byCategory')}</h3>
           {isLoadingCategories ? (
-            <p className="chart-status">Loading categories...</p>
+            <p className="chart-status">{t('dashboard.loadingCategories')}</p>
           ) : categoryData && categoryData.length > 0 ? (
             <div className="chart-wrapper">
               <Doughnut
                 key={`dash-donut-${theme}`}
                 data={{
-                  labels: categoryData.map(item => item.name || item.category || 'Uncategorized'),
+                  labels: categoryData.map(item =>
+                    translateCategory(t, item.name || item.category)
+                  ),
                   datasets: [{
                     data: categoryData.map(item => parseFloat(item.total) || 0),
                     backgroundColor: [
@@ -503,29 +505,29 @@ const Dashboard = () => {
               />
             </div>
           ) : (
-            <p className="chart-status">No category data available</p>
+            <p className="chart-status">{t('dashboard.noCategoryData')}</p>
           )}
         </div>
       </div>
       
       <div className="recent-expenses">
-        <h3>Recent Expenses</h3>
+        <h3>{t('dashboard.recentExpenses')}</h3>
         <div className="expenses-list">
           {recentExpenses.length > 0 ? (
             <table>
               <thead>
                 <tr>
-                  <th>Description</th>
-                  <th>Category</th>
-                  <th>Date</th>
-                  <th>Amount</th>
+                  <th>{t('common.description')}</th>
+                  <th>{t('common.category')}</th>
+                  <th>{t('common.date')}</th>
+                  <th>{t('common.amount')}</th>
                 </tr>
               </thead>
               <tbody>
                 {recentExpenses.map(expense => (
                   <tr key={expense.id}>
                     <td>{expense.description}</td>
-                    <td>{expense.category}</td>
+                    <td>{translateCategory(t, expense.category)}</td>
                     <td>{new Date(expense.date).toLocaleDateString()}</td>
                     <td>Rs {expense.amount.toFixed(2)}</td>
                   </tr>
@@ -533,7 +535,7 @@ const Dashboard = () => {
               </tbody>
             </table>
           ) : (
-            <p>No recent expenses found.</p>
+            <p>{t('dashboard.noRecent')}</p>
           )}
         </div>
       </div>
