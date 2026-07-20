@@ -1,219 +1,161 @@
-# Expense Tracker Application
+# Expense Tracker
 
-A full-stack expense tracking application built with React, Node.js, Express, and MySQL. This application helps users track their expenses, view spending patterns, and manage their personal finances effectively. The application is deployed with the frontend on Vercel and backend on Railway.
+**English:** Expense Tracker · **සිංහල:** වියදම් පොත · **தமிழ்:** செலவு கணக்கு
 
-## 🚀 Live Demo
+A free personal expense tracking app: record spending by category, see monthly totals and charts, and manage your account — with a simple sign-in and **English / Sinhala / Tamil** interface.
 
-[![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://expense-tracker-liard-nine.vercel.app)
+Built with React, Node.js, Express, and MySQL.
 
-## ✨ Features
+## Live demo
 
-- 📊 Interactive dashboard with expense overview and analytics
-- 💰 Add and manage expenses with categories
-- 📅 Filter and view expenses by month and year
-- 📈 Visualize spending with charts and graphs
-- 📱 Fully responsive design for all devices
-- 🔒 Secure JWT authentication
-- 🔄 Real-time data updates
+[![Open app](https://img.shields.io/badge/Live_demo-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://expense-tracker-liard-nine.vercel.app)
 
-## 🛠️ Tech Stack
+## About the app
 
-### Frontend
-- ⚛️ React 18 with Hooks
-- 🛣️ React Router v6 for navigation
-- 📡 Axios for API communication
-- 📊 Chart.js for data visualization
-- 💅 Styled Components for styling
-- 🔄 React Context API for state management
+Expense Tracker helps you:
 
-### Backend
-- 🟢 Node.js with Express.js
-- 🗄️ MySQL Database
-- 🔑 JWT Authentication
-- 🌐 RESTful API
-- 🔄 CORS enabled for secure cross-origin requests
-- 🚀 Deployed on Railway
+- Create an account with a **username and password** (no email required for new accounts)
+- Add expenses with amount, description, **category**, and date
+- View a **dashboard** (this month’s total, top category, charts, recent expenses)
+- Browse a **monthly report** by year and month
+- Change your password on the **Account** page
+- Use the app in **English**, **Sinhala**, or **Tamil**
 
-### Development Tools
-- 🧰 NPM for package management
-- 🔄 Nodemon for development server
-- 🔍 ESLint for code quality
-- 💅 Prettier for code formatting
+| Language | App name | Switcher label |
+|----------|----------|----------------|
+| English | Expense Tracker | **EN** |
+| Sinhala | වියදම් පොත | **සිං** |
+| Tamil | செலவு கணக்கு | **த** |
 
-## 🚀 Prerequisites
+Expense **categories** stored in the database stay in English (`Food`, `Transport`, …). The UI shows translated labels when you switch language.
 
-- Node.js (v16 or higher)
-- npm (v8 or higher) or yarn
-- MySQL Server (v8.0 or higher)
-- Git
+## Features
 
-## 🛠️ Getting Started
+- Interactive dashboard with charts and summaries
+- Add expenses with fixed categories
+- Monthly report with year/month filters
+- JWT authentication (username or email + password)
+- Account page: profile, theme (light/dark), change password, language
+- **Trilingual UI** (EN / SI / TA) with preference saved on the device
+- **Forgot password** with administrator approval and a one-time code
+- Responsive layout (desktop + mobile bottom navigation)
+- Light / dark theme toggle
 
-> **Full local setup guide:** [docs/development.md](docs/development.md) — env vars, commands, and troubleshooting.
->
-> **API reference:** [docs/api.md](docs/api.md) — all endpoints, auth requirements, and request/response formats.
->
-> **Database schema:** [docs/database.md](docs/database.md) — ER diagram, tables, models, and relationships.
->
-> **Releases:** [docs/releases/README.md](docs/releases/README.md) — version history and what changed vs the previous release.
+## Languages — how to use
 
-### 1. Clone the Repository
+1. Open the app (live demo or local).
+2. On **Sign in** / **Sign up**, use the **EN | සිං | த** control (top of the card, next to Info/Help).
+3. After you are signed in, switch language from:
+   - the **navbar** (desktop), or
+   - **Account → Language**
+4. Your choice is stored in the browser (`localStorage`) and applied on the next visit.
+
+**What is translated:** navigation, forms, buttons, dashboard labels, month names, category names in the UI, Info/Help, and common messages.
+
+**What is not translated:** expense **descriptions** you type yourself, and (for now) the **admin panel** UI (still English).
+
+## Password reset — how it works
+
+New accounts are username-only, so reset is **not** email-based. An administrator must approve the request and share a code with you out-of-band (message, call, in person, etc.).
+
+### Steps for users
+
+1. On the sign-in page, open **Forgot password?**
+2. Enter your **username** and submit the request.
+3. You will see a **Request submitted** screen (not a code yet).
+4. Wait until the **administrator** approves the request and gives you a **one-time code**.
+5. Choose **I have my code — set new password** (or open **Set a new password** from the links).
+6. Enter **username**, the **code**, and your **new password** (twice), then save.
+7. Sign in with the new password.
+
+If you already know you have a code, go straight to **Set a new password** from the login page.
+
+### Notes
+
+- The public form always shows a generic success message (it does not reveal whether the username exists).
+- The code is shown to the **admin only once** when they approve; it expires after a short time.
+- After you change the password, the code cannot be reused.
+
+### Operators (admin)
+
+Admins sign in at a separate path (`/admin/login` — not linked from the user app), review **pending password resets**, then **Approve** (copy the code and send it to the user) or **Reject**.
+
+Seed credentials: set `ADMIN_USERNAME` and `ADMIN_PASSWORD` in the backend environment. See [docs/srs/password-reset-admin-approval.md](docs/srs/password-reset-admin-approval.md) and [docs/srs/admin-panel.md](docs/srs/admin-panel.md).
+
+## Tech stack
+
+| Layer | Stack |
+|-------|--------|
+| Frontend | React 18, React Router, Axios, Chart.js, **i18next / react-i18next**, CSS |
+| Backend | Node.js, Express, JWT, MySQL |
+| Hosting (typical) | Frontend on Vercel; API on Render (or similar); MySQL on Aiven |
+
+## Getting started (local)
+
+Full guide: **[docs/development.md](docs/development.md)**
 
 ```bash
-git clone https://github.com/ShamindaKanchana/Expense_tracker.git
-cd Expense_tracker
+# Backend
+cd backend
+npm install
+cp .env.example .env   # edit DB_*, JWT_SECRET, optional ADMIN_*
+npm run dev            # http://localhost:5000
+
+# Frontend (second terminal)
+cd frontend
+npm install
+cp .env.example .env   # REACT_APP_API_URL=http://localhost:5000/api
+npm start              # http://localhost:3000
 ```
 
-### 2. Backend Setup
+### Useful docs
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+| Doc | Description |
+|-----|-------------|
+| [docs/development.md](docs/development.md) | Local setup, env vars, troubleshooting |
+| [docs/api.md](docs/api.md) | API endpoints and auth |
+| [docs/database.md](docs/database.md) | Schema and models |
+| [docs/deployment/README.md](docs/deployment/README.md) | Production deployment |
+| [docs/releases/README.md](docs/releases/README.md) | Version history (current: **v0.4.0**) |
+| [docs/srs/README.md](docs/srs/README.md) | Product requirements (admin, password reset) |
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   Create a `.env` file in the backend directory with the following variables:
-   ```env
-   DB_HOST=your_mysql_host
-   DB_USER=your_mysql_user
-   DB_PASSWORD=your_mysql_password
-   DB_NAME=expense_tracker
-   JWT_SECRET=your_jwt_secret
-   PORT=5000
-   NODE_ENV=development
-   ```
-
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-   The API will be available at `http://localhost:5000`
-
-### 3. Frontend Setup
-
-1. In a new terminal, navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables (optional — defaults to local API):
-   ```bash
-   cp .env.example .env
-   ```
-   ```env
-   REACT_APP_API_URL=http://localhost:5000/api
-   ```
-
-4. Start the development server:
-   ```bash
-   npm start
-   ```
-   The application will open automatically in your default browser at `http://localhost:3000`
-
-## 🚀 Deployment
-
-The application is configured for deployment with:
-- Frontend: Vercel
-- Backend: Railway (Production URL: [https://expensetracker-production-b2a5.up.railway.app/](https://expensetracker-production-b2a5.up.railway.app/))
-- Database: MySQL on Aiven Cloud
-
-### Deploying to Production
-
-1. **Frontend Deployment on Vercel**:
-   - Connect your GitHub repository to Vercel
-   - Set the build command: `npm run build`
-   - Set the output directory: `build`
-   - Add environment variables if needed
-
-2. **Backend Deployment on Railway**:
-   - Connect your GitHub repository
-   - Add the necessary environment variables
-   - Set the start script: `npm start`
-   - The production API will be available at: [https://expensetracker-production-b2a5.up.railway.app/](https://expensetracker-production-b2a5.up.railway.app/)
-
-### Database Configuration
-- The production database is hosted on Aiven Cloud
-- Ensure your database connection string and credentials are properly set in the Railway environment variables
-- The backend is configured to use the Aiven MySQL database in production
-
-## 📊 Database Schema
-
-MySQL with two active tables (`users`, `expenses`) and an optional unused `categories` table.
-
-See **[docs/database.md](docs/database.md)** for the ER diagram, full column definitions, model methods, and how tables are created.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-Special thanks to the AI development tools that significantly accelerated the development process, enabling rapid prototyping and efficient problem-solving throughout the project.
-
-### Technologies Used
-- [React](https://reactjs.org/)
-- [Express](https://expressjs.com/)
-- [MySQL](https://www.mysql.com/)
-- [Chart.js](https://www.chartjs.org/)
-- [Vercel](https://vercel.com/)
-- [Railway](https://railway.app/)
-- [Aiven](https://aiven.io/) (Database Hosting)
-
-## Database Schema
-
-The application uses the following main tables:
-
-- `users` - Stores user information
-- `expenses` - Tracks all expense entries
-- `categories` - Manages expense categories
-
-## API Endpoints
-
-- `GET /api/expenses` - Get all expenses
-- `POST /api/expenses` - Add a new expense
-- `GET /api/expenses/monthly` - Get monthly expense summary
-- `GET /api/expenses/categories` - Get expenses by category
-- `GET /api/expenses/recent` - Get recent expenses
-
-## Environment Variables
+## Environment variables (summary)
 
 ### Backend
-- `PORT` - Server port (default: 5000)
-- `DB_*` - Database connection variables
-- `JWT_SECRET` - Secret key for JWT authentication
-- `NODE_ENV` - Application environment (development/production)
+
+| Variable | Purpose |
+|----------|---------|
+| `PORT` | API port (default `5000`) |
+| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_PORT` | MySQL connection |
+| `JWT_SECRET` | Signs user (and admin) tokens |
+| `NODE_ENV` | `development` / `production` |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Optional; seeds admin account for panel + password resets |
+| `CORS_ALLOWED_ORIGINS` | Production CORS allow-list |
+
+### Frontend
+
+| Variable | Purpose |
+|----------|---------|
+| `REACT_APP_API_URL` | API base URL (e.g. `http://localhost:5000/api`) |
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Contributions are welcome.
+
+1. Fork the repository  
+2. Create a feature branch (`git checkout -b feature/your-feature`)  
+3. Commit and push  
+4. Open a Pull Request  
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
+## Acknowledgments
 
-Built with ❤️ by  Shaminda Kanchana
+- [React](https://reactjs.org/), [Express](https://expressjs.com/), [MySQL](https://www.mysql.com/), [Chart.js](https://www.chartjs.org/), [i18next](https://www.i18next.com/)
+- Hosting: [Vercel](https://vercel.com/), [Aiven](https://aiven.io/), and related free-tier services
+
+---
+
+Built with ❤️ by **Shaminda Kanchana** · **ෂමින්ද කාංචන** · **ஷமிந்த காஞ்சன**
