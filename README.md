@@ -18,6 +18,20 @@ Built with React, Node.js, Express, and MySQL.
 
 [![Open app](https://img.shields.io/badge/Live_demo-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://expense-tracker-liard-nine.vercel.app)
 
+## App demo (screenshots)
+
+Sign-in screen in English (light / dark), Sinhala, and Tamil — language switcher is at the top of the form.
+
+| English (light) | English (dark) |
+|:---:|:---:|
+| <img src="docs/assets/screenshots/login-en-light.png" alt="Sign in — English light theme" width="280" /> | <img src="docs/assets/screenshots/login-en-dark.png" alt="Sign in — English dark theme" width="280" /> |
+
+| Sinhala (සිං) | Tamil (த) |
+|:---:|:---:|
+| <img src="docs/assets/screenshots/login-si-light.png" alt="Sign in — Sinhala" width="280" /> | <img src="docs/assets/screenshots/login-ta-light.png" alt="Sign in — Tamil" width="280" /> |
+
+Try it live: [expense-tracker-liard-nine.vercel.app](https://expense-tracker-liard-nine.vercel.app)
+
 ## About the app
 
 Expense Tracker helps you:
@@ -35,7 +49,9 @@ Expense Tracker helps you:
 | Sinhala | වියදම් පොත | **සිං** |
 | Tamil | செலவு கணக்கு | **த** |
 
-Expense **categories** stored in the database stay in English (`Food`, `Transport`, …). The UI shows translated labels when you switch language.
+Expense **categories** stored in the database stay in English keys. The UI shows translated labels when you switch language:
+
+`Food`, `Transport`, `Entertainment`, `Bills`, `Shopping`, `Construction`, `Health`, `Education`, `Travel`, `Others`
 
 ## Features
 

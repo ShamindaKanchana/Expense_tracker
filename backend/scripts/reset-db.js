@@ -29,7 +29,7 @@ async function resetDatabase() {
         user_id INT NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
         description TEXT NOT NULL,
-        category ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Others') NOT NULL,
+        category ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Construction', 'Health', 'Education', 'Travel', 'Others') NOT NULL,
         date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

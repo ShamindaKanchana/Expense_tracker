@@ -14,7 +14,16 @@ const createCategoriesTable = async () => {
 
     // Insert default categories if they don't exist
     const defaultCategories = [
-      'Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Others'
+      'Food',
+      'Transport',
+      'Entertainment',
+      'Bills',
+      'Shopping',
+      'Construction',
+      'Health',
+      'Education',
+      'Travel',
+      'Others'
     ];
 
     for (const category of defaultCategories) {
