@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { authApi } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
 import AuthFormError from './AuthFormError';
@@ -8,10 +9,8 @@ import PasswordInput from './PasswordInput';
 import { setAuth } from '../utils/authStorage';
 import './Login.css';
 
-const USERNAME_TIP =
-  'Choose a username you will remember — you will need it to sign in after creating your account. No email is required.';
-
 const Register = ({ setIsAuthenticated }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -23,7 +22,6 @@ const Register = ({ setIsAuthenticated }) => {
   const usernameFieldRef = useRef(null);
   const navigate = useNavigate();
 
-  // Close username tip when clicking outside or pressing Escape
   useEffect(() => {
     if (!showUsernameTip) return undefined;
 
@@ -53,47 +51,44 @@ const Register = ({ setIsAuthenticated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const username = formData.username.trim();
 
     if (!username || !formData.password || !formData.confirmPassword) {
-      setError('Please choose a username and password.');
+      setError(t('register.fillRequired'));
       return;
     }
 
     if (username.length < 3) {
-      setError('Username must be at least 3 characters.');
+      setError(t('register.usernameMin'));
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Your passwords don't match. Type the same password in both boxes.");
+      setError(t('register.passwordMismatch'));
       return;
     }
-    
+
     if (formData.password.length < 6) {
-      setError('Your password needs at least 6 characters.');
+      setError(t('register.passwordMin'));
       return;
     }
-    
+
     setLoading(true);
     setError('');
 
     try {
-      // New accounts: username + password only (no email required)
       const response = await authApi.register({
         username,
         password: formData.password
       });
-      
-      // New accounts: stay signed in (same as Remember me checked)
+
       setAuth(response.token, response.user, true);
 
       setIsAuthenticated(true);
       navigate('/dashboard');
-      
     } catch (err) {
-      setError(getErrorMessage(err, "We couldn't create your account. Please try again."));
+      setError(getErrorMessage(err, t('register.failed')));
     } finally {
       setLoading(false);
     }
@@ -104,14 +99,12 @@ const Register = ({ setIsAuthenticated }) => {
       <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-lg shadow-md">
         <AuthHelp />
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900">
-            Expense Tracker
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">Create your account with a username and password</p>
+          <h2 className="text-3xl font-extrabold text-gray-900">{t('register.title')}</h2>
+          <p className="mt-2 text-sm text-gray-600">{t('register.subtitle')}</p>
           <p className="mt-2 text-sm text-gray-600">
-            Or{' '}
+            {t('common.or')}{' '}
             <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-              sign in to your existing account
+              {t('register.orSignIn')}
             </Link>
           </p>
         </div>
@@ -119,7 +112,9 @@ const Register = ({ setIsAuthenticated }) => {
         <form className="mt-8 auth-form" onSubmit={handleSubmit}>
           <div className="auth-form-fields rounded-md shadow-sm -space-y-px">
             <div className="auth-field-with-tip" ref={usernameFieldRef}>
-              <label htmlFor="username" className="sr-only">Username</label>
+              <label htmlFor="username" className="sr-only">
+                {t('common.username')}
+              </label>
               <input
                 id="username"
                 name="username"
@@ -128,7 +123,7 @@ const Register = ({ setIsAuthenticated }) => {
                 required
                 minLength={3}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 pr-9 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Username (min 3 characters)"
+                placeholder={t('register.usernamePlaceholder')}
                 value={formData.username}
                 onChange={handleChange}
                 aria-describedby={showUsernameTip ? 'username-tip' : undefined}
@@ -137,10 +132,10 @@ const Register = ({ setIsAuthenticated }) => {
                 type="button"
                 className="auth-field-info-btn"
                 onClick={() => setShowUsernameTip((open) => !open)}
-                aria-label="Why remember your username"
+                aria-label={t('register.usernameTipAria')}
                 aria-expanded={showUsernameTip}
                 aria-controls="username-tip"
-                title="Username tip"
+                title={t('register.usernameTipAria')}
               >
                 <svg
                   className="auth-field-info-icon"
@@ -161,32 +156,36 @@ const Register = ({ setIsAuthenticated }) => {
               </button>
               {showUsernameTip && (
                 <p id="username-tip" className="auth-field-tip" role="tooltip">
-                  {USERNAME_TIP}
+                  {t('register.usernameTip')}
                 </p>
               )}
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">Password</label>
+              <label htmlFor="password" className="sr-only">
+                {t('common.password')}
+              </label>
               <PasswordInput
                 id="password"
                 name="password"
                 autoComplete="new-password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password (min 6 characters)"
+                placeholder={t('register.passwordPlaceholder')}
                 value={formData.password}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="confirm-password" className="sr-only">Confirm Password</label>
+              <label htmlFor="confirm-password" className="sr-only">
+                {t('register.confirmPlaceholder')}
+              </label>
               <PasswordInput
                 id="confirm-password"
                 name="confirmPassword"
                 autoComplete="new-password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Confirm Password"
+                placeholder={t('register.confirmPlaceholder')}
                 value={formData.confirmPassword}
                 onChange={handleChange}
               />
@@ -200,7 +199,7 @@ const Register = ({ setIsAuthenticated }) => {
               disabled={loading}
               className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? t('register.creating') : t('register.createAccount')}
             </button>
           </div>
         </form>

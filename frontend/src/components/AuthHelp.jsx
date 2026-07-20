@@ -1,63 +1,35 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import ThemeToggle from './ThemeToggle';
+import LanguageSwitcher from './LanguageSwitcher';
 import './AuthHelp.css';
 
-const PANELS = {
-  info: {
-    title: 'About Expense Tracker',
-    sections: [
-      {
-        heading: 'What is this?',
-        body:
-          'A free personal expense tracking app. Sign in to record spending, see monthly totals, and explore charts on your dashboard.',
-      },
-      {
-        heading: 'What you can do',
-        body:
-          'Add expenses by category, view your monthly report, and review recent activity — all under your own account.',
-      },
-      {
-        heading: 'Who built it',
-        body:
-          'A personal project by Shaminda Kanchana, hosted with free-tier services so anyone can try it without cost.',
-      },
-    ],
-  },
-  help: {
-    title: 'Help & tips',
-    sections: [
-      {
-        heading: 'Create an account',
-        body:
-          'Open Sign up and choose a username (min 3 characters) and password (min 6). No email is required. Then use Sign in with that username and password.',
-      },
-      {
-        heading: 'Sign in',
-        body:
-          'Enter your username or the email from an older account, plus your password. Existing email-based accounts still work the same way.',
-      },
-      {
-        heading: 'Why is login sometimes slow?',
-        body:
-          'This app runs on free hosting with limited resources. After idle time the server may “sleep.” The first request can take 30–60 seconds while it wakes up. Wait a moment and try again if it fails once — it is usually not a permanent outage.',
-      },
-      {
-        heading: 'Session expired?',
-        body:
-          'Sign-in lasts about one hour. When it expires you will return to this page. Just sign in again to continue.',
-      },
-    ],
-  },
-};
-
-/**
- * Compact Info / Help controls for auth screens (mobile + desktop).
- * Small text buttons open a lightweight panel — not large icons.
- */
 const AuthHelp = () => {
-  const [open, setOpen] = React.useState(null); // 'info' | 'help' | null
+  const { t } = useTranslation();
+  const [open, setOpen] = React.useState(null);
   const closeBtnRef = useRef(null);
-  const panel = open ? PANELS[open] : null;
+
+  const panels = {
+    info: {
+      title: t('authHelp.infoTitle'),
+      sections: [
+        { heading: t('authHelp.infoWhatHeading'), body: t('authHelp.infoWhatBody') },
+        { heading: t('authHelp.infoDoHeading'), body: t('authHelp.infoDoBody') },
+        { heading: t('authHelp.infoWhoHeading'), body: t('authHelp.infoWhoBody') }
+      ]
+    },
+    help: {
+      title: t('authHelp.helpTitle'),
+      sections: [
+        { heading: t('authHelp.helpCreateHeading'), body: t('authHelp.helpCreateBody') },
+        { heading: t('authHelp.helpSignInHeading'), body: t('authHelp.helpSignInBody') },
+        { heading: t('authHelp.helpSlowHeading'), body: t('authHelp.helpSlowBody') },
+        { heading: t('authHelp.helpSessionHeading'), body: t('authHelp.helpSessionBody') }
+      ]
+    }
+  };
+
+  const panel = open ? panels[open] : null;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -78,7 +50,8 @@ const AuthHelp = () => {
 
   return (
     <>
-      <div className="auth-help-bar" role="group" aria-label="App information">
+      <div className="auth-help-bar" role="group" aria-label={t('authHelp.ariaGroup')}>
+        <LanguageSwitcher variant="compact" />
         <ThemeToggle className="theme-toggle--compact" />
         <span className="auth-help-sep" aria-hidden="true">
           ·
@@ -90,7 +63,7 @@ const AuthHelp = () => {
           aria-haspopup="dialog"
           aria-expanded={open === 'info'}
         >
-          Info
+          {t('authHelp.info')}
         </button>
         <span className="auth-help-sep" aria-hidden="true">
           ·
@@ -102,7 +75,7 @@ const AuthHelp = () => {
           aria-haspopup="dialog"
           aria-expanded={open === 'help'}
         >
-          Help
+          {t('authHelp.help')}
         </button>
       </div>
 
@@ -126,7 +99,7 @@ const AuthHelp = () => {
                 className="auth-help-close"
                 onClick={() => setOpen(null)}
                 ref={closeBtnRef}
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 ×
               </button>
@@ -138,14 +111,14 @@ const AuthHelp = () => {
                 className={`auth-help-tab ${open === 'info' ? 'active' : ''}`}
                 onClick={() => setOpen('info')}
               >
-                Info
+                {t('authHelp.info')}
               </button>
               <button
                 type="button"
                 className={`auth-help-tab ${open === 'help' ? 'active' : ''}`}
                 onClick={() => setOpen('help')}
               >
-                Help
+                {t('authHelp.help')}
               </button>
             </div>
 
@@ -164,7 +137,7 @@ const AuthHelp = () => {
                 className="auth-help-done"
                 onClick={() => setOpen(null)}
               >
-                Got it
+                {t('common.gotIt')}
               </button>
             </div>
           </div>

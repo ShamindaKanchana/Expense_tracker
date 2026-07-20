@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
@@ -15,6 +16,7 @@ import { getToken } from './utils/authStorage';
 import './App.css';
 
 function App() {
+  const { t } = useTranslation();
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith('/admin');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -36,7 +38,7 @@ function App() {
   }, []);
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading">{t('app.loading')}</div>;
   }
 
   // Admin area: no user navbar, no link from user app

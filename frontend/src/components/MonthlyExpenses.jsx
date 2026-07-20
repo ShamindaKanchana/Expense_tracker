@@ -9,9 +9,12 @@ import {
   Tooltip, 
   Legend 
 } from 'chart.js';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useTheme } from '../theme/ThemeContext';
 import { getChartTheme } from '../theme/chartTheme';
+import { translateCategory } from '../utils/categories';
+import { allMonthLabels } from '../utils/months';
 import './MonthlyExpenses.css';
 
 // Register ChartJS components
@@ -25,6 +28,7 @@ ChartJS.register(
 );
 
 const MonthlyExpenses = () => {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const chartTheme = useMemo(() => getChartTheme(theme), [theme]);
   const [year, setYear] = useState(null);
@@ -47,11 +51,9 @@ const MonthlyExpenses = () => {
     return () => mq.removeEventListener('change', onChange);
   }, []);
   
-  // Months for display
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  // Natural short names for compact UI (not first-3-chars of full names)
+  const monthsShort = useMemo(() => allMonthLabels(t, 'short'), [t]);
+  const monthsFull = useMemo(() => allMonthLabels(t, 'full'), [t]);
 
   const fetchCategoriesFor = useCallback(async (monthNumber, targetYear) => {
     try {
@@ -60,7 +62,7 @@ const MonthlyExpenses = () => {
       const categories = response.data;
       // Map backend { name/ category, total } to { name, amount }
       const mapped = (categories || []).map(c => ({
-        name: c.name || c.category || 'Uncategorized',
+        name: c.name || c.category || '',
         amount: Number(c.total) || 0
       }));
       setCategoryData(mapped);
@@ -89,13 +91,13 @@ const MonthlyExpenses = () => {
         console.error('Error fetching expense years:', err);
         setYears([]);
         setYear(null);
-        setError('Failed to load expense years. Please try again later.');
+        setError(t('monthly.failedYears'));
       } finally {
         setYearsLoaded(true);
       }
     };
     loadYears();
-  }, []);
+  }, [t]);
 
   const handleMonthSelect = React.useCallback((monthNumber) => {
     const month = monthlyData.find(m => m.month === monthNumber);
@@ -160,7 +162,7 @@ const MonthlyExpenses = () => {
         fetchCategoriesFor(selected.month, year);
       } catch (err) {
         console.error('Error fetching monthly data:', err);
-        setError('Failed to load expense data. Please try again later.');
+        setError(t('monthly.failedYears'));
         setMonthlyData([]);
         setSelectedMonth(null);
       } finally {
@@ -170,10 +172,10 @@ const MonthlyExpenses = () => {
 
     fetchMonthlyData();
     return undefined;
-  }, [year, yearsLoaded, years.length, fetchCategoriesFor]);
+  }, [year, yearsLoaded, years.length, fetchCategoriesFor, t]);
 
   if (!yearsLoaded || loading) {
-    return <div className="loading">Loading expense data...</div>;
+    return <div className="loading">{t('monthly.loading')}</div>;
   }
 
   if (error) {
@@ -184,10 +186,10 @@ const MonthlyExpenses = () => {
     return (
       <div className="monthly-expenses">
         <div className="header">
-          <h1>Monthly Expense Report</h1>
+          <h1>{t('monthly.title')}</h1>
         </div>
         <p className="empty-year-message">
-          No expenses recorded yet. Add an expense to see years and reports here.
+          {t('monthly.noYears')}
         </p>
       </div>
     );
@@ -199,9 +201,9 @@ const MonthlyExpenses = () => {
   return (
     <div className="monthly-expenses">
       <div className="header">
-        <h1>Monthly Expense Report</h1>
+        <h1>{t('monthly.title')}</h1>
         <div className="year-selector">
-          <label htmlFor="year">Select Year: </label>
+          <label htmlFor="year">{t('monthly.year')}: </label>
           <select id="year" value={year ?? ''} onChange={handleYearChange}>
             {years.map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -211,13 +213,14 @@ const MonthlyExpenses = () => {
       </div>
       
       <div className="month-selector">
-        {months.map((month, index) => (
+        {monthsShort.map((month, index) => (
           <button
             key={index}
             className={`month-button ${selectedMonth?.month === index + 1 ? 'active' : ''}`}
             onClick={() => handleMonthSelect(index + 1)}
+            title={monthsFull[index]}
           >
-            {month.substring(0, 3)}
+            {month}
           </button>
         ))}
       </div>
@@ -225,19 +228,19 @@ const MonthlyExpenses = () => {
       <div className="chart-container">
         {/* Monthly Bar Chart */}
         <div className="monthly-chart">
-          <h2>Monthly Expenses for {year}</h2>
+          <h2>{t('dashboard.monthlyExpenses')} — {year}</h2>
           {!hasYearData ? (
             <p className="empty-year-message">
-              No expenses recorded for {year}. Try another year or add an expense.
+              {t('monthly.noYears')}
             </p>
           ) : (
           <div className="chart-wrapper">
             <Bar
               key={`monthly-bar-${theme}`}
               data={{
-                labels: months.map((month) => month.substring(0, 3)),
+                labels: monthsShort,
                 datasets: [{
-                  label: 'Monthly Expenses (Rs)',
+                  label: t('dashboard.monthlyExpenses'),
                   data: monthlyData.map((m) => m.total),
                   backgroundColor: monthlyData.map((_, index) =>
                     selectedMonth?.month === index + 1
@@ -311,7 +314,7 @@ const MonthlyExpenses = () => {
                     callbacks: {
                       title: (items) => {
                         const i = items[0]?.dataIndex;
-                        return i != null ? months[i] : '';
+                        return i != null ? monthsFull[i] : '';
                       },
                       label: (context) => `Rs ${Number(context.raw).toFixed(2)}`
                     }
@@ -325,12 +328,14 @@ const MonthlyExpenses = () => {
 
         {hasYearData && selectedMonth && (
           <div className="category-breakdown">
-            <h2>Category Breakdown for {months[selectedMonth.month - 1]} {year}</h2>
+            <h2>
+              {t('monthly.categoryBreakdown')} — {monthsFull[selectedMonth.month - 1]} {year}
+            </h2>
             <div className="donut-chart-container chart-wrapper">
               <Doughnut
                 key={`monthly-donut-${theme}`}
                 data={{
-                  labels: categoryData.map(cat => cat.name),
+                  labels: categoryData.map((cat) => translateCategory(t, cat.name)),
                   datasets: [{
                     data: categoryData.map(cat => cat.amount),
                     backgroundColor: [
