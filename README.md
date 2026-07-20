@@ -6,6 +6,10 @@ A free personal expense tracking app: record spending by category, see monthly t
 
 Built with React, Node.js, Express, and MySQL.
 
+<p align="center">
+  <img src="docs/assets/og-image.png" alt="Expense Tracker — mobile charts illustration" width="320" />
+</p>
+
 ## Live demo
 
 [![Open app](https://img.shields.io/badge/Live_demo-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://expense-tracker-liard-nine.vercel.app)
