@@ -26,6 +26,10 @@
     "Entertainment": "Entertainment",
     "Bills": "Bills",
     "Shopping": "Shopping",
+    "Construction": "Construction",
+    "Health": "Health",
+    "Education": "Education",
+    "Travel": "Travel",
     "Others": "Others",
     "Uncategorized": "Uncategorized"
   },

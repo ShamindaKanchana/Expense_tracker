@@ -1,5 +1,9 @@
 const db = require('../config/db');
 
+/** Allowed expense categories (must match frontend CATEGORY_KEYS / i18n). */
+const CATEGORY_ENUM =
+  "ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Construction', 'Health', 'Education', 'Travel', 'Others')";
+
 // Create expenses table if it doesn't exist
 const createTableQuery = `
   CREATE TABLE IF NOT EXISTS expenses (
@@ -7,7 +11,7 @@ const createTableQuery = `
     user_id INT NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
     description TEXT NOT NULL,
-    category ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Others') NOT NULL,
+    category ${CATEGORY_ENUM} NOT NULL,
     date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -20,6 +24,10 @@ const createTableQuery = `
 const initTable = async () => {
   try {
     await db.query(createTableQuery);
+    // Expand ENUM on existing DBs (CREATE IF NOT EXISTS does not alter columns)
+    await db.query(
+      `ALTER TABLE expenses MODIFY COLUMN category ${CATEGORY_ENUM} NOT NULL`
+    );
     console.log('✅ Expenses table is ready');
   } catch (err) {
     console.error('❌ Error creating expenses table:', err.message);

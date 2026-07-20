@@ -5,6 +5,10 @@ export const CATEGORY_KEYS = [
   'Entertainment',
   'Bills',
   'Shopping',
+  'Construction',
+  'Health',
+  'Education',
+  'Travel',
   'Others'
 ];
 

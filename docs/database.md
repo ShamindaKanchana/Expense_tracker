@@ -119,7 +119,7 @@ Stores individual expense records. Every row belongs to exactly one user.
 
 **Allowed `category` values:**
 
-`Food`, `Transport`, `Entertainment`, `Bills`, `Shopping`, `Others`
+`Food`, `Transport`, `Entertainment`, `Bills`, `Shopping`, `Construction`, `Health`, `Education`, `Travel`, `Others`
 
 **Source:** `backend/models/Expense.js`
 
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   user_id INT NOT NULL,
   amount DECIMAL(10, 2) NOT NULL,
   description TEXT NOT NULL,
-  category ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Others') NOT NULL,
+  category ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Construction', 'Health', 'Education', 'Travel', 'Others') NOT NULL,
   date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -168,7 +168,7 @@ Defined in `backend/migrations/001_create_categories_table.js`. **Not auto-creat
 | `created_at` | `TIMESTAMP` | DEFAULT `CURRENT_TIMESTAMP` |
 | `updated_at` | `TIMESTAMP` | DEFAULT `CURRENT_TIMESTAMP ON UPDATE` |
 
-Default seed values: `Food`, `Transport`, `Entertainment`, `Bills`, `Shopping`, `Others`
+Default seed values: `Food`, `Transport`, `Entertainment`, `Bills`, `Shopping`, `Construction`, `Health`, `Education`, `Travel`, `Others`
 
 To create it manually:
 
