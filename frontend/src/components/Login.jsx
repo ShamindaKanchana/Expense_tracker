@@ -162,7 +162,12 @@ const Login = ({ setIsAuthenticated }) => {
               )}
             </div>
 
-            <div className="text-center">
+            <div className="text-center space-y-2">
+              <p className="text-sm">
+                <Link to="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
+                  Forgot password?
+                </Link>
+              </p>
               <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
                 <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">

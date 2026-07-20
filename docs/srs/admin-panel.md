@@ -243,16 +243,19 @@ User app (public)          Admin (hidden)
 
 ---
 
-## 5. Out of scope (v1)
+## 5. Out of scope (v1 admin panel core)
 
 Unless later added to this SRS:
 
-- Editing usernames or resetting user passwords from admin UI  
+- Editing usernames from admin UI  
+- Admin **setting** a user’s password directly (password reset is a separate feature — see [password-reset-admin-approval.md](./password-reset-admin-approval.md))  
 - Viewing another user’s expenses in detail  
 - Multi-admin roles (super-admin, support, etc.)  
 - Public “forgot password” for admins  
 - Analytics beyond account count / simple list  
 - Impersonating a user (“login as user”)
+
+**Related (separate SRS):** Admin-approved user password reset with one-time code — [password-reset-admin-approval.md](./password-reset-admin-approval.md).
 
 ---
 

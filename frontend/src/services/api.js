@@ -51,7 +51,8 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const url = error.config?.url || '';
-    const isUserAuthForm = /\/auth\/(login|register)/.test(url);
+    const isUserAuthForm =
+      /\/auth\/(login|register|forgot-password|reset-password)/.test(url);
     const isAdminLogin = /\/admin\/login/.test(url);
     const isAdminApi = url.includes('/admin');
 

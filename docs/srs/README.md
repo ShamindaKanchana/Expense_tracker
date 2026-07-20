@@ -4,7 +4,8 @@ Product requirements that guide design and implementation. These are **not** dep
 
 | Document | Status | Description |
 |----------|--------|-------------|
-| [admin-panel.md](./admin-panel.md) | **Draft** | Admin panel: account overview, hidden admin login, delete accounts |
+| [admin-panel.md](./admin-panel.md) | Prototype on `main` / extend on `dev` | Admin panel: account overview, hidden admin login, delete accounts |
+| [password-reset-admin-approval.md](./password-reset-admin-approval.md) | **Draft** | Forgot password → admin approve → one-time code → user sets new password |
 
 ## How to use
 

@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const Admin = require('../models/Admin');
+const PasswordResetRequest = require('../models/PasswordResetRequest');
 const adminAuth = require('../middleware/adminAuth');
 const db = require('../config/db');
 
@@ -165,6 +166,98 @@ router.delete('/users/:id', adminAuth, async (req, res) => {
     res.status(500).json({
       message: "We couldn't delete that account. Please try again."
     });
+  }
+});
+
+// @route   GET /api/admin/password-resets
+// @desc    List pending password reset requests (no raw codes)
+// @access  Admin
+router.get('/password-resets', adminAuth, async (req, res) => {
+  try {
+    const rows = await PasswordResetRequest.listPending();
+    const requests = (rows || []).map((r) => ({
+      id: r.id,
+      user_id: r.user_id,
+      username: r.username,
+      status: r.status,
+      requested_at: r.requested_at
+    }));
+    res.json({ requests });
+  } catch (error) {
+    console.error('Admin list password resets error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/admin/password-resets/:id/approve
+// @desc    Approve request; returns one-time code once
+// @access  Admin
+router.post('/password-resets/:id/approve', adminAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id) || id < 1) {
+      return res.status(400).json({ message: 'Invalid request id.' });
+    }
+
+    const result = await PasswordResetRequest.approve(id, req.admin.id);
+    if (result.error === 'not_found') {
+      return res.status(404).json({ message: 'Request not found.' });
+    }
+    if (result.error === 'not_pending') {
+      return res.status(400).json({ message: 'This request is no longer pending.' });
+    }
+
+    console.log(
+      `Admin ${req.admin.id} approved password reset id=${id} user=${result.username}`
+    );
+
+    res.json({
+      success: true,
+      message: `Approved. Share this one-time code with ${result.username} (expires in ${PasswordResetRequest.CODE_EXPIRY_MINUTES} minutes).`,
+      code: result.code,
+      expiresAt: result.expiresAt,
+      username: result.username,
+      requestId: result.requestId
+    });
+  } catch (error) {
+    console.error('Admin approve password reset error:', error);
+    res.status(500).json({ message: "We couldn't approve that request." });
+  }
+});
+
+// @route   POST /api/admin/password-resets/:id/reject
+// @desc    Reject a pending password reset request
+// @access  Admin
+router.post('/password-resets/:id/reject', adminAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id) || id < 1) {
+      return res.status(400).json({ message: 'Invalid request id.' });
+    }
+
+    const reason = req.body.reason
+      ? String(req.body.reason).trim().slice(0, 500)
+      : null;
+
+    const result = await PasswordResetRequest.reject(id, req.admin.id, reason);
+    if (result.error === 'not_found') {
+      return res.status(404).json({ message: 'Request not found.' });
+    }
+    if (result.error === 'not_pending') {
+      return res.status(400).json({ message: 'This request is no longer pending.' });
+    }
+
+    console.log(
+      `Admin ${req.admin.id} rejected password reset id=${id} user=${result.username}`
+    );
+
+    res.json({
+      success: true,
+      message: `Request for "${result.username}" was rejected.`
+    });
+  } catch (error) {
+    console.error('Admin reject password reset error:', error);
+    res.status(500).json({ message: "We couldn't reject that request." });
   }
 });
 

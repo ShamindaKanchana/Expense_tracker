@@ -45,6 +45,7 @@ app.use(express.json());
 require('./models/User');
 require('./models/Expense');
 require('./models/Admin');
+require('./models/PasswordResetRequest');
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));

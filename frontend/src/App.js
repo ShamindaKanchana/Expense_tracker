@@ -9,6 +9,8 @@ import Account from './components/Account';
 import Navbar from './components/Navbar';
 import AdminLogin from './components/admin/AdminLogin';
 import AdminDashboard from './components/admin/AdminDashboard';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import { getToken } from './utils/authStorage';
 import './App.css';
 
@@ -73,6 +75,18 @@ function App() {
               ) : (
                 <Navigate to="/dashboard" />
               )
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              !isAuthenticated ? <ForgotPassword /> : <Navigate to="/dashboard" />
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              !isAuthenticated ? <ResetPassword /> : <Navigate to="/dashboard" />
             }
           />
           <Route
