@@ -8,7 +8,6 @@ export const CATEGORY_KEYS = [
   'Construction',
   'Health',
   'Education',
-  'Travel',
   'Others'
 ];
 

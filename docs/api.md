@@ -537,6 +537,49 @@ Empty list if the user has no expenses: `{ "years": [] }`.
 
 ---
 
+### `GET /api/expenses/list`
+
+| | |
+|--|--|
+| **Access** | Private |
+| **Description** | Paginated list of individual expense records for the logged-in user, optionally filtered by month and year. Used by Monthly Report to show expense details on demand. |
+
+**Query parameters**
+
+| Param | Required | Notes |
+|-------|----------|-------|
+| `month` | No | Month number (`01`–`12`) |
+| `year` | No | Four-digit year; use together with `month` |
+| `page` | No | Page number (default `1`) |
+| `limit` | No | Items per page (default `10`, max `50`) |
+
+**Success:** `200`
+
+```json
+{
+  "success": true,
+  "expenses": [
+    {
+      "id": 12,
+      "description": "Bus fare",
+      "category": "Transport",
+      "date": "2026-07-15T10:30:00.000Z",
+      "amount": 250.00
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 45,
+    "totalPages": 5
+  }
+}
+```
+
+If no expenses match the filter, `expenses` is an empty array and `pagination.total` is `0`.
+
+---
+
 ### `GET /api/expenses/top-category`
 
 | | |
@@ -582,6 +625,7 @@ If no expenses exist: `data` is `null`.
 | `GET` | `/api/expenses/years` | Private | Years with expense data |
 | `GET` | `/api/expenses/monthly` | Private | Monthly breakdown |
 | `GET` | `/api/expenses/categories` | Private | Category breakdown |
+| `GET` | `/api/expenses/list` | Private | Paginated expense list (filter by month/year) |
 | `GET` | `/api/expenses/top-category` | Private | Top category |
 
 ---

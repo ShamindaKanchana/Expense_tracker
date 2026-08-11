@@ -29,7 +29,6 @@
     "Construction": "கட்டுமானம்",
     "Health": "சுகாதாரம்",
     "Education": "கல்வி",
-    "Travel": "பயணம்",
     "Others": "மற்றவை",
     "Uncategorized": "வகைப்படுத்தப்படாதவை"
   },
@@ -182,7 +181,15 @@
     "loading": "ஏற்றுகிறது…",
     "failedYears": "செலவு ஆண்டுகளை ஏற்ற முடியவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.",
     "categoryBreakdown": "வகை பிரிவு",
-    "noCategoryForMonth": "இந்த மாதத்திற்கு வகை தரவு இல்லை"
+    "noCategoryForMonth": "இந்த மாதத்திற்கு வகை தரவு இல்லை",
+    "viewExpenses": "செலவுகளைப் பார்",
+    "hideExpenses": "செலவுகளை மறை",
+    "expensesList": "செலவு பட்டியல்",
+    "page": "பக்கம் {{page}} / {{total}}",
+    "prev": "« முந்தைய",
+    "next": "அடுத்து »",
+    "noExpenses": "இந்த மாதத்திற்கு செலவுகள் இல்லை.",
+    "listLoading": "செலவுகள் ஏற்றப்படுகின்றன..."
   },
   "account": {
     "title": "கணக்கு",

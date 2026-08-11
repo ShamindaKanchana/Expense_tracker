@@ -4,8 +4,8 @@
 |-------|--------|
 | **Product** | Expense Tracker |
 | **Feature** | Forgot password with administrator approval + one-time code |
-| **Status** | Implemented on `dev` (see change log) |
-| **Branch intent** | Implement later on `dev`, then PR to `main` |
+| **Status** | Implemented on `dev` / shipped in v0.4.0 |
+| **Branch intent** | Implemented on `dev`, merged to `main` in v0.4.0 |
 | **Depends on** | [admin-panel.md](./admin-panel.md) (admin login + dashboard) |
 | **Related docs** | [api.md](../api.md), [database.md](../database.md), [development.md](../development.md) |
 
@@ -247,13 +247,13 @@ Optional: filter or history below the pending list.
 
 ## 12. Acceptance criteria (v1 done when)
 
-- [ ] User can submit forgot-password by username with generic success message  
-- [ ] Admin sees pending requests and can approve/reject  
-- [ ] Approve shows one-time code once; list APIs do not return raw codes  
-- [ ] User can set new password with username + code before expiry  
-- [ ] Code cannot be reused; expired codes fail  
-- [ ] Passwords never shown to admin; hashes never returned to clients  
-- [ ] Documented in this SRS; implementation on `dev` then PR to `main` when ready  
+- [x] User can submit forgot-password by username with generic success message  
+- [x] Admin sees pending requests and can approve/reject  
+- [x] Approve shows one-time code once; list APIs do not return raw codes  
+- [x] User can set new password with username + code before expiry  
+- [x] Code cannot be reused; expired codes fail  
+- [x] Passwords never shown to admin; hashes never returned to clients  
+- [x] Documented in this SRS; implementation on `dev` then PR to `main` when ready  
 
 ---
 
@@ -288,3 +288,4 @@ Implementation lives on `dev` (user pages + admin section + APIs).
 |------|--------|
 | 2026-07-20 | Initial draft: admin-approved reset, one-time code, integrity rules, APIs, UI, acceptance criteria |
 | 2026-07-20 | Implemented on `dev`: forgot/reset pages, admin pending list + approve/reject, `password_reset_requests` table |
+| 2026-08-11 | Marked as implemented; acceptance criteria checked; merged to `main` in v0.4.0 |

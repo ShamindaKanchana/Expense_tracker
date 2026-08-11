@@ -2,7 +2,7 @@ const db = require('../config/db');
 
 /** Allowed expense categories (must match frontend CATEGORY_KEYS / i18n). */
 const CATEGORY_ENUM =
-  "ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Construction', 'Health', 'Education', 'Travel', 'Others')";
+  "ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Construction', 'Health', 'Education', 'Others')";
 
 // Create expenses table if it doesn't exist
 const createTableQuery = `

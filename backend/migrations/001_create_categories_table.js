@@ -22,7 +22,6 @@ const createCategoriesTable = async () => {
       'Construction',
       'Health',
       'Education',
-      'Travel',
       'Others'
     ];
 

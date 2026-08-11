@@ -51,7 +51,7 @@ Expense Tracker helps you:
 
 Expense **categories** stored in the database stay in English keys. The UI shows translated labels when you switch language:
 
-`Food`, `Transport`, `Entertainment`, `Bills`, `Shopping`, `Construction`, `Health`, `Education`, `Travel`, `Others`
+`Food`, `Transport`, `Entertainment`, `Bills`, `Shopping`, `Construction`, `Health`, `Education`, `Others`
 
 ## Features
 

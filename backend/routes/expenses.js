@@ -208,6 +208,77 @@ router.get('/monthly', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/expenses/list
+// @desc    Get paginated expense list for the logged-in user, optionally filtered by month/year
+// @access  Private
+router.get('/list', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    const offset = (page - 1) * limit;
+
+    const monthParam = req.query.month;
+    const yearParam = req.query.year;
+
+    let whereClause = 'WHERE user_id = ?';
+    const params = [userId];
+
+    if (monthParam) {
+      const month = parseInt(monthParam, 10);
+      if (!Number.isNaN(month) && month >= 1 && month <= 12) {
+        whereClause += ' AND MONTH(`date`) = ?';
+        params.push(month);
+      }
+    }
+
+    if (yearParam) {
+      const year = parseInt(yearParam, 10);
+      if (!Number.isNaN(year) && year >= 1970 && year <= 2100) {
+        whereClause += ' AND YEAR(`date`) = ?';
+        params.push(year);
+      }
+    }
+
+    const countSql = `SELECT COUNT(*) AS total FROM expenses ${whereClause}`;
+    const [countRow] = await db.query(countSql, params);
+    const total = Number(countRow?.total) || 0;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    const sql = `
+      SELECT id, description, category, \`date\`, amount
+      FROM expenses
+      ${whereClause}
+      ORDER BY \`date\` DESC
+      LIMIT ? OFFSET ?
+    `;
+    const rows = await db.query(sql, [...params, limit, offset]);
+
+    const expenses = (rows || []).map((r) => ({
+      id: r.id,
+      description: r.description,
+      category: r.category,
+      date: r.date,
+      amount: Number(r.amount) || 0
+    }));
+
+    res.json({
+      success: true,
+      expenses,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    });
+  } catch (error) {
+    console.error('Error in expense list endpoint:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching expense list', error: error.message });
+  }
+});
+
 // @route   GET /api/expenses/top-category
 // @desc    Get the top spending category
 // @access  Private

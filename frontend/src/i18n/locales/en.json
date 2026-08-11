@@ -29,7 +29,6 @@
     "Construction": "Construction",
     "Health": "Health",
     "Education": "Education",
-    "Travel": "Travel",
     "Others": "Others",
     "Uncategorized": "Uncategorized"
   },
@@ -182,7 +181,15 @@
     "loading": "Loading…",
     "failedYears": "Failed to load expense years. Please try again later.",
     "categoryBreakdown": "Category breakdown",
-    "noCategoryForMonth": "No category data for this month"
+    "noCategoryForMonth": "No category data for this month",
+    "viewExpenses": "View Expenses",
+    "hideExpenses": "Hide Expenses",
+    "expensesList": "Expenses List",
+    "page": "Page {{page}} of {{total}}",
+    "prev": "« Prev",
+    "next": "Next »",
+    "noExpenses": "No expenses found for this month.",
+    "listLoading": "Loading expenses..."
   },
   "account": {
     "title": "Account",

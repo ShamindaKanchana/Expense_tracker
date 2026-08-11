@@ -4,8 +4,8 @@
 |-------|--------|
 | **Product** | Expense Tracker |
 | **Feature** | Administration panel (account oversight & removal) |
-| **Status** | Prototype implemented on `dev` (see change log) |
-| **Branch intent** | Implement later on `dev`, then PR to `main` |
+| **Status** | Implemented on `dev` / shipped in v0.4.0 |
+| **Branch intent** | Implemented on `dev`, merged to `main` in v0.4.0 |
 | **Related docs** | [database.md](../database.md), [api.md](../api.md), [development.md](../development.md) |
 
 ---
@@ -287,27 +287,28 @@ These are **requirements**, not a final OpenAPI contract.
 
 ## 8. Acceptance criteria (v1 done when)
 
-- [ ] Admin can log in only via the dedicated admin login path  
-- [ ] Normal users cannot obtain admin privileges through register  
-- [ ] Dashboard shows account **count** and **usernames** (no passwords)  
-- [ ] Admin can delete a user with confirmation; user + expenses are gone  
-- [ ] User app has no link to admin  
-- [ ] Documented for operators (this SRS + short note in deployment docs when implemented)
+- [x] Admin can log in only via the dedicated admin login path  
+- [x] Normal users cannot obtain admin privileges through register  
+- [x] Dashboard shows account **count** and **usernames** (no passwords)  
+- [x] Admin can delete a user with confirmation; user + expenses are gone  
+- [x] User app has no link to admin  
+- [x] Documented for operators (this SRS + short note in deployment docs when implemented)
 
 ---
 
-## 9. Implementation notes (when coding is approved)
+## 9. Implementation status
 
-Suggested order (for a future PR plan):
+Implemented on `dev` and shipped in **v0.4.0** (merged to `main`).
 
-1. Data model for admin identity + seed/env bootstrap  
-2. Admin auth middleware + login API  
-3. List users + count API  
-4. Delete user API  
-5. Minimal admin UI (`/admin/login`, `/admin` dashboard)  
-6. Hardening (CORS already app-wide; ensure admin routes covered)
+| Component | Status |
+|-----------|--------|
+| Admin auth middleware + login API | Done |
+| List users + count API | Done |
+| Delete user API | Done |
+| Admin UI (`/admin/login`, `/admin`) | Done |
+| Env seed `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Done |
 
-**No application code is required by this document.** Implementation waits for explicit product-owner approval.
+**No application code is required by this document.** Implementation complete.
 
 ---
 
@@ -329,3 +330,4 @@ Suggested order (for a future PR plan):
 | 2026-07-18 | Initial draft: overview, hidden admin login, list users, delete accounts, no passwords in UI |
 | 2026-07-18 | Added **§2.5 Prototype UI**: no tabs, two screens only (login + dashboard), wireframe, optional one-page polish |
 | 2026-07-18 | Prototype coded on `dev`: `/admin/login`, `/admin`, `POST/GET/DELETE /api/admin/*`, env seed `ADMIN_USERNAME` / `ADMIN_PASSWORD` |
+| 2026-08-11 | Marked as implemented; acceptance criteria checked; merged to `main` in v0.4.0 |

@@ -29,7 +29,6 @@
     "Construction": "ඉදිකිරීම්",
     "Health": "සෞඛ්‍ය",
     "Education": "අධ්‍යාපනය",
-    "Travel": "සංචාර",
     "Others": "වෙනත්",
     "Uncategorized": "වර්ග නොකළ"
   },
@@ -182,7 +181,15 @@
     "loading": "පූරණය වෙමින්…",
     "failedYears": "වියදම් වර්ෂ පූරණය කිරීමට අසමත් විය. පසුව නැවත උත්සාහ කරන්න.",
     "categoryBreakdown": "වර්ග විභේදනය",
-    "noCategoryForMonth": "මෙම මාසය සඳහා වර්ග දත්ත නැත"
+    "noCategoryForMonth": "මෙම මාසය සඳහා වර්ග දත්ත නැත",
+    "viewExpenses": "වියදම් බලන්න",
+    "hideExpenses": "වියදම් සඟවන්න",
+    "expensesList": "වියදම් ලැයිස්තුව",
+    "page": "පිටුව {{page}} / {{total}}",
+    "prev": "« මීට පෙර",
+    "next": "මීට පසු »",
+    "noExpenses": "මෙම මාසය සඳහා වියදම් නැත.",
+    "listLoading": "වියදම් පූරණය වෙමින්..."
   },
   "account": {
     "title": "ගිණුම",

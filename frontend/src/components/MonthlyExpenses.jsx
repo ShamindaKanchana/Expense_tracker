@@ -43,6 +43,13 @@ const MonthlyExpenses = () => {
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)').matches : false
   );
 
+  const [showExpenseList, setShowExpenseList] = useState(false);
+  const [expenseList, setExpenseList] = useState([]);
+  const [listPage, setListPage] = useState(1);
+  const [listTotal, setListTotal] = useState(0);
+  const [listLimit] = useState(10);
+  const [loadingList, setLoadingList] = useState(false);
+
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
     const onChange = () => setIsNarrow(mq.matches);
@@ -60,7 +67,6 @@ const MonthlyExpenses = () => {
       const monthParam = String(monthNumber).padStart(2, '0');
       const response = await api.get(`/expenses/categories?month=${monthParam}&year=${targetYear}`);
       const categories = response.data;
-      // Map backend { name/ category, total } to { name, amount }
       const mapped = (categories || []).map(c => ({
         name: c.name || c.category || '',
         amount: Number(c.total) || 0
@@ -71,6 +77,29 @@ const MonthlyExpenses = () => {
       setCategoryData([]);
     }
   }, []);
+
+  const fetchExpenseList = useCallback(async (monthNumber, targetYear, page = 1) => {
+    setLoadingList(true);
+    try {
+      const monthParam = String(monthNumber).padStart(2, '0');
+      const response = await api.get('/expenses/list', {
+        params: { month: monthParam, year: targetYear, page, limit: listLimit }
+      });
+      const data = response.data;
+      setExpenseList((data.expenses || []).map(e => ({
+        ...e,
+        amount: Number(e.amount) || 0
+      })));
+      setListTotal(data.pagination?.total || 0);
+      setListPage(data.pagination?.page || page);
+    } catch (e) {
+      console.error('Error fetching expense list:', e);
+      setExpenseList([]);
+      setListTotal(0);
+    } finally {
+      setLoadingList(false);
+    }
+  }, [listLimit]);
 
   // Load years that have expense data for this user only
   useEffect(() => {
@@ -104,8 +133,11 @@ const MonthlyExpenses = () => {
     if (month) {
       setSelectedMonth(month);
       fetchCategoriesFor(monthNumber, month.year || year);
+      if (showExpenseList) {
+        fetchExpenseList(monthNumber, month.year || year, 1);
+      }
     }
-  }, [monthlyData, fetchCategoriesFor, year]);
+  }, [monthlyData, fetchCategoriesFor, fetchExpenseList, showExpenseList, year]);
 
   const handleYearChange = (e) => {
     setYear(parseInt(e.target.value, 10));
@@ -127,6 +159,10 @@ const MonthlyExpenses = () => {
       setLoading(true);
       setError('');
       setCategoryData([]);
+      setExpenseList([]);
+      setListTotal(0);
+      setListPage(1);
+      setShowExpenseList(false);
       try {
         const response = await api.get(`/expenses/monthly?year=${year}`);
         const rows = Array.isArray(response.data) ? response.data : [];
@@ -197,6 +233,23 @@ const MonthlyExpenses = () => {
 
   const yearTotal = monthlyData.reduce((sum, m) => sum + (m.total || 0), 0);
   const hasYearData = yearTotal > 0;
+  const selectedMonthHasExpenses = selectedMonth && selectedMonth.count > 0;
+  const totalPages = Math.max(1, Math.ceil(listTotal / listLimit));
+
+  const handleToggleList = () => {
+    const next = !showExpenseList;
+    setShowExpenseList(next);
+    if (next && expenseList.length === 0 && selectedMonth) {
+      fetchExpenseList(selectedMonth.month, year, 1);
+    }
+  };
+
+  const handleListPageChange = (page) => {
+    if (page < 1 || page > totalPages || !selectedMonth) return;
+    setListPage(page);
+    fetchExpenseList(selectedMonth.month, year, page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="monthly-expenses">
@@ -447,6 +500,72 @@ const MonthlyExpenses = () => {
                 ))}
               </div>
             </div>
+
+            {selectedMonthHasExpenses && (
+              <div className="expense-list-toggle">
+                <button
+                  className="toggle-expense-list-btn"
+                  onClick={handleToggleList}
+                >
+                  {showExpenseList ? t('monthly.hideExpenses') : t('monthly.viewExpenses')}
+                </button>
+              </div>
+            )}
+
+            {showExpenseList && selectedMonthHasExpenses && (
+              <div className="expense-list-section">
+                <h3>{t('monthly.expensesList')} — {monthsFull[selectedMonth.month - 1]} {year}</h3>
+                {loadingList ? (
+                  <p className="list-loading">{t('monthly.listLoading')}</p>
+                ) : expenseList.length === 0 ? (
+                  <p className="list-loading">{t('monthly.noExpenses')}</p>
+                ) : (
+                  <>
+                    <div className="expense-table-wrapper">
+                      <table className="expense-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>{t('common.date')}</th>
+                            <th>{t('common.category')}</th>
+                            <th>{t('common.description')}</th>
+                            <th>{t('common.amount')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {expenseList.map((expense, index) => (
+                            <tr key={expense.id}>
+                              <td>{(listPage - 1) * listLimit + index + 1}</td>
+                              <td>{new Date(expense.date).toLocaleDateString()}</td>
+                              <td>{translateCategory(t, expense.category)}</td>
+                              <td>{expense.description}</td>
+                              <td>Rs {expense.amount.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="pagination">
+                      <button
+                        onClick={() => handleListPageChange(listPage - 1)}
+                        disabled={listPage <= 1 || loadingList}
+                      >
+                        {t('monthly.prev')}
+                      </button>
+                      <span className="page-info">
+                        {t('monthly.page', { page: listPage, total: totalPages })}
+                      </span>
+                      <button
+                        onClick={() => handleListPageChange(listPage + 1)}
+                        disabled={listPage >= totalPages || loadingList}
+                      >
+                        {t('monthly.next')}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
