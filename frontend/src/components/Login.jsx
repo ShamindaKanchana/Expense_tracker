@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { authApi } from '../services/api';
 import { getErrorMessage } from '../utils/errorMessage';
 import { setAuth } from '../utils/authStorage';
+import { appVersion } from '../config';
 import AuthFormError from './AuthFormError';
 import AuthHelp from './AuthHelp';
 import PasswordInput from './PasswordInput';
@@ -201,7 +202,7 @@ const Login = ({ setIsAuthenticated }) => {
         </form>
 
         <footer className="login-credit">
-          <p>{t('login.credit', { year: new Date().getFullYear() })}</p>
+          <p>{t('login.credit', { year: new Date().getFullYear(), version: appVersion ? `v${appVersion}` : '' })}</p>
         </footer>
       </div>
     </div>

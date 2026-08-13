@@ -3,3 +3,12 @@
 const rawUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 export const API_BASE_URL = rawUrl.replace(/\/$/, '');
+
+let appVersion = '';
+try {
+  appVersion = require('../package.json').version;
+} catch {
+  appVersion = '';
+}
+
+export { appVersion };

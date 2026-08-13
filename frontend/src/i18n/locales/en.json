@@ -91,7 +91,7 @@
     "signingIn": "Signing in...",
     "fillRequired": "Please enter your username or email, and your password.",
     "failed": "We couldn't sign you in. Please try again.",
-    "credit": "© {{year}} Expense Tracker | Developed by Shaminda Kanchana"
+    "credit": "© {{year}} Expense Tracker v{{version}} | Developed by Shaminda Kanchana"
   },
   "register": {
     "title": "Expense Tracker",
