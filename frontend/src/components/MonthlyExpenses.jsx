@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { useTheme } from '../theme/ThemeContext';
 import { getChartTheme } from '../theme/chartTheme';
-import { translateCategory } from '../utils/categories';
+import { translateCategory, getCategoryRowColors, getCategoryChartColors } from '../utils/categories';
 import { allMonthLabels } from '../utils/months';
 import './MonthlyExpenses.css';
 
@@ -48,6 +48,13 @@ const MonthlyExpenses = () => {
   const [listPage, setListPage] = useState(1);
   const [listTotal, setListTotal] = useState(0);
   const [listLimit] = useState(10);
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  // Theme-aware segment colors so the donut + detail swatches adapt to light/dark
+  const chartSegmentColors = useMemo(
+    () => categoryData.map((cat) => getCategoryChartColors(cat.name, theme)),
+    [categoryData, theme]
+  );
   const [loadingList, setLoadingList] = useState(false);
 
   useEffect(() => {
@@ -78,13 +85,13 @@ const MonthlyExpenses = () => {
     }
   }, []);
 
-  const fetchExpenseList = useCallback(async (monthNumber, targetYear, page = 1) => {
+  const fetchExpenseList = useCallback(async (monthNumber, targetYear, page = 1, category = '') => {
     setLoadingList(true);
     try {
       const monthParam = String(monthNumber).padStart(2, '0');
-      const response = await api.get('/expenses/list', {
-        params: { month: monthParam, year: targetYear, page, limit: listLimit }
-      });
+      const params = { month: monthParam, year: targetYear, page, limit: listLimit };
+      if (category) params.category = category;
+      const response = await api.get('/expenses/list', { params });
       const data = response.data;
       setExpenseList((data.expenses || []).map(e => ({
         ...e,
@@ -131,10 +138,11 @@ const MonthlyExpenses = () => {
   const handleMonthSelect = React.useCallback((monthNumber) => {
     const month = monthlyData.find(m => m.month === monthNumber);
     if (month) {
+      setSelectedCategory('');
       setSelectedMonth(month);
       fetchCategoriesFor(monthNumber, month.year || year);
       if (showExpenseList) {
-        fetchExpenseList(monthNumber, month.year || year, 1);
+        fetchExpenseList(monthNumber, month.year || year, 1, '');
       }
     }
   }, [monthlyData, fetchCategoriesFor, fetchExpenseList, showExpenseList, year]);
@@ -151,6 +159,7 @@ const MonthlyExpenses = () => {
       setMonthlyData([]);
       setSelectedMonth(null);
       setCategoryData([]);
+      setSelectedCategory('');
       setLoading(false);
       return undefined;
     }
@@ -163,6 +172,7 @@ const MonthlyExpenses = () => {
       setListTotal(0);
       setListPage(1);
       setShowExpenseList(false);
+      setSelectedCategory('');
       try {
         const response = await api.get(`/expenses/monthly?year=${year}`);
         const rows = Array.isArray(response.data) ? response.data : [];
@@ -240,15 +250,24 @@ const MonthlyExpenses = () => {
     const next = !showExpenseList;
     setShowExpenseList(next);
     if (next && expenseList.length === 0 && selectedMonth) {
-      fetchExpenseList(selectedMonth.month, year, 1);
+      fetchExpenseList(selectedMonth.month, year, 1, selectedCategory);
     }
   };
 
   const handleListPageChange = (page) => {
     if (page < 1 || page > totalPages || !selectedMonth) return;
     setListPage(page);
-    fetchExpenseList(selectedMonth.month, year, page);
+    fetchExpenseList(selectedMonth.month, year, page, selectedCategory);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCategoryChange = (e) => {
+    const value = e.target.value;
+    setSelectedCategory(value);
+    setListPage(1);
+    if (selectedMonth) {
+      fetchExpenseList(selectedMonth.month, year, 1, value);
+    }
   };
 
   return (
@@ -391,17 +410,8 @@ const MonthlyExpenses = () => {
                   labels: categoryData.map((cat) => translateCategory(t, cat.name)),
                   datasets: [{
                     data: categoryData.map(cat => cat.amount),
-                    backgroundColor: [
-                      'rgba(67, 97, 238, 0.8)',
-                      'rgba(103, 58, 183, 0.8)',
-                      'rgba(0, 150, 136, 0.8)',
-                      'rgba(255, 152, 0, 0.8)',
-                      'rgba(244, 67, 54, 0.8)',
-                      'rgba(76, 175, 80, 0.8)',
-                      'rgba(63, 81, 181, 0.8)',
-                      'rgba(233, 30, 99, 0.8)'
-                    ],
-                    borderColor: chartTheme.border,
+                     backgroundColor: chartSegmentColors.map((c) => c.fill),
+                     borderColor: chartSegmentColors.map((c) => c.border),
                     borderWidth: 2,
                     hoverOffset: 6
                   }]
@@ -484,20 +494,23 @@ const MonthlyExpenses = () => {
             <div className="category-details">
               <h3>Expense Details</h3>
               <div className="details-grid">
-                {categoryData.map((category, index) => (
-                  <div key={index} className="category-item">
-                    <div className="category-name" style={{ 
-                      backgroundColor: `rgba(${index * 50}, ${200 - index * 20}, ${100 + index * 30}, 0.2)`,
-                      borderLeft: `4px solid rgba(${index * 50}, ${200 - index * 20}, ${100 + index * 30}, 1)`
-                    }}>
-                      {category.name}
-                    </div>
-                    <div className="category-amount">Rs {category.amount.toFixed(2)}</div>
-                    <div className="category-percentage">
-                      {((category.amount / categoryData.reduce((sum, cat) => sum + cat.amount, 0)) * 100).toFixed(1)}%
-                    </div>
-                  </div>
-                ))}
+                 {categoryData.map((category, index) => {
+                   const catColor = getCategoryRowColors(category.name, theme);
+                   return (
+                   <div key={index} className="category-item">
+                     <div className="category-name" style={{ 
+                       backgroundColor: catColor.bg,
+                       borderLeft: `4px solid ${catColor.accent}`
+                     }}>
+                       {translateCategory(t, category.name)}
+                     </div>
+                     <div className="category-amount">Rs {category.amount.toFixed(2)}</div>
+                     <div className="category-percentage">
+                       {((category.amount / categoryData.reduce((sum, cat) => sum + cat.amount, 0)) * 100).toFixed(1)}%
+                     </div>
+                   </div>
+                   );
+                 })}
               </div>
             </div>
 
@@ -520,8 +533,27 @@ const MonthlyExpenses = () => {
                 ) : expenseList.length === 0 ? (
                   <p className="list-loading">{t('monthly.noExpenses')}</p>
                 ) : (
-                  <>
-                    <div className="expense-table-wrapper">
+                   <>
+                     <div className="expense-list-filters">
+                       <label htmlFor="expense-category-filter" className="filter-label">
+                         {t('monthly.filterByCategory')}
+                       </label>
+                       <select
+                         id="expense-category-filter"
+                         className="category-filter-select"
+                         value={selectedCategory}
+                         onChange={handleCategoryChange}
+                         disabled={loadingList}
+                       >
+                         <option value="">{t('monthly.allCategories')}</option>
+                         {categoryData.map((cat) => (
+                           <option key={cat.name} value={cat.name}>
+                             {translateCategory(t, cat.name)}
+                           </option>
+                         ))}
+                       </select>
+                     </div>
+                     <div className="expense-table-wrapper">
                       <table className="expense-table">
                         <thead>
                           <tr>
@@ -533,15 +565,22 @@ const MonthlyExpenses = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {expenseList.map((expense, index) => (
-                            <tr key={expense.id}>
+                          {expenseList.map((expense, index) => {
+                            const rowColors = getCategoryRowColors(expense.category, theme);
+                            return (
+                            <tr
+                              key={expense.id}
+                              className="category-row"
+                              style={rowColors ? { '--cat-bg': rowColors.bg, '--cat-accent': rowColors.accent } : undefined}
+                            >
                               <td>{(listPage - 1) * listLimit + index + 1}</td>
                               <td>{new Date(expense.date).toLocaleDateString()}</td>
                               <td>{translateCategory(t, expense.category)}</td>
                               <td>{expense.description}</td>
                               <td>Rs {expense.amount.toFixed(2)}</td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

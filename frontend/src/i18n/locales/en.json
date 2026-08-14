@@ -185,6 +185,8 @@
     "viewExpenses": "View Expenses",
     "hideExpenses": "Hide Expenses",
     "expensesList": "Expenses List",
+    "filterByCategory": "View by category",
+    "allCategories": "All categories",
     "page": "Page {{page}} of {{total}}",
     "prev": "« Prev",
     "next": "Next »",

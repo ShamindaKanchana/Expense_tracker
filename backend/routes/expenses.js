@@ -241,6 +241,12 @@ router.get('/list', auth, async (req, res) => {
       }
     }
 
+    const categoryParam = req.query.category;
+    if (categoryParam) {
+      whereClause += ' AND category = ?';
+      params.push(categoryParam);
+    }
+
     const countSql = `SELECT COUNT(*) AS total FROM expenses ${whereClause}`;
     const [countRow] = await db.query(countSql, params);
     const total = Number(countRow?.total) || 0;
