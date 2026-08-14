@@ -228,8 +228,9 @@
 }
 
 /*
- * Detail rows keep a light surface in both themes (progress-card look).
- * Force dark text so dark-mode theme text colors do not wash out on white.
+ * Category total cards — below the donut chart.
+ * Use theme tokens so the cards adapt to light/dark mode instead of
+ * keeping fixed light-mode colors (which left white-ish blocks on a dark page).
  */
 .category-item {
   display: grid;
@@ -237,16 +238,16 @@
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  background-color: #f8f9fa;
-  border: 1px solid #e2e8f0;
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   transition: var(--transition);
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .category-item:hover {
   transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
 }
 
 .category-name {
@@ -256,18 +257,18 @@
   font-size: 0.95rem;
   display: flex;
   align-items: center;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .category-amount {
   font-weight: 600;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .category-percentage {
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--text-secondary);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -471,6 +472,42 @@
   border: 1px solid var(--border-color);
 }
 
+.expense-list-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.filter-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.category-filter-select {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: var(--transition);
+}
+
+.category-filter-select:focus-visible {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.category-filter-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .expense-table {
   width: 100%;
   border-collapse: collapse;
@@ -498,6 +535,20 @@
 
 .expense-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* Per-category row tint + accent. Colors come from CSS vars set per row
+   (see getCategoryRowColors) and are plain/muted in both themes. */
+.expense-table tbody tr.category-row {
+  --cat-bg: transparent;
+  --cat-accent: transparent;
+  border-left: 3px solid var(--cat-accent);
+  background-color: var(--cat-bg);
+}
+
+.expense-table tbody tr.category-row:hover {
+  background-color: var(--cat-bg);
+  opacity: 0.93;
 }
 
 .expense-table tbody tr:hover {

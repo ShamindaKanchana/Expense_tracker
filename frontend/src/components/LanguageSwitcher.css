@@ -46,23 +46,25 @@
   min-width: 1.75rem;
 }
 
-/* Navbar (darker bar) */
+/* Navbar language switcher — theme-aware so inactive options are readable
+   on both light (white) and dark (dark slate) navbar backgrounds.
+   Tokens come from theme/tokens.css (--lang-switcher-*). */
 .navbar .lang-switcher {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--lang-switcher-bg, rgba(0, 0, 0, 0.04));
 }
 
 .navbar .lang-switcher-btn {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--lang-switcher-btn-color, #4b5563);
 }
 
 .navbar .lang-switcher-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  background: var(--lang-switcher-btn-hover-bg, rgba(79, 70, 229, 0.1));
+  color: var(--lang-switcher-btn-hover-color, #3730a3);
 }
 
 .navbar .lang-switcher-btn.active {
-  background: #fff;
-  color: #4f46e5;
+  background: var(--lang-switcher-btn-active-bg, #4f46e5);
+  color: var(--lang-switcher-btn-active-color, #fff);
 }
 
 /* Auth screens: sit on light card */

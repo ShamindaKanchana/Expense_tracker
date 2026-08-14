@@ -52,6 +52,14 @@
   --box-shadow: var(--shadow);
   --transition: all 0.2s ease;
   color-scheme: light;
+
+  /* Language switcher in the (light) top navbar */
+  --lang-switcher-bg: rgba(0, 0, 0, 0.04);
+  --lang-switcher-btn-color: #64748b;            /* grey for inactive options */
+  --lang-switcher-btn-hover-bg: rgba(79, 70, 229, 0.1);
+  --lang-switcher-btn-hover-color: #3730a3;
+  --lang-switcher-btn-active-bg: var(--primary-color);
+  --lang-switcher-btn-active-color: #fff;
 }
 
 [data-theme='dark'] {
@@ -99,6 +107,14 @@
 
   --box-shadow: var(--shadow);
   color-scheme: dark;
+
+  /* Language switcher in the (dark) top navbar — keep white on dark slate */
+  --lang-switcher-bg: rgba(255, 255, 255, 0.12);
+  --lang-switcher-btn-color: rgba(255, 255, 255, 0.85);
+  --lang-switcher-btn-hover-bg: rgba(255, 255, 255, 0.18);
+  --lang-switcher-btn-hover-color: #fff;
+  --lang-switcher-btn-active-bg: #fff;
+  --lang-switcher-btn-active-color: #4f46e5;
 }
 
 /* Global surfaces driven by tokens */
