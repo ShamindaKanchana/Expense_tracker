@@ -140,7 +140,7 @@ npm start              # http://localhost:3000
 | [docs/api.md](docs/api.md) | API endpoints and auth |
 | [docs/database.md](docs/database.md) | Schema and models |
 | [docs/deployment/README.md](docs/deployment/README.md) | Production deployment |
-| [docs/releases/README.md](docs/releases/README.md) | Version history (current: **v0.4.0**) |
+| [docs/releases/README.md](docs/releases/README.md) | Version history (current: **v0.6.0**) |
 | [docs/srs/README.md](docs/srs/README.md) | Product requirements (admin, password reset) |
 
 ## Environment variables (summary)

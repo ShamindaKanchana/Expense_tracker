@@ -13,15 +13,16 @@ Each release note describes:
 
 | Field | Value |
 |-------|--------|
-| **Version** | **[0.4.0](./v0.4.0.md)** |
+| **Version** | **[0.6.0](./v0.6.0.md)** |
 | **Status** | Current |
-| **Git tag** | [`v0.4.0`](https://github.com/ShamindaKanchana/Expense_tracker/releases/tag/v0.4.0) |
-| **GitHub release** | [Expense Tracker v0.4.0](https://github.com/ShamindaKanchana/Expense_tracker/releases/tag/v0.4.0) |
+| **Git tag** | [`v0.6.0`](https://github.com/ShamindaKanchana/Expense_tracker/releases/tag/v0.6.0) |
+| **GitHub release** | [Expense Tracker v0.6.0](https://github.com/ShamindaKanchana/Expense_tracker/releases/tag/v0.6.0) |
 
 ## Release index
 
 | Version | Date | Title | Compared to |
 |---------|------|--------|-------------|
+| [0.6.0](./v0.6.0.md) | 2026-08-16 | Monthly expense list, Travel→Transport merge, versioned footer, localized report | 0.5.0 (tag) |
 | [0.4.0](./v0.4.0.md) | 2026-07-20 | Trilingual UI (EN/SI/TA), password reset, auth UX | 0.3.0 |
 | [0.3.0](./v0.3.0.md) | 2026-07 | Account, username auth, auth UX, docs, deploy fixes | 0.2.0 |
 | [0.2.0](./v0.2.0.md) | 2026-07 | Env config, Render prep, auth error UX, local/dev docs | 0.1.0 |
