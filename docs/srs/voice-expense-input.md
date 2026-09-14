@@ -93,6 +93,9 @@ Python/LangChain familiarity by itself does not justify a second deployment, aut
 - The frontend makes one draft request; backend stages remain separately testable.
 - Provider SDK types, response formats, and errors remain inside adapters.
 - The application owns one canonical extraction schema.
+- The extraction service owns a versioned server-side system prompt; provider adapters must preserve its instruction priority.
+- The system prompt and structured-output schema receive the same trusted category allowlist used by the existing Add Expense UI.
+- A browser-supplied category list is never trusted or inserted into the system prompt.
 - Structural validation and business validation are separate.
 - STT selection is independent of LLM selection.
 - Provider changes are server configuration changes.
@@ -219,6 +222,36 @@ The model-facing schema is a strict object with exactly these nullable fields:
 Every key is structurally required but may be null. This reveals missing information instead of forcing the model to invent it.
 
 A clear item may have an inferred category. If no responsible mapping exists, normalization may use Others with CATEGORY_INFERRED. Amount and description are never silently defaulted.
+
+### System prompt and category allowlist
+
+The LLM must always receive a server-controlled system instruction for expense extraction. The instruction defines the one-expense scope, output schema, language/date behaviour, non-invention rules, and the only category values it may return. It must state that `category` is either exactly one allowed key or `null`; the model must never create a new category, translate a stored key, or return a close synonym.
+
+The current manual form renders its category options from `CATEGORY_KEYS` in `frontend/src/utils/categories.js`. Those keys are also stored by the MySQL enum and are therefore the required voice-input allowlist:
+
+    Food, Transport, Entertainment, Bills, Shopping,
+    Construction, Health, Education, Others
+
+Implementation must establish one application-owned canonical category source, or an explicitly synchronized backend mirror, that feeds all of the following:
+
+    canonical category keys
+      -> Add Expense select options and translated display labels
+      -> voice extraction system prompt
+      -> provider structured-output / JSON Schema enum
+      -> Zod validation and deterministic normalization
+      -> POST /api/expenses business validation
+
+Although the frontend must display and submit these same keys, it must not be allowed to choose the LLM allowlist by sending arbitrary values. The backend loads the trusted keys and injects them into the system prompt and schema. A synchronization test must fail if the frontend keys, backend validation, database enum, or voice extraction enum diverge.
+
+Conceptual system instruction:
+
+    Extract exactly one expense from the transcript and return only the required schema.
+    Preserve the transcript language for description. Return category as exactly one of:
+    Food, Transport, Entertainment, Bills, Shopping, Construction, Health,
+    Education, Others. Never invent, translate, or rename a category. Use null when
+    the required value cannot be determined under the defined inference rules.
+
+The real prompt remains server-side, version-controlled, provider-neutral, and covered by tests. Transcript text is untrusted user content and must be passed separately from the system instruction.
 
 ### Two validation layers
 
@@ -400,6 +433,81 @@ Do not begin feature implementation until Gates 1 and 2 are approved.
 
 Only after the earlier gates should work be split into backend adapters/contracts, shared expense validation, frontend states/UI, tests, telemetry, and rollout.
 
+### Step-by-step implementation checklist
+
+#### Phase 1: freeze product and domain contracts
+
+- [ ] Confirm English (`en-LK`, evaluated `en-US` fallback), Sinhala (`si-LK`), and Tamil (`ta-LK`) recognition locales.
+- [ ] Confirm one expense per recording and a 30-second maximum duration for v1.
+- [ ] Confirm transcript and description preserve the selected/spoken language while the stored category remains an English key.
+- [ ] Confirm preview, Retry, and Discard never write to the database; only Confirm & save may do so.
+- [ ] Establish the canonical category source shared or synchronized across the existing form, backend, database, prompt, schema, and validation.
+- [ ] Approve the nullable extraction schema and the unchanged `POST /api/expenses` save payload.
+
+#### Phase 2: run the trilingual STT and extraction benchmark
+
+- [ ] Create 30-50 representative recordings per language before selecting a provider.
+- [ ] Include different speakers, accents, noise, numeric amounts, code-switching, category inference, and relative dates.
+- [ ] Evaluate browser SpeechRecognition as a no-key proof of concept.
+- [ ] Evaluate a self-hosted multilingual Whisper option and suitable managed candidates.
+- [ ] Compare transcript/extraction accuracy, schema adherence, latency, failure rate, privacy, quotas, and operating cost.
+- [ ] Record the selected `STT_PROVIDER`, `STT_MODEL`, `LLM_PROVIDER`, and `LLM_MODEL`; retain the benchmark for future provider changes.
+
+#### Phase 3: build the backend foundation
+
+- [ ] Move the backend to a supported Node.js LTS version if required by selected SDKs.
+- [ ] Create the isolated voice route, orchestration service, STT adapter, extraction service, LLM adapter, and normalizer boundaries.
+- [ ] Implement provider registries, environment configuration, startup validation, and fake adapters.
+- [ ] Add authentication, locale/time-zone validation, audio type/size/duration limits, rate limits, timeouts, and controlled retries.
+- [ ] Ensure provider secrets and provider calls remain server-side.
+
+#### Phase 4: implement system-prompted structured extraction
+
+- [ ] Store and version the provider-neutral system prompt on the backend.
+- [ ] Inject the trusted canonical category keys into both the system prompt and structured-output enum for every extraction request.
+- [ ] Pass transcript, locale, user-local date, and time zone as untrusted request context separate from the system instruction.
+- [ ] Require exactly `amount`, `description`, `category`, and `date`, with nullable values rather than invented data.
+- [ ] Use provider-native structured output or tool calling when available, then validate every result with the same strict Zod schema.
+- [ ] Reject invented, translated, misspelled, or out-of-list categories; never append them to the form or database.
+- [ ] Apply deterministic amount, date, category, length, range, and future-date business validation.
+
+#### Phase 5: implement the draft API
+
+- [ ] Add `POST /api/voice-expenses/draft` with authenticated multipart audio, locale, and IANA time zone.
+- [ ] Orchestrate request validation -> STT -> extraction -> normalization -> preview response.
+- [ ] Return transcript, draft, field statuses, and safe warnings without writing to the database.
+- [ ] Map provider failures to safe, retryable application errors without leaking secrets or raw responses.
+
+#### Phase 6: implement the React experience
+
+- [ ] Add the accessible dashboard mic control without changing the manual Add Expense flow.
+- [ ] Implement permission, recording, timer, cancel, processing, preview, error, retry, discard, confirmation, saving, and success states.
+- [ ] Display transcript plus description, amount, localized category label, date, and warnings without prefilling the form.
+- [ ] Derive the recognition locale from the current UI language and submit the stable English category key.
+- [ ] Match the approved desktop/mobile prototypes and meet keyboard/screen-reader requirements.
+
+#### Phase 7: connect confirmation to the existing save path
+
+- [ ] Make Proceed open the final confirmation dialog without saving.
+- [ ] Make Confirm & save submit the normalized canonical JSON through the existing `POST /api/expenses` endpoint.
+- [ ] Prevent duplicate submissions and refresh existing dashboard data after success.
+- [ ] Verify manual entry remains available when voice capture or either provider is unavailable.
+
+#### Phase 8: verify and harden
+
+- [ ] Add schema, prompt/category synchronization, normalization, provider-contract, route, UI-state, and duplicate-action tests.
+- [ ] Add end-to-end coverage from recording through explicit confirmation and appearance in existing expense views.
+- [ ] Re-run the EN/SI/TA benchmark with the integrated application and require agreed accuracy/latency thresholds.
+- [ ] Verify audio, transcripts, and raw model responses are not logged or retained by default.
+- [ ] Delete temporary audio after processing and document provider retention/training terms.
+- [ ] Roll out behind a feature flag, monitor safe operational metrics, and retain the manual fallback.
+
+Implementation order is therefore:
+
+    product/domain contract approval -> provider benchmark -> provider selection -> backend foundations
+      -> system prompt + structured extraction -> draft API
+      -> React states -> existing save path -> trilingual verification -> rollout
+
 ---
 
 ## 11. Open decisions
@@ -430,3 +538,4 @@ Only after the earlier gates should work be split into backend adapters/contract
 |------|--------|
 | 2026-09-14 | Initial proposal: client-side prototype, mic in Add Expense, form prefill |
 | 2026-09-14 | Reworked: dashboard preview, Proceed/Retry/Discard, no form prefill, Node modular monolith, server provider adapters, strict validation, independently configurable STT/LLM |
+| 2026-09-14 | Added phased implementation checklist and required the server-side system prompt, structured schema, form options, and save validation to use the same canonical category allowlist |
