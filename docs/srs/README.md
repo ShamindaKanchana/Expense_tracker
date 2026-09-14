@@ -7,6 +7,7 @@ Product requirements that guide design and implementation. These are **not** dep
 | [admin-panel.md](./admin-panel.md) | Prototype on `main` / extend on `dev` | Admin panel: account overview, hidden admin login, delete accounts |
 | [password-reset-admin-approval.md](./password-reset-admin-approval.md) | **Draft** | Forgot password → admin approve → one-time code → user sets new password |
 | [monthly-expense-list.md](./monthly-expense-list.md) | **Draft** | Monthly report: on-demand paginated expense list for a selected month/year |
+| [voice-expense-input.md](./voice-expense-input.md) | **Proposal** | Voice input: mic → STT → LLM extract → prefill + confirm → reuse POST /api/expenses |
 
 ## How to use
 
