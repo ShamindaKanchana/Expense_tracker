@@ -7,6 +7,7 @@
 | **Status** | **Architecture proposal / awaiting approval** |
 | **Branch** | feature/voice-expense-input |
 | **Related code** | frontend/src/components/Dashboard.jsx, frontend/src/services/api.js, backend/routes/expenses.js |
+| **UI prototypes** | [Open prototype index](../prototypes/voice-expense-input/index.html) |
 
 ---
 
@@ -23,7 +24,7 @@ The authenticated dashboard shows a small, accessible mic icon. Selecting it ope
 
     [Proceed] [Retry] [Discard]
 
-- **Proceed** saves through the existing expense API.
+- **Proceed** opens the final confirmation dialog; **Confirm & save** calls the existing expense API.
 - **Retry** records a replacement statement without saving the current result.
 - **Discard** closes the flow and saves nothing.
 - Inline editing and form prefilling are not required for v1.
@@ -112,17 +113,27 @@ Python/LangChain familiarity by itself does not justify a second deployment, aut
     9. Backend validates and normalizes the untrusted result.
     10. Backend returns transcript, draft, field statuses, and warnings only.
     11. UI shows all four expense fields.
-    12a. Proceed posts the canonical JSON to existing POST /api/expenses.
+    12a. Proceed opens the final confirmation dialog; Confirm & save posts the canonical JSON to existing POST /api/expenses.
     12b. Retry starts a new recording without saving.
     12c. Discard removes the in-memory result without saving.
     13. Successful save refreshes normal dashboard expense data.
 
 The manual Add Expense flow stays independent and usable when capture, STT, LLM, or the network is unavailable.
 
+### Language selection contract
+
+The current application language deterministically selects the recognition and extraction language; v1 does not ask the model to guess it:
+
+- English UI uses en-LK where supported, with an evaluated en-US fallback.
+- Sinhala UI uses si-LK.
+- Tamil UI uses ta-LK.
+- The request carries both the app language and recognition locale to the backend.
+- Transcript and description remain in the spoken language, while category is normalized to the stored English enum.
+
 ### UI states
 
     idle -> permission -> recording -> processing -> preview
-    preview -> proceed -> saving -> success
+    preview -> proceed -> confirming -> confirm and save -> saving -> success
     preview -> retry -> recording
     preview -> discard -> idle
     any capture/provider stage -> recoverable error
@@ -179,7 +190,7 @@ Stable error codes include MIC_AUDIO_INVALID, VOICE_TOO_LONG, TRANSCRIPT_EMPTY, 
 
 ### 4.2 Save the reviewed expense
 
-Proceed reuses the current authenticated endpoint and exact persisted shape:
+Confirm & save reuses the current authenticated endpoint and exact persisted shape:
 
     POST /api/expenses
 
@@ -259,6 +270,17 @@ This single-pass pipeline needs no orchestration framework. Direct SDKs behind a
 
 LangChain.js may be used inside adapters later if it materially reduces integration effort. LangGraph is unnecessary unless the feature gains branching, persistent state, tools, or agent behaviour. Neither framework should become a domain contract.
 
+### No-paid-API evaluation path
+
+A proof of concept can avoid per-call paid APIs, but “free” is an evaluation strategy rather than a production guarantee:
+
+- Browser SpeechRecognition can be used for a browser-specific spike with the selected locale. It requires no application API key, but availability, supported languages, remote processing, privacy, and behavior depend on the browser.
+- A self-hosted multilingual speech model can provide Sinhala/Tamil transcription with no STT API charge, but the application still pays for hardware/hosting and must meet latency targets.
+- A free-tier/evaluation LLM or a self-hosted multilingual model can extract the four fields, followed by the same strict schema and business validation.
+- Provider free tiers and evaluation keys must not be treated as production capacity or availability commitments.
+
+The production architecture remains provider-neutral. The benchmark gate decides whether the first release uses a managed paid provider, a self-hosted provider, or an approved free tier.
+
 ### Provider selection
 
 Choose initial providers after a reusable benchmark covering English, Sinhala, Tamil, mixed-language speech, accents, noise, numeric amounts, category inference, and relative dates. Compare:
@@ -328,9 +350,9 @@ Target p95 from recording stop to preview is under 8 seconds on normal 4G, measu
 - Normalization tests for numeric formats, relative dates, local date near UTC midnight, inference, trimming, and DB ranges.
 - Shared provider contract tests with fake adapters by default and opt-in real-provider integration tests.
 - Route tests for auth, media/size limits, locale/time-zone validation, rate limits, timeouts, and safe errors.
-- UI state tests for Proceed, Retry, Discard, permission denial, duplicate actions, and manual fallback.
+- UI state tests for Proceed, confirmation, Confirm & save, Retry, Discard, permission denial, duplicate actions, and manual fallback.
 - Reusable EN/SI/TA and code-switching benchmark corpus.
-- End-to-end proof that Proceed saves through POST /api/expenses and behaves like manual entry.
+- End-to-end proof that Confirm & save submits through POST /api/expenses and behaves like manual entry.
 
 ### Acceptance criteria
 
@@ -339,7 +361,7 @@ Target p95 from recording stop to preview is under 8 seconds on normal 4G, measu
 - [ ] Preview shows description, amount, category, and date.
 - [ ] Missing/invalid data disables Proceed and offers Retry/Discard.
 - [ ] Recording, processing, preview, retry, and discard perform no DB write.
-- [ ] Proceed uses the existing expense contract and result appears in existing views.
+- [ ] Proceed opens the final dialog; Confirm & save uses the existing expense contract and the result appears in existing views.
 - [ ] Selected STT and LLM adapters pass the same contracts.
 - [ ] Provider/model changes require configuration only.
 - [ ] Frontend contains no provider secret or direct provider call.
@@ -358,7 +380,7 @@ Do not begin feature implementation until Gates 1 and 2 are approved.
 - Dashboard mic and message-style panel.
 - One expense per recording.
 - Preview only; no form prefill or inline editing in v1.
-- Proceed, Retry, and Discard.
+- Proceed, final confirmation, Confirm & save, Retry, and Discard.
 
 ### Gate 2: technical contracts
 
@@ -390,13 +412,13 @@ Only after the earlier gates should work be split into backend adapters/contract
 | 4 | Accepted codecs and byte limit | Decide after MediaRecorder browser testing |
 | 5 | Supported browsers | Chrome/Edge desktop and Android Chrome baseline; test Safari |
 | 6 | Cross-provider fallback | Disabled |
-| 7 | Server idempotency for Proceed | Recommended before broad rollout |
+| 7 | Server idempotency for Confirm & save | Recommended before broad rollout |
 
 ---
 
 ## 12. Repository and reference notes
 
-- Existing manual entry sends amount, description, category, and date to POST /api/expenses. Voice Proceed preserves that contract.
+- Existing manual entry sends amount, description, category, and date to POST /api/expenses. Voice Confirm & save preserves that contract.
 - Current backend validation is basic; the shared save path must enforce the stricter category, date, and range rules above.
 - Official OpenAI documentation describes JSON Schema Structured Outputs as stricter than JSON-only mode. An OpenAI adapter can use it, but it is not an architecture dependency: <https://developers.openai.com/api/reference/cli/resources/beta/subresources/responses>.
 
