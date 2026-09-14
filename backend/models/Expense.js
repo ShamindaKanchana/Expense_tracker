@@ -1,8 +1,8 @@
 const db = require('../config/db');
+const { EXPENSE_CATEGORIES } = require('../domain/expenseCategories');
 
 /** Allowed expense categories (must match frontend CATEGORY_KEYS / i18n). */
-const CATEGORY_ENUM =
-  "ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Construction', 'Health', 'Education', 'Others')";
+const CATEGORY_ENUM = `ENUM(${EXPENSE_CATEGORIES.map((category) => `'${category}'`).join(', ')})`;
 
 // Create expenses table if it doesn't exist
 const createTableQuery = `
