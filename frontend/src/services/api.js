@@ -8,7 +8,10 @@ const API_URL = API_BASE_URL;
 
 const toRequestError = (error, fallback) => {
   const message = getErrorMessage(error, fallback);
-  return new Error(message);
+  const requestError = new Error(message);
+  requestError.code = error.response?.data?.code;
+  requestError.status = error.response?.status;
+  return requestError;
 };
 
 if (process.env.NODE_ENV === 'development') {

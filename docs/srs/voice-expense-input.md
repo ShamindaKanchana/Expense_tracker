@@ -4,10 +4,11 @@
 |-------|-------|
 | **Product** | Expense Tracker |
 | **Feature** | Speak one expense, review the extracted draft, then save through the existing expense API |
-| **Status** | **Architecture proposal / awaiting approval** |
+| **Status** | **Implementation in progress: browser-STT vertical slice** |
 | **Branch** | feature/voice-expense-input |
 | **Related code** | frontend/src/components/Dashboard.jsx, frontend/src/services/api.js, backend/routes/expenses.js |
 | **UI prototypes** | [Open prototype index](../prototypes/voice-expense-input/index.html) |
+| **Setup guide** | [Configure and run the implementation](../voice-expense-input-setup.md) |
 
 ---
 
@@ -35,8 +36,8 @@ The authenticated dashboard shows a small, accessible mic icon. Selecting it ope
 2. English, Sinhala, and Tamil input.
 3. Explicit user review before any database write.
 4. No new expense table or save path.
-5. Configurable STT and LLM providers with no vendor coupling in expense logic.
-6. No provider secrets or direct provider requests in the browser.
+5. Configurable LLM providers with no vendor coupling in expense logic, plus a replaceable STT boundary.
+6. No LLM provider secrets or direct LLM provider requests in the browser.
 
 ### Out of scope for v1
 
@@ -52,17 +53,18 @@ The authenticated dashboard shows a small, accessible mic icon. Selecting it ope
 
 ### Decision: modular Node.js backend
 
-Build the voice pipeline as an isolated module inside the existing Node.js/Express backend. STT and LLM systems are external provider services hidden behind application-owned adapters.
+Build expense extraction as an isolated module inside the existing Node.js/Express backend. The first no-paid-STT slice uses the browser's SpeechRecognition API; LLM systems are hidden behind server-owned adapters.
 
     React dashboard
         |
-        | authenticated audio upload
+        +-- Browser SpeechRecognition (initial STT)
+        |
+        | authenticated transcript JSON
         v
     Node.js / Express
         |
         +-- Voice expense module
-        |     +-- request/audio validation
-        |     +-- STT adapter
+        |     +-- request/transcript validation
         |     +-- extraction service
         |     +-- LLM adapter
         |     +-- deterministic normalizer/validator
@@ -73,7 +75,7 @@ Build the voice pipeline as an isolated module inside the existing Node.js/Expre
 
 This is the recommended v1 boundary because the flow is short and synchronous, shares authentication and the expense domain with the current backend, and does not need independent deployment or scaling. Node.js supports hosted model APIs and runtime schema validation well; Python is not required for this workload.
 
-The module boundaries remain explicit so the pipeline can be extracted later without changing its public contracts.
+The module boundaries remain explicit so server-side audio transcription can be introduced after the EN/SI/TA benchmark. That later path will add a transcription endpoint/adapter and feed its transcript into the same extraction service.
 
 ### When a microservice becomes appropriate
 
@@ -97,7 +99,7 @@ Python/LangChain familiarity by itself does not justify a second deployment, aut
 - The system prompt and structured-output schema receive the same trusted category allowlist used by the existing Add Expense UI.
 - A browser-supplied category list is never trusted or inserted into the system prompt.
 - Structural validation and business validation are separate.
-- STT selection is independent of LLM selection.
+- Browser STT is independent of server-side LLM selection; any later server STT provider remains independently configurable.
 - Provider changes are server configuration changes.
 - Silent cross-provider fallback is disabled by default due to cost and privacy differences.
 
@@ -107,11 +109,11 @@ Python/LangChain familiarity by itself does not justify a second deployment, aut
 
     1. User selects the dashboard mic.
     2. Browser requests microphone permission.
-    3. MediaRecorder captures up to 30 seconds.
-    4. Browser uploads audio, locale, and IANA time zone.
-    5. Backend checks auth, media, size, duration, locale, time zone, and rate limit.
-    6. Configured STT adapter returns a transcript.
-    7. Empty transcription stops with a retryable error.
+    3. Browser SpeechRecognition listens for up to 30 seconds in the selected locale.
+    4. Empty or failed recognition stops with a retryable error.
+    5. Browser posts transcript, locale, and IANA time zone.
+    6. Backend checks auth, transcript limits, locale, time zone, and rate limit.
+    7. Transcript is treated only as untrusted user content.
     8. Configured LLM adapter extracts a schema-constrained draft.
     9. Backend validates and normalizes the untrusted result.
     10. Backend returns transcript, draft, field statuses, and warnings only.
@@ -153,12 +155,12 @@ The preview shows the transcript, description, amount, category, date, and usefu
 
     POST /api/voice-expenses/draft
     Authorization: Bearer <JWT>
-    Content-Type: multipart/form-data
+    Content-Type: application/json
 
-| Part | Rules |
-|------|-------|
-| audio | Required; allowlisted media; maximum 30 seconds and configured byte limit |
-| locale | Allowlisted en-US, si-LK, or ta-LK |
+| Field | Rules |
+|-------|-------|
+| transcript | Required trimmed string; 1-1000 characters |
+| locale | Allowlisted en-LK, en-US, si-LK, or ta-LK |
 | timezone | Valid IANA zone; backend derives the user's current local date |
 
 Example response:
@@ -178,14 +180,16 @@ Example response:
         "date": "defaulted"
       },
       "warnings": ["CATEGORY_INFERRED", "DATE_DEFAULTED"],
-      "complete": true
+      "canProceed": true,
+      "provider": "gemini",
+      "promptVersion": "voice-expense-v1"
     }
 
 Contract rules:
 
 - This endpoint never inserts or updates an expense.
 - Missing values are null; the model must not invent required details.
-- The backend computes complete after validation.
+- The backend computes canProceed after validation.
 - Field status uses explicit, inferred, defaulted, or missing instead of an unreliable model-generated confidence score.
 - The response never exposes raw provider responses, provider errors, or secrets.
 
@@ -282,9 +286,6 @@ The extraction service—not an adapter—owns the prompt, canonical schema, cat
 
 ### Configuration
 
-    STT_PROVIDER=google
-    STT_MODEL=<provider-model-id>
-
     LLM_PROVIDER=cohere
     LLM_MODEL=<provider-model-id>
 
@@ -295,7 +296,9 @@ Each adapter reads only its server credential, such as COHERE_API_KEY, DEEPSEEK_
 
 For v1, changing environment variables followed by a restart/redeploy is sufficient. User-selectable providers and database-stored provider configuration are out of scope.
 
-A factory/registry selects the adapter at startup. Unsupported provider names fail at startup. Fake STT/LLM adapters support tests, and every real adapter passes the same contract suite.
+A factory/registry selects the LLM adapter. Unsupported or incomplete configuration fails with a controlled unavailable response. The mock adapter is allowed only when explicitly enabled outside production. Fake adapters support tests, and real adapters must pass the same contract suite.
+
+The initial browser STT has no backend credential. Future server transcription will introduce STT_PROVIDER/STT_MODEL without changing the extraction service or save contract.
 
 ### Framework position
 
@@ -307,7 +310,7 @@ LangChain.js may be used inside adapters later if it materially reduces integrat
 
 A proof of concept can avoid per-call paid APIs, but “free” is an evaluation strategy rather than a production guarantee:
 
-- Browser SpeechRecognition can be used for a browser-specific spike with the selected locale. It requires no application API key, but availability, supported languages, remote processing, privacy, and behavior depend on the browser.
+- Browser SpeechRecognition is used by the initial browser-specific slice with the selected locale. It requires no application API key, but availability, supported languages, remote processing, privacy, and behavior depend on the browser.
 - A self-hosted multilingual speech model can provide Sinhala/Tamil transcription with no STT API charge, but the application still pays for hardware/hosting and must meet latency targets.
 - A free-tier/evaluation LLM or a self-hosted multilingual model can extract the four fields, followed by the same strict schema and business validation.
 - Provider free tiers and evaluation keys must not be treated as production capacity or availability commitments.
@@ -332,14 +335,17 @@ Configurability reduces lock-in but does not guarantee equivalent quality. Re-ru
 ## 7. Logical module boundaries
 
     voice route/controller
-      -> HTTP, auth, and upload validation
+      -> HTTP, auth, transcript/locale/time-zone validation, rate limiting
 
     voice orchestration service
-      -> transcriber -> extractor -> normalizer
+      -> extractor -> normalizer
       -> draft response only
 
-    STT adapter
-      -> provider SDK and errors
+    browser recognition boundary
+      -> selected app locale -> transcript
+
+    future server STT adapter
+      -> audio validation -> provider SDK and errors -> same transcript input
 
     LLM adapter
       -> provider SDK, structured output, and errors
@@ -360,16 +366,16 @@ Exact filenames are an implementation detail. These responsibility boundaries ar
 ## 8. Security, privacy, and reliability
 
 - Explain microphone use before or with the permission prompt.
-- Audio is ephemeral and removed immediately after transcription.
+- The initial backend receives no audio. Browser recognition handling and the browser vendor's possible remote processing must be disclosed.
 - Do not log audio, transcripts, or raw model output.
-- Validate actual media content/type and limits, not only its filename.
+- Validate transcript length and type now; validate actual media content/type and limits if server audio upload is added.
 - Require JWT, per-user/IP rate limits, timeouts, and bounded retries.
 - Keep prompts on the server and treat transcript text only as user data.
 - The LLM cannot choose routes, save data, call arbitrary tools, or generate SQL.
-- Send providers only the minimum audio/text needed.
+- Send the LLM provider only the minimum transcript and date/language context needed.
 - Review retention, training, region, and deletion terms before production.
 - Telemetry may record request ID, provider/model, duration, outcome, and usage without spoken content.
-- Upgrade the repository's Node 14 minimum to a supported LTS before using current provider SDKs.
+- Require Node.js 22 or newer for native fetch, AbortController, and maintained runtime support.
 
 Target p95 from recording stop to preview is under 8 seconds on normal 4G, measured for the selected provider combination.
 
@@ -382,7 +388,7 @@ Target p95 from recording stop to preview is under 8 seconds on normal 4G, measu
 - Schema tests for valid, incomplete, extra-key, wrong-type, invalid-category, invalid-date, and future-date output.
 - Normalization tests for numeric formats, relative dates, local date near UTC midnight, inference, trimming, and DB ranges.
 - Shared provider contract tests with fake adapters by default and opt-in real-provider integration tests.
-- Route tests for auth, media/size limits, locale/time-zone validation, rate limits, timeouts, and safe errors.
+- Route tests for auth, transcript limits, locale/time-zone validation, rate limits, timeouts, and safe errors.
 - UI state tests for Proceed, confirmation, Confirm & save, Retry, Discard, permission denial, duplicate actions, and manual fallback.
 - Reusable EN/SI/TA and code-switching benchmark corpus.
 - End-to-end proof that Confirm & save submits through POST /api/expenses and behaves like manual entry.
@@ -437,65 +443,65 @@ Only after the earlier gates should work be split into backend adapters/contract
 
 #### Phase 1: freeze product and domain contracts
 
-- [ ] Confirm English (`en-LK`, evaluated `en-US` fallback), Sinhala (`si-LK`), and Tamil (`ta-LK`) recognition locales.
-- [ ] Confirm one expense per recording and a 30-second maximum duration for v1.
-- [ ] Confirm transcript and description preserve the selected/spoken language while the stored category remains an English key.
-- [ ] Confirm preview, Retry, and Discard never write to the database; only Confirm & save may do so.
-- [ ] Establish the canonical category source shared or synchronized across the existing form, backend, database, prompt, schema, and validation.
-- [ ] Approve the nullable extraction schema and the unchanged `POST /api/expenses` save payload.
+- [x] Confirm English (`en-LK`, evaluated `en-US` fallback), Sinhala (`si-LK`), and Tamil (`ta-LK`) recognition locales.
+- [x] Confirm one expense per recording and a 30-second maximum duration for v1.
+- [x] Confirm transcript and description preserve the selected/spoken language while the stored category remains an English key.
+- [x] Confirm preview, Retry, and Discard never write to the database; only Confirm & save may do so.
+- [x] Establish synchronized frontend/backend category sources with a drift-detection test.
+- [x] Approve the nullable extraction schema and the unchanged `POST /api/expenses` save payload.
 
 #### Phase 2: run the trilingual STT and extraction benchmark
 
 - [ ] Create 30-50 representative recordings per language before selecting a provider.
 - [ ] Include different speakers, accents, noise, numeric amounts, code-switching, category inference, and relative dates.
-- [ ] Evaluate browser SpeechRecognition as a no-key proof of concept.
+- [x] Evaluate browser SpeechRecognition as a no-key proof of concept; the first vertical slice uses it for capture.
 - [ ] Evaluate a self-hosted multilingual Whisper option and suitable managed candidates.
 - [ ] Compare transcript/extraction accuracy, schema adherence, latency, failure rate, privacy, quotas, and operating cost.
 - [ ] Record the selected `STT_PROVIDER`, `STT_MODEL`, `LLM_PROVIDER`, and `LLM_MODEL`; retain the benchmark for future provider changes.
 
 #### Phase 3: build the backend foundation
 
-- [ ] Move the backend to a supported Node.js LTS version if required by selected SDKs.
-- [ ] Create the isolated voice route, orchestration service, STT adapter, extraction service, LLM adapter, and normalizer boundaries.
-- [ ] Implement provider registries, environment configuration, startup validation, and fake adapters.
-- [ ] Add authentication, locale/time-zone validation, audio type/size/duration limits, rate limits, timeouts, and controlled retries.
-- [ ] Ensure provider secrets and provider calls remain server-side.
+- [x] Require the supported Node.js 22 LTS runtime.
+- [x] Create the isolated voice route, extraction service, LLM adapters, normalizer, and future server-STT seam.
+- [x] Implement provider registries, environment configuration, controlled configuration errors, and a development-only mock.
+- [x] Add authentication, transcript/locale/time-zone validation, rate limits, timeouts, and controlled retries.
+- [x] Ensure LLM provider secrets and provider calls remain server-side.
 
 #### Phase 4: implement system-prompted structured extraction
 
-- [ ] Store and version the provider-neutral system prompt on the backend.
-- [ ] Inject the trusted canonical category keys into both the system prompt and structured-output enum for every extraction request.
-- [ ] Pass transcript, locale, user-local date, and time zone as untrusted request context separate from the system instruction.
-- [ ] Require exactly `amount`, `description`, `category`, and `date`, with nullable values rather than invented data.
-- [ ] Use provider-native structured output or tool calling when available, then validate every result with the same strict Zod schema.
-- [ ] Reject invented, translated, misspelled, or out-of-list categories; never append them to the form or database.
-- [ ] Apply deterministic amount, date, category, length, range, and future-date business validation.
+- [x] Store and version the provider-neutral system prompt on the backend.
+- [x] Inject the trusted canonical category keys into both the system prompt and structured-output enum for every extraction request.
+- [x] Pass transcript, locale, user-local date, and time zone as untrusted request context separate from the system instruction.
+- [x] Require exactly `amount`, `description`, `category`, and `date`, with nullable values rather than invented data.
+- [x] Use provider-native structured output/JSON mode, then validate every result with the same strict Zod schema.
+- [x] Reject invented, translated, misspelled, or out-of-list categories; never append them to the form or database.
+- [x] Apply deterministic amount, date, category, length, range, and future-date validation for voice drafts.
 
 #### Phase 5: implement the draft API
 
-- [ ] Add `POST /api/voice-expenses/draft` with authenticated multipart audio, locale, and IANA time zone.
-- [ ] Orchestrate request validation -> STT -> extraction -> normalization -> preview response.
-- [ ] Return transcript, draft, field statuses, and safe warnings without writing to the database.
-- [ ] Map provider failures to safe, retryable application errors without leaking secrets or raw responses.
+- [x] Add `POST /api/voice-expenses/draft` with authenticated transcript JSON, locale, and IANA time zone.
+- [x] Orchestrate request validation -> extraction -> normalization -> preview response.
+- [x] Return transcript, draft, field statuses, and safe warnings without writing to the database.
+- [x] Map provider failures to safe, retryable application errors without leaking secrets or raw responses.
 
 #### Phase 6: implement the React experience
 
-- [ ] Add the accessible dashboard mic control without changing the manual Add Expense flow.
-- [ ] Implement permission, recording, timer, cancel, processing, preview, error, retry, discard, confirmation, saving, and success states.
-- [ ] Display transcript plus description, amount, localized category label, date, and warnings without prefilling the form.
-- [ ] Derive the recognition locale from the current UI language and submit the stable English category key.
-- [ ] Match the approved desktop/mobile prototypes and meet keyboard/screen-reader requirements.
+- [x] Add the accessible dashboard mic control without changing the manual Add Expense flow.
+- [x] Implement recording, timer, cancel, processing, preview, error, retry, discard, confirmation, saving, and success states.
+- [x] Display transcript plus description, amount, localized category label, date, and warnings without prefilling the form.
+- [x] Derive the recognition locale from the current UI language and submit the stable English category key.
+- [ ] Complete keyboard focus trapping and screen-reader review against the approved prototypes (Escape dismissal is implemented).
 
 #### Phase 7: connect confirmation to the existing save path
 
-- [ ] Make Proceed open the final confirmation dialog without saving.
-- [ ] Make Confirm & save submit the normalized canonical JSON through the existing `POST /api/expenses` endpoint.
-- [ ] Prevent duplicate submissions and refresh existing dashboard data after success.
-- [ ] Verify manual entry remains available when voice capture or either provider is unavailable.
+- [x] Make Proceed open the final confirmation dialog without saving.
+- [x] Make Confirm & save submit the normalized canonical JSON through the existing `POST /api/expenses` endpoint.
+- [x] Disable saving actions while submitting and refresh existing dashboard data after success.
+- [x] Keep manual entry available when voice capture or either provider is unavailable.
 
 #### Phase 8: verify and harden
 
-- [ ] Add schema, prompt/category synchronization, normalization, provider-contract, route, UI-state, and duplicate-action tests.
+- [ ] Expand the current schema, prompt/category synchronization, normalization, and UI-flow tests with route/provider contract coverage.
 - [ ] Add end-to-end coverage from recording through explicit confirmation and appearance in existing expense views.
 - [ ] Re-run the EN/SI/TA benchmark with the integrated application and require agreed accuracy/latency thresholds.
 - [ ] Verify audio, transcripts, and raw model responses are not logged or retained by default.
@@ -514,10 +520,10 @@ Implementation order is therefore:
 
 | # | Decision | Proposed default |
 |---|----------|------------------|
-| 1 | Initial STT provider/model | Select after EN/SI/TA benchmark |
+| 1 | Initial STT provider/model | Browser SpeechRecognition for the first slice; reassess after EN/SI/TA benchmark |
 | 2 | Initial LLM provider/model | Select after accuracy/schema/latency/cost/privacy benchmark |
 | 3 | Preview editing | No editing in v1; Retry or Discard |
-| 4 | Accepted codecs and byte limit | Decide after MediaRecorder browser testing |
+| 4 | Server audio codecs and byte limit | Deferred until a server-side STT fallback is selected |
 | 5 | Supported browsers | Chrome/Edge desktop and Android Chrome baseline; test Safari |
 | 6 | Cross-provider fallback | Disabled |
 | 7 | Server idempotency for Confirm & save | Recommended before broad rollout |
@@ -539,3 +545,4 @@ Implementation order is therefore:
 | 2026-09-14 | Initial proposal: client-side prototype, mic in Add Expense, form prefill |
 | 2026-09-14 | Reworked: dashboard preview, Proceed/Retry/Discard, no form prefill, Node modular monolith, server provider adapters, strict validation, independently configurable STT/LLM |
 | 2026-09-14 | Added phased implementation checklist and required the server-side system prompt, structured schema, form options, and save validation to use the same canonical category allowlist |
+| 2026-09-14 | Began implementation with browser STT, transcript draft API, configurable LLM adapters, strict validation, trilingual React states, and confirmation through the existing save endpoint |

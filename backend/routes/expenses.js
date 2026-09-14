@@ -4,6 +4,7 @@ const Expense = require('../models/Expense');
 const db = require('../config/db');
 const auth = require('../middleware/auth');
 const path = require('path');
+const { isExpenseCategory } = require('../domain/expenseCategories');
 
 // Test database connection (MySQL)
 router.get('/test-db', async (req, res) => {
@@ -429,8 +430,9 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Please provide a description' });
     }
     
-    if (!category || category.trim() === '') {
-      return res.status(400).json({ message: 'Please provide a category' });
+    const normalizedCategory = String(category || '').trim();
+    if (!isExpenseCategory(normalizedCategory)) {
+      return res.status(400).json({ message: 'Please provide a valid category' });
     }
 
     // 2. Create new expense instance
@@ -438,7 +440,7 @@ router.post('/', auth, async (req, res) => {
       userId: req.user.id,
       amount: parseFloat(amount),
       description: description.trim(),
-      category: category.trim(),
+      category: normalizedCategory,
       date: date || new Date().toISOString()
     });
 
@@ -477,14 +479,15 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(400).json({ message: 'Please provide a description' });
     }
     
-    if (!category || category.trim() === '') {
-      return res.status(400).json({ message: 'Please provide a category' });
+    const normalizedCategory = String(category || '').trim();
+    if (!isExpenseCategory(normalizedCategory)) {
+      return res.status(400).json({ message: 'Please provide a valid category' });
     }
 
     // Find and update the expense
     const [result] = await db.query(
       'UPDATE expenses SET amount = ?, description = ?, category = ?, date = ? WHERE id = ? AND user_id = ?',
-      [amount, description.trim(), category.trim(), date || new Date(), id, userId]
+      [amount, description.trim(), normalizedCategory, date || new Date(), id, userId]
     );
 
     if (result.affectedRows === 0) {
