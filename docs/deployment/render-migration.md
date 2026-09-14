@@ -226,10 +226,10 @@ Local defaults still work without extra setup (`localhost:5000/api` and localhos
 | `DB_PORT` | `3306` | Aiven port (often non-default) |
 | `DB_CA_CERT` | `-----BEGIN CERTIFICATE-----...` | If required by Aiven SSL |
 | `CORS_ALLOWED_ORIGINS` | `https://expense-tracker-liard-nine.vercel.app` | Your Vercel URL; comma-separate multiple origins |
-| `LLM_PROVIDER` | `cohere` | Selects the server-side extraction adapter; never use `mock` in production |
-| `LLM_MODEL` | `command-a-03-2025` | Provider model ID supporting structured JSON output |
+| `LLM_PROVIDER` | `cohere` | Server-side extraction adapter; never use `mock` in production |
+| `LLM_MODEL` | `command-a-03-2025` | Provider model supporting structured JSON output |
 | `COHERE_API_KEY` | `***` | Required when `LLM_PROVIDER=cohere`; store as a Render secret |
-| `VOICE_ALLOW_MOCK` | `false` | Production must keep the development mock disabled |
+| `VOICE_ALLOW_MOCK` | `false` | Keep the development mock disabled in production |
 | `LLM_TIMEOUT_MS` | `15000` | Optional provider request timeout |
 | `LLM_MAX_RETRIES` | `1` | Optional bounded retry count |
 
