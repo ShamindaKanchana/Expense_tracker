@@ -36,6 +36,8 @@ test('system prompt includes every canonical category and non-invention rule', (
     assert.match(messages.system, new RegExp(category));
   }
   assert.match(messages.system, /Never invent/);
+  assert.match(messages.system, /concise item-focused noun phrase/);
+  assert.match(messages.system, /Remove first-person pronouns/);
   assert.doesNotMatch(messages.system, /Lunch was 2500/);
   assert.match(messages.user, /Lunch was 2500/);
 });
