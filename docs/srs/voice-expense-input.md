@@ -182,7 +182,7 @@ Example response:
       "warnings": ["CATEGORY_INFERRED", "DATE_DEFAULTED"],
       "canProceed": true,
       "provider": "gemini",
-      "promptVersion": "voice-expense-v1"
+      "promptVersion": "voice-expense-v2"
     }
 
 Contract rules:
