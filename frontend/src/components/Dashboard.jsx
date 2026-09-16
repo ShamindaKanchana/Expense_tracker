@@ -7,6 +7,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { getChartTheme } from '../theme/chartTheme';
 import { translateCategory } from '../utils/categories';
 import { EN_MONTHS, translateEnglishMonth } from '../utils/months';
+import VoiceExpenseInput from './VoiceExpenseInput';
 import './Dashboard.css';
 
 // Register ChartJS components
@@ -30,6 +31,7 @@ const Dashboard = () => {
   // Use useRef to maintain maxCategory between re-renders
   const maxCategoryRef = useRef({ category: '', total: 0 });
   const [maxCategory, setMaxCategory] = useState({ category: '', total: 0 });
+  const [refreshVersion, setRefreshVersion] = useState(0);
   
   // Log the current user's ID on component mount
   useEffect(() => {
@@ -147,7 +149,7 @@ const Dashboard = () => {
       console.log('🧹 Cleaning up category data fetch');
       isMounted = false;
     };
-  }, []);
+  }, [refreshVersion]);
 
   // Fetch monthly data for the chart
   useEffect(() => {
@@ -181,7 +183,7 @@ const Dashboard = () => {
     };
 
     fetchMonthlyData();
-  }, []);
+  }, [refreshVersion]);
 
   // Fetch highest spending month data
   useEffect(() => {
@@ -233,7 +235,7 @@ const Dashboard = () => {
       }
     };
     fetchRecent();
-  }, []);
+  }, [refreshVersion]);
 
   // Fetch current month's total from the API
   useEffect(() => {
@@ -308,7 +310,11 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      <h1>{t('dashboard.title')}</h1>
+      <div className="dashboard-heading">
+        <span aria-hidden="true" />
+        <h1>{t('dashboard.title')}</h1>
+        <VoiceExpenseInput onSaved={() => setRefreshVersion((value) => value + 1)} />
+      </div>
       
       <div className="summary-cards">
         <div className="card">

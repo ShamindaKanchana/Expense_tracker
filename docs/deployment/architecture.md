@@ -36,10 +36,10 @@ flowchart TB
         SPA["React SPA - static files from frontend/build"]
     end
 
-    subgraph Railway["Railway (Backend)"]
+    subgraph Render["Render (Backend)"]
         API["Node.js + Express - backend/server.js"]
         AuthMW["JWT Auth Middleware"]
-        Routes["/api/auth · /api/expenses"]
+        Routes["/api/auth · /api/expenses · /api/voice-expenses"]
     end
 
     subgraph Aiven["Aiven Cloud (Database)"]
@@ -53,13 +53,13 @@ flowchart TB
     Browser -->|"HTTPS — page load, assets"| SPA
     Browser -->|"HTTPS API calls via Axios with Bearer JWT"| API
 
-    SPA -.->|"Production API URL hardcoded in api.js"| API
+    SPA -.->|"REACT_APP_API_URL at build time"| API
 
     API --> AuthMW --> Routes
     Routes -->|"mysql2 pool · SSL"| MySQL
 
     Repo -->|"Auto-deploy on push"| Vercel
-    Repo -->|"Auto-deploy on push"| Railway
+    Repo -->|"Auto-deploy on push"| Render
 
     API -->|"CORS allows Vercel frontend origin"| SPA
 ```
@@ -102,21 +102,22 @@ sequenceDiagram
 - **Output directory:** `build/`
 - **Routing:** Client-side (`react-router-dom`) — `/login`, `/register`, `/dashboard`, `/add-expense`, `/monthly-expenses`
 - **API client:** `frontend/src/services/api.js` (Axios)
-- **Production API URL:** `https://expensetracker-production-b2a5.up.railway.app/api` (set when `NODE_ENV !== 'development'`)
+- **Production API URL:** configured with `REACT_APP_API_URL` (for example, `https://<render-service>.onrender.com/api`)
 - **Auth:** JWT stored in `localStorage`; attached to requests via Axios interceptor
 
 There is no `vercel.json` in the repository — Vercel project settings (root directory, build command, output folder) are configured in the Vercel dashboard.
 
-### Backend (Railway)
+### Backend (Render)
 
 - **Source:** `backend/`
-- **Runtime:** Node.js (engine `>=14.0.0`)
+- **Runtime:** Node.js (engine `>=22.0.0`)
 - **Entry point:** `server.js`
 - **Start command:** `npm start` → `node server.js`
 - **Port:** `process.env.PORT` (Railway injects this)
 - **Routes:**
   - `POST /api/auth/register`, `POST /api/auth/login`
   - `GET|POST|PUT|DELETE /api/expenses/*` (protected)
+  - `POST /api/voice-expenses/draft` (protected; returns an unsaved LLM draft)
 - **CORS:** In production, only `https://expense-tracker-liard-nine.vercel.app` is allowed (plus localhost in development)
 - **Database access:** `backend/config/db.js` — `mysql2` connection pool with SSL
 
@@ -148,7 +149,7 @@ There is no `railway.toml` or `Procfile` in the repository — Railway service s
 
 ### Vercel (Frontend)
 
-The production frontend does **not** use `REACT_APP_*` variables for the API URL today — the Railway URL is hardcoded in `api.js`. Vercel mainly needs the standard CRA build settings (build command + output directory).
+The production frontend uses `REACT_APP_API_URL` at build time. Set it to the Render API base URL and redeploy whenever the backend host changes. Vercel mainly needs the standard CRA build settings (build command + output directory).
 
 ## Local Development vs Production
 

@@ -49,7 +49,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | Access | Endpoints |
 |--------|-----------|
 | **Public** (no token) | `GET /`, `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/expenses/test-db` |
-| **Private** (token required) | All other `/api/auth/*` and `/api/expenses/*` routes listed below |
+| **Private** (token required) | All other `/api/auth/*`, `/api/expenses/*`, and `/api/voice-expenses/*` routes listed below |
 
 > **Note:** `GET /api/expenses/test-db` is public and intended for diagnostics. Consider restricting it in production.
 
@@ -253,6 +253,50 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
 | `500` | Server error |
 
 ---
+
+## Voice expense drafts (`/api/voice-expenses`)
+
+### `POST /api/voice-expenses/draft`
+
+Creates an unsaved expense draft from a browser-generated transcript. Requires a JWT. The server sends the transcript to the configured LLM provider, validates the structured result against the canonical category list, and returns a preview payload. This endpoint never writes to the database.
+
+**Request body**
+
+```json
+{
+  "transcript": "I spent 850 rupees on lunch today",
+  "locale": "en-LK",
+  "timezone": "Asia/Colombo"
+}
+```
+
+Supported locales are `en-LK`, `en-US`, `si-LK`, and `ta-LK`. The `timezone` must be a valid IANA time zone.
+
+**Response:** `200`
+
+```json
+{
+  "transcript": "I spent 850 rupees on lunch today",
+  "locale": "en-LK",
+  "provider": "cohere",
+  "draft": {
+    "amount": 850,
+    "description": "lunch",
+    "category": "Food",
+    "date": "2026-09-14"
+  },
+  "fieldStatus": {
+    "amount": "explicit",
+    "description": "explicit",
+    "category": "inferred",
+    "date": "resolved"
+  },
+  "warnings": ["CATEGORY_INFERRED"],
+  "canProceed": true
+}
+```
+
+The frontend must call `POST /api/expenses` only after the user confirms the preview. Provider failures return a safe application error such as `LLM_PROVIDER_ERROR`, `LLM_NOT_CONFIGURED`, or `LLM_PROVIDER_TIMEOUT`.
 
 ## Expenses (`/api/expenses`)
 
@@ -627,6 +671,7 @@ If no expenses exist: `data` is `null`.
 | `GET` | `/api/expenses/categories` | Private | Category breakdown |
 | `GET` | `/api/expenses/list` | Private | Paginated expense list (filter by month/year) |
 | `GET` | `/api/expenses/top-category` | Private | Top category |
+| `POST` | `/api/voice-expenses/draft` | Private | Extract an unsaved structured draft from a transcript |
 
 ---
 

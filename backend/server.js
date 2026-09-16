@@ -53,6 +53,9 @@ app.use('/api/auth', require('./routes/auth'));
 // Expense routes
 app.use('/api/expenses', require('./routes/expenses'));
 
+// Voice expense draft extraction (never writes to the database)
+app.use('/api/voice-expenses', require('./routes/voiceExpenses'));
+
 // Admin routes (not linked from the user app — see docs/srs/admin-panel.md)
 app.use('/api/admin', require('./routes/admin'));
 
