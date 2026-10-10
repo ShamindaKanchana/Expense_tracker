@@ -4,7 +4,7 @@
 |-------|--------|
 | **Product** | Expense Tracker |
 | **Feature** | Play Store readiness with safety-first data protection (not checkbox compliance) |
-| **Status** | **Draft v2** — updated for Capacitor Android + voice input; review before Play submission |
+| **Status** | **Draft v2 + shipped ENC-01/MIG-01–04 (2026-10-10, PR #42 on `main`)** — review before Play submission |
 | **Depends on** | [admin-panel.md](./admin-panel.md), [password-reset-admin-approval.md](./password-reset-admin-approval.md), [voice-expense-input.md](./voice-expense-input.md) |
 | **Related docs** | [database.md](../database.md), [api.md](../api.md), [deployment/architecture.md](../deployment/architecture.md), [deployment/capacitor-android-plan.md](../deployment/capacitor-android-plan.md) |
 | **Goal** | Protect financial + identity + voice data even if DB leaks, logs leak, device is lost, or API is probed — then satisfy Play Data Safety / account-deletion rules as a consequence |
@@ -31,13 +31,13 @@
 
 | # | Field / store | Type | Risk if leaked | Today |
 |---|---------------|------|----------------|-------|
-| S-1 | `expenses.description` (TEXT) | Free text — health, account nos, locations, names | Highest. Financial + personal notes in one column | Plaintext, **also `console.log`d with SQL params** in `Expense.save()` |
+| S-1 | `expenses.description` (TEXT) | Free text — health, account nos, locations, names | Highest. Financial + personal notes in one column | **Encrypted since 2026-10-10 (PR #42):** AES-256-GCM `temp_*` + `enc_v`, 132/132 backfilled, dual-read with legacy fallback; legacy column retained until MIG-05 |
 | S-2 | `expenses.amount` (DECIMAL) | Financial behavior profile | Profiling, extortion | Plaintext (required for `SUM()` — see §3 D-1) |
 | S-3 | `users.email` (VARCHAR, UNIQUE) | PII, login identifier | Phishing, identity link | Plaintext |
 | S-4 | `password_reset_requests.request_ip` | PII, location-ish | Tracks user network | Plaintext, no retention/TTL |
 | S-5 | `password_reset_requests.reject_reason` | Free text by admin | May contain personal data | Plaintext, indefinite |
 | S-6 | JWT (`localStorage` user, `sessionStorage` admin) | Session bearer | WebView/ADB/Log theft → full takeover | **Still `localStorage`/`sessionStorage`** (`frontend/src/utils/authStorage.js`); `@capacitor/preferences` installed on mobile branch but **migration not done** — and Preferences is **unencrypted** anyway |
-| S-7 | Server logs | `auth.js` logs decoded tokens; `Expense.js` logs amounts/descriptions; error handler returns `err.message` (can include SQL) | Log aggregator / Render logs become a data store | Verbose logging on |
+| S-7 | Server logs | `auth.js` logged decoded tokens; `Expense.js` logged amounts/descriptions; error handler returns `err.message` (can include SQL) | Log aggregator / Render logs become a data store | **Partially fixed 2026-10-10 (#36–38):** bearer-token/header logs gated dev-only, SQL-param logs gated dev-only, full error objects trimmed to messages, `list-users` no longer dumps hashes. Remaining: transcript/LLM prompt redaction (ENC-07), HSTS/helmet |
 | S-8 | Transport gaps | No `helmet`, general auth rate-limit still missing (voice only), `rejectUnauthorized:false` on Aiven SSL, same `JWT_SECRET` for user+admin, min password 6 chars, JWT 1h with no rotation | MITM / brute-force / token reuse | Confirmed in `server.js`, `config/db.js`, `routes/auth.js` |
 | S-9 | Delete path | Only admin can delete a user (`DELETE /api/admin/users/:id`); user cannot self-delete | Violates **Play account-deletion policy** (must offer in-app deletion) and GDPR erasure | By design in `admin-panel.md` |
 | S-10 | **Voice transcripts (new)** | Spoken expense text + locale + timezone → `POST /api/voice-expenses/draft` → forwarded to **third-party LLM** (Gemini / Cohere / OpenAI-compatible / DeepSeek per `LLM_PROVIDER`) | Same sensitivity as S-1, **plus new subprocessor sharing**; `LLM_*_API_KEY` are new high-value secrets; prompt/logs may retain PII | Transcript-only (STT on device/browser, no audio upload — verify and lock this); no transcript retention policy yet; provider logging unknown |
@@ -86,7 +86,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 
 ### A — Column-level encryption (the "some fields" you heard about)
 
-- [ ] **ENC-01 `expenses.description` encrypted at rest.** New columns `description_enc TEXT, description_iv VARCHAR(32), enc_v INT DEFAULT 1`. Write path encrypts with AES-256-GCM; read path decrypts in API before responding. Migration backfills existing rows; old `description` dropped only after verified re-read. *Play maps to: Data Safety "Financial info + Personal info — encrypted in transit and at rest".*
+- [x] **ENC-01 `expenses.description` encrypted at rest — SHIPPED 2026-10-10 (PR #42).** Columns `temp_description_enc TEXT, temp_description_iv VARCHAR(32), enc_v INT` live; `utils/fieldCrypto.js` (AES-256-GCM, per-row IV, key from `ENC_KEY`); dual-write on save, dual-read with legacy fallback, ciphertext stripped from API responses; backfill 132/132 verified decrypt-match, 0 remaining `enc_v=0`. Legacy `description` retained until MIG-05. *Play maps to: Data Safety "Financial info + Personal info — encrypted in transit and at rest".*
 - [ ] **ENC-02 `users.email` encrypted at rest.** Same envelope (`email_enc`, `email_iv`). Keep `UNIQUE` via HMAC-SHA256 blind index (`email_hmac`); never log plaintext email. Decide: keep email-login (needs HMAC) or username-only (simpler).
 - [ ] **ENC-03 `request_ip` minimized.** Store `/24`-truncated or salted HMAC only; auto-purge after 90 days; never return IP to admin UI.
 - [ ] **ENC-04 `reject_reason` structured.** Enum (`invalid_user`, `duplicate`, `abuse`, `other`) + ≤140-char note, encrypted as ENC-01, purged with row.
@@ -139,10 +139,10 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 
 > Rule: never `DELETE`/`DROP` user data to "start fresh encrypted". Every step below keeps the app working with rollback intact. Temporary migration columns are named `temp_*` (or suffixed `_legacy`) and **must be removed** in the release after verification — each carries its removal item below. *Play maps to: Data Safety "deletion" means user-initiated erasure — admin wipes/dumps look like data loss to review.*
 
-- [ ] **MIG-01 Additive schema (no breakage).** `ALTER TABLE expenses ADD temp_description_enc TEXT NULL, temp_description_iv VARCHAR(32) NULL, enc_v INT NOT NULL DEFAULT 0` (same envelope pattern for `users.email` later; `amount` untouched per ENC-06). `enc_v=0` = legacy plaintext. App still reads the old column — zero user impact. Backup taken + row counts recorded before running.
-- [ ] **MIG-02 Dual-write + dual-read deploy.** New/edits write **both** old + `temp_*` (`enc_v=1`); reads prefer `enc_v=1`, fall back to legacy. New data protected from day one; old data still served.
-- [ ] **MIG-03 Backfill (re-runnable).** Offline batch script (500/batch, `UPDATE … WHERE id=? AND enc_v=0`), counts only in logs, never text. Re-run safe until `SELECT COUNT(*) … WHERE enc_v=0` = 0.
-- [ ] **MIG-04 Test-account verification (gate before any removal).** Dedicated account (e.g. `enctest`) with EN + Sinhala + Tamil + emoji + long-text + voice-confirmed expenses. Verify: (a) API as that user renders every description exactly (list, monthly, recent, edit-resave); (b) SQL spot-check — all rows `enc_v=1`, identical text yields different ciphertext (random IV); (c) wrong-key decrypt on a copy fails loudly (GCM tag); (d) fallback-to-legacy log (ids only) shows 0 hits for the test account.
+- [x] **MIG-01 Additive schema — DONE 2026-10-10.** `temp_*` + `enc_v` live on Aiven (132 rows intact); `initTable` converges fresh/existing DBs; backup + counts recorded pre-change.
+- [x] **MIG-02 Dual-write + dual-read — DONE 2026-10-10 (PR #42).** Model + list/recent/PUT paths; also fixed pre-existing PUT/DELETE OkPacket crash found during verification.
+- [x] **MIG-03 Backfill — DONE 2026-10-10.** `scripts/backfill-expense-encryption.js` (re-runnable, batched): 132/132, 0 failed, 0 remaining.
+- [x] **MIG-04 Test-account verification — DONE 2026-10-10.** `enctest` end-to-end (EN/SI/TA/emoji, POST/GET/PUT/DELETE exact, no crypto leakage, tamper rejected); account removed after, prod back to 9 users / 132 expenses, all `enc_v=1`.
 - [ ] **MIG-05 Legacy removal (one release later, only on evidence).** Requires: `enc_v=0` = 0 table-wide, test-account + real-account sample verified via API, one full release with zero fallback hits, fresh backup taken immediately before. Then `ALTER TABLE expenses DROP COLUMN description` (and rename `temp_description_enc → description_enc`, `temp_description_iv → description_iv`). Re-run MIG-04 checks post-drop; monitor decrypt errors 48h. Rollback = restore pre-`ALTER` backup.
 - [ ] **MIG-06 Temp-column hygiene.** No `temp_*`/`*_legacy` column survives past its MIG-05. Pre-submission grep of schema for `temp_` must be empty; Data Safety + privacy policy describe only final columns.
 
@@ -167,7 +167,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 | Phase | Ships | Notes |
 |-------|-------|-------|
 | P0 (this week) | LOG-01, MOB-01, PLAY-01 spec, D-6 provider pick | Zero-migration wins; locks mobile privacy story |
-| P1 | ENC-01–05+07, MIG-01–04, AUTH-04/05/06, STORE-01/MOB-02 | Dual-read `enc_v` + backfill + test-account verification; secure-storage migration |
+| P1 | ENC-01–05+07 ✅ENC-01 done, MIG-01–04 ✅done, AUTH-04/05/06, STORE-01/MOB-02 | Description encryption shipped (PR #42); remaining: email/IP/reason, rate limits, secure storage |
 | P2 | AUTH-01/02/03, TLS-01/02, APP-01, MOB-03–06, PLAY-02–05 | Merge mobile branch, signed `aab`, store submission |
 
 ---

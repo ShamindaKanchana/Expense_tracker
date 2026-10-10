@@ -72,14 +72,15 @@ All `.env` files are gitignored — only `*.example` is committed. If a real sec
 
 * Web: tokens in WebView `localStorage`/`sessionStorage` (XSS-theft risk — the reason for STORE-01). After Capacitor migration: tokens → secure-storage plugin (EncryptedSharedPreferences/Keychain); `@capacitor/preferences` (already installed on the mobile branch) is **unencrypted** — theme/lang only.
 * Android shell (branch `feature/mobile-capacitor-plan`): `appId com.shaminda.expensetracker`, `allowBackup="true"` today → must become `false` + backup rules before release (MOB-01); `cleartextTrafficPermitted=false` (TLS-01); `RECORD_AUDIO` with EN/SI/TA rationale, no background recording (MOB-03).
-* Logs: never log passwords, tokens, amounts, descriptions, emails, transcripts, prompts, SQL params, or API keys (LOG-01). Today `Expense.save()` and `middleware/auth.js` still log sensitive values — remove before store submission. Server logs retained ≤ 30 days (OPS-01).
+* Logs: never log passwords, tokens, amounts, descriptions, emails, transcripts, prompts, SQL params, or API keys (LOG-01). **Fixed 2026-10-10 (#36–38, on `main`):** bearer-token/header logs dev-gated, SQL-param logs dev-gated, full error objects trimmed to messages, `list-users` excludes hashes. Remaining: transcript/LLM prompt redaction (ENC-07). Server logs retained ≤ 30 days (OPS-01).
 
 ## 8. Data at rest — what is / isn't protected
 
 | Data | Today | Direction (see Play SRS §4A) |
 |------|-------|------------------------------|
 | Passwords, reset codes | bcrypt ✅ | Keep |
-| `expenses.description`, `users.email`, `request_ip`, `reject_reason` | Plaintext ⚠️ | AES-256-GCM per-row + HMAC email index + minimization/TTL (ENC-01–04) |
+| `expenses.description` | **AES-256-GCM ✅ since 2026-10-10 (PR #42)** — `temp_*` + `enc_v`, 132/132 backfilled, dual-read w/ legacy fallback until MIG-05 | Keep; drop legacy per MIG-05 |
+| `users.email`, `request_ip`, `reject_reason` | Plaintext ⚠️ | AES-256-GCM per-row + HMAC email index + minimization/TTL (ENC-02–04) |
 | `expenses.amount` | Plaintext (needed for `SUM()`) | **Stays plaintext v1** by decision D-1, compensated by TLS + no-logging + isolation (ENC-06) |
 | Voice transcripts | In-memory + LLM call, no retention policy yet | Minimize prompt (no username/email), no persist, confirm provider zero-retention (ENC-07, D-6) |
 | Backups | Aiven encrypted ✅ / manual dumps unknown ⚠️ | GPG-encrypt any manual dump; test restore (OPS-02) |
@@ -95,7 +96,7 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ## 11. Known gaps (do not ship store build until P0+P1 land)
 
-`rejectUnauthorized:false` · no `helmet` · auth rate limits missing · 6-char passwords + shared JWT secret + 1h tokens · plaintext description/email/IP · `allowBackup=true` · tokens in WebView storage · voice provider/sharing undecided · no self-delete. Each has an ID in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md) §4 — reference those IDs in branches (e.g. `sec/ENC-01-description-encryption`).
+**Fixed 2026-10-10 (on `main` via PR #40/#42):** bearer-token logging, hash-dumping script, SQL-param logs, PUT/DELETE 500 crash, description at rest. Still open: `rejectUnauthorized:false` · no `helmet` · auth rate limits missing · 6-char passwords + shared JWT secret + 1h tokens · plaintext email/IP/reason · `allowBackup=true` · tokens in WebView storage · voice provider/sharing undecided · no self-delete · ISO-`Z` date 500 (#41). Each has an ID in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md) §4.
 
 ## 12. Runbook (common tasks)
 
@@ -106,4 +107,4 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ---
 
-*Changelog: created 2026-10-10 as security focus kickoff (v1). Existing per-area docs unchanged; forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*
+*Changelog: v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*
