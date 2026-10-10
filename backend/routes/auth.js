@@ -6,6 +6,12 @@ const User = require('../models/User');
 const PasswordResetRequest = require('../models/PasswordResetRequest');
 const db = require('../config/db');
 const auth = require('../middleware/auth');
+const {
+  loginRateLimit,
+  registerRateLimit,
+  forgotPasswordRateLimit,
+  resetPasswordRateLimit
+} = require('../middleware/rateLimit');
 
 if (!process.env.JWT_SECRET) {
   console.error('FATAL ERROR: JWT_SECRET is not defined.');
@@ -15,7 +21,7 @@ if (!process.env.JWT_SECRET) {
 // @route   POST /api/auth/register
 // @desc    Register with username + password (email optional, not required)
 // @access  Public
-router.post('/register', async (req, res) => {
+router.post('/register', registerRateLimit, async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     const password = req.body.password;
@@ -92,7 +98,7 @@ router.post('/register', async (req, res) => {
 // @route   POST /api/auth/login
 // @desc    Sign in with username or email + password
 // @access  Public
-router.post('/login', async (req, res) => {
+router.post('/login', loginRateLimit, async (req, res) => {
   try {
     // Accept: login, identifier, username, or email (for older clients)
     const login =
@@ -288,7 +294,7 @@ const GENERIC_FORGOT_MESSAGE =
 // @route   POST /api/auth/forgot-password
 // @desc    Create pending password-reset request (admin must approve)
 // @access  Public
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotPasswordRateLimit, async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     // Always same response shape (no account enumeration)
@@ -322,7 +328,7 @@ router.post('/forgot-password', async (req, res) => {
 // @route   POST /api/auth/reset-password
 // @desc    Set new password with username + one-time admin code
 // @access  Public
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', resetPasswordRateLimit, async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     const code = String(req.body.code || '').trim();

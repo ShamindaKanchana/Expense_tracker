@@ -6,6 +6,7 @@ const Admin = require('../models/Admin');
 const User = require('../models/User');
 const PasswordResetRequest = require('../models/PasswordResetRequest');
 const adminAuth = require('../middleware/adminAuth');
+const { adminLoginRateLimit } = require('../middleware/rateLimit');
 const db = require('../config/db');
 
 if (!process.env.JWT_SECRET) {
@@ -15,7 +16,7 @@ if (!process.env.JWT_SECRET) {
 // @route   POST /api/admin/login
 // @desc    Admin sign-in (separate from user auth)
 // @access  Public
-router.post('/login', async (req, res) => {
+router.post('/login', adminLoginRateLimit, async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     const password = req.body.password;

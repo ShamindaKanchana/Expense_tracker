@@ -66,7 +66,7 @@ All `.env` files are gitignored — only `*.example` is committed. If a real sec
 ## 6. Validation & abuse control
 
 * Auth/expenses: hand-rolled length/enum checks (`routes/auth.js`, `routes/expenses.js`) — being replaced by zod schemas following the voice pattern `services/voice/schema.js` (`voiceDraftRequestSchema`, AUTH-05).
-* Rate limiting: **voice only** today — 10/min per user/IP (`middleware/voiceRateLimit.js` → `429 VOICE_RATE_LIMITED`). General login/register/reset/admin limits are specified in AUTH-04 and not yet coded.
+* Rate limiting: `middleware/voiceRateLimit.js` (voice 10/min) + **`middleware/rateLimit.js` since 2026-10-10 (on `dev`, AUTH-04):** login 10/15min per IP+account, admin 5/15min/IP, register 5/hr/IP, forgot 5/hr per user+IP, reset 10/hr/IP — generic 429 + `Retry-After`, live-verified. Single-process store (needs Redis if multi-instance).
 * Uploads: none. No `REQUEST_INSTALL_PACKAGES` or extra Android permissions beyond `INTERNET` + `RECORD_AUDIO`.
 
 ## 7. Storage, logs, device
@@ -109,4 +109,4 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ---
 
-*Changelog: v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. v3 same day: ENC-02 shipped on `dev` (email encrypted + HMAC index, 4/4 backfilled, logins verified), 61 duplicate `email_N` keys dropped. v4 same day: PLAY-01 shipped on `dev` (`DELETE /api/auth/me`, cascade verified, trilingual danger-zone UI). Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*
+*Changelog: v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. v3 same day: ENC-02 shipped on `dev` (email encrypted + HMAC index, 4/4 backfilled, logins verified), 61 duplicate `email_N` keys dropped. v4 same day: PLAY-01 shipped on `dev` (`DELETE /api/auth/me`, cascade verified, trilingual danger-zone UI). v5 same day: AUTH-04 shipped on `dev` (hardcoded limits, live-verified trip points). Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*
