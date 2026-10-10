@@ -254,7 +254,7 @@ router.get('/list', auth, async (req, res) => {
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
     const sql = `
-      SELECT id, description, category, \`date\`, amount
+      SELECT id, description, temp_description_enc, temp_description_iv, enc_v, category, \`date\`, amount
       FROM expenses
       ${whereClause}
       ORDER BY \`date\` DESC
@@ -264,7 +264,7 @@ router.get('/list', auth, async (req, res) => {
 
     const expenses = (rows || []).map((r) => ({
       id: r.id,
-      description: r.description,
+      description: Expense.resolveDescription(r),
       category: r.category,
       date: r.date,
       amount: Number(r.amount) || 0
@@ -346,7 +346,7 @@ router.get('/recent', auth, async (req, res) => {
   try {
     const userId = req.user.id;
     const rows = await db.query(
-      `SELECT id, description, category, \`date\`, amount
+      `SELECT id, description, temp_description_enc, temp_description_iv, enc_v, category, \`date\`, amount
        FROM expenses
        WHERE user_id = ?
        ORDER BY \`date\` DESC
@@ -356,7 +356,7 @@ router.get('/recent', auth, async (req, res) => {
     // Normalize types
     const expenses = rows.map(r => ({
       id: r.id,
-      description: r.description,
+      description: Expense.resolveDescription(r),
       category: r.category,
       date: r.date,
       amount: Number(r.amount)
@@ -484,23 +484,31 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(400).json({ message: 'Please provide a valid category' });
     }
 
-    // Find and update the expense
-    const [result] = await db.query(
-      'UPDATE expenses SET amount = ?, description = ?, category = ?, date = ? WHERE id = ? AND user_id = ?',
-      [amount, description.trim(), normalizedCategory, date || new Date(), id, userId]
+    // Find and update the expense (dual-write MIG-02: legacy + encrypted)
+    const cryptoEnv = Expense.encryptDescription(String(description).trim());
+    // NOTE: db.query resolves to the OkPacket object itself for UPDATEs
+    // (not [rows]), so read .affectedRows directly — no destructuring.
+    const updateResult = await db.query(
+      'UPDATE expenses SET amount = ?, description = ?, temp_description_enc = ?, temp_description_iv = ?, enc_v = ?, category = ?, date = ? WHERE id = ? AND user_id = ?',
+      [amount, description.trim(), cryptoEnv.enc, cryptoEnv.iv, cryptoEnv.encV, normalizedCategory, date || new Date(), id, userId]
     );
 
-    if (result.affectedRows === 0) {
+    if ((updateResult.affectedRows ?? 0) === 0) {
       return res.status(404).json({ message: 'Expense not found or unauthorized' });
     }
 
     // Return the updated expense
-    const [updatedExpense] = await db.query(
+    const updatedRows = await db.query(
       'SELECT * FROM expenses WHERE id = ? AND user_id = ?',
       [id, userId]
     );
 
-    res.json(updatedExpense[0]);
+    const row = updatedRows[0];
+    if (row) {
+      row.description = Expense.resolveDescription(row);
+      Expense.stripCryptoMaterial(row);
+    }
+    res.json(row);
   } catch (err) {
     console.error('Error updating expense:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -515,13 +523,13 @@ router.delete('/:id', auth, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    // Delete the expense
-    const [result] = await db.query(
+    // Delete the expense (db.query resolves to the OkPacket — see PUT note)
+    const deleteResult = await db.query(
       'DELETE FROM expenses WHERE id = ? AND user_id = ?',
       [id, userId]
     );
 
-    if (result.affectedRows === 0) {
+    if ((deleteResult.affectedRows ?? 0) === 0) {
       return res.status(404).json({ message: 'Expense not found or unauthorized' });
     }
 

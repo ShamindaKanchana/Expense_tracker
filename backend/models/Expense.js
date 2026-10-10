@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { EXPENSE_CATEGORIES } = require('../domain/expenseCategories');
+const { encryptField, decryptField } = require('../utils/fieldCrypto');
 
 /** Allowed expense categories (must match frontend CATEGORY_KEYS / i18n). */
 const CATEGORY_ENUM = `ENUM(${EXPENSE_CATEGORIES.map((category) => `'${category}'`).join(', ')})`;
@@ -15,6 +16,11 @@ const createTableQuery = `
     date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    -- ENC-01 migration columns (MIG-01): temp_* prefix marks them for rename
+    -- to description_enc/description_iv once legacy column is dropped (MIG-05).
+    temp_description_enc TEXT NULL,
+    temp_description_iv VARCHAR(32) NULL,
+    enc_v INT NOT NULL DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CHECK (amount >= 0)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -28,6 +34,19 @@ const initTable = async () => {
     await db.query(
       `ALTER TABLE expenses MODIFY COLUMN category ${CATEGORY_ENUM} NOT NULL`
     );
+    // MIG-01 convergence: bring pre-encryption DBs up to the encrypted schema.
+    // Duplicate-column errors mean the column is already there — safe to ignore.
+    for (const alter of [
+      'ALTER TABLE expenses ADD COLUMN temp_description_enc TEXT NULL',
+      'ALTER TABLE expenses ADD COLUMN temp_description_iv VARCHAR(32) NULL',
+      'ALTER TABLE expenses ADD COLUMN enc_v INT NOT NULL DEFAULT 0'
+    ]) {
+      try {
+        await db.query(alter);
+      } catch (alterErr) {
+        if (alterErr.code !== 'ER_DUP_FIELDNAME') throw alterErr;
+      }
+    }
     console.log('✅ Expenses table is ready');
   } catch (err) {
     console.error('❌ Error creating expenses table:', err.message);
@@ -39,11 +58,53 @@ const initTable = async () => {
 initTable().catch(console.error);
 
 class Expense {
+  /**
+   * Dual-read resolver (MIG-02/MIG-04): prefer decrypted temp_* columns when
+   * enc_v === 1, else fall back to legacy plaintext `description`.
+   * Never throws for clients — falls back and logs the row id only (LOG-01).
+   */
+  static resolveDescription(row) {
+    if (row && Number(row.enc_v) === 1 && row.temp_description_enc && row.temp_description_iv) {
+      try {
+        return decryptField(row.temp_description_enc, row.temp_description_iv);
+      } catch (err) {
+        console.error('Expense decrypt failed for id:', row.id, '-', err.message);
+      }
+    }
+    return row ? row.description : '';
+  }
+
+  /** Strip encryption material so ciphertext/IV never leave the API (ENC-01). */
+  static stripCryptoMaterial(obj) {
+    if (obj && typeof obj === 'object') {
+      delete obj.temp_description_enc;
+      delete obj.temp_description_iv;
+      delete obj.enc_v;
+    }
+    return obj;
+  }
+
+  /**
+   * Dual-write envelope (MIG-02): returns { enc, iv, encV } for the given text.
+   * Fail-closed in production (no key = error); in development fall back to
+   * legacy-only (enc_v 0) with a one-time warning so local dev keeps working.
+   */
+  static encryptDescription(description) {
+    try {
+      const { enc, iv } = encryptField(description);
+      return { enc, iv, encV: 1 };
+    } catch (err) {
+      if (process.env.NODE_ENV === 'production') throw err;
+      console.warn('⚠️  ' + err.message + ' Writing legacy plaintext (dev only).');
+      return { enc: null, iv: null, encV: 0 };
+    }
+  }
+
   constructor(expenseData = {}) {
     this.id = expenseData.id || null;
-    this.userId = expenseData.userId || null;
+    this.userId = expenseData.userId || expenseData.user_id || null;
     this.amount = expenseData.amount || 0;
-    this.description = expenseData.description || '';
+    this.description = Expense.resolveDescription(expenseData) || '';
     this.category = expenseData.category || '';
     this.date = expenseData.date || new Date().toISOString();
   }
@@ -52,11 +113,15 @@ class Expense {
   async save(callback) {
     try {
       if (this.id) {
-        // Update existing expense
+        // Update existing expense (dual-write MIG-02: legacy + encrypted)
+        const cryptoEnv = Expense.encryptDescription(this.description);
         const sql = `
           UPDATE expenses 
           SET amount = ?, 
               description = ?, 
+              temp_description_enc = ?,
+              temp_description_iv = ?,
+              enc_v = ?,
               category = ?, 
               date = ?,
               updated_at = CURRENT_TIMESTAMP 
@@ -66,6 +131,9 @@ class Expense {
         const params = [
           this.amount,
           this.description,
+          cryptoEnv.enc,
+          cryptoEnv.iv,
+          cryptoEnv.encV,
           this.category,
           this.date,
           this.id
@@ -84,22 +152,28 @@ class Expense {
           const rows = await db.query('SELECT * FROM expenses WHERE id = ?', [this.id]);
           if (rows.length > 0) {
             Object.assign(this, rows[0]);
+            this.description = Expense.resolveDescription(rows[0]);
+            Expense.stripCryptoMaterial(this);
           }
           callback(null, this);
         } else {
           callback(new Error('No expense found with the given ID'));
         }
       } else {
-        // Create new expense
+        // Create new expense (dual-write MIG-02: legacy + encrypted)
+        const cryptoEnv = Expense.encryptDescription(this.description);
         const sql = `
-          INSERT INTO expenses (user_id, amount, description, category, date) 
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO expenses (user_id, amount, description, temp_description_enc, temp_description_iv, enc_v, category, date) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         const params = [
           this.userId,
           this.amount,
           this.description,
+          cryptoEnv.enc,
+          cryptoEnv.iv,
+          cryptoEnv.encV,
           this.category,
           this.date
         ];
@@ -117,6 +191,8 @@ class Expense {
           const rows = await db.query('SELECT * FROM expenses WHERE id = ?', [this.id]);
           if (rows.length > 0) {
             Object.assign(this, rows[0]);
+            this.description = Expense.resolveDescription(rows[0]);
+            Expense.stripCryptoMaterial(this);
           }
           console.log('Expense saved successfully with ID:', this.id);
           callback(null, this);
