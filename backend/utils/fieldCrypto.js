@@ -60,4 +60,43 @@ const decryptField = (enc, iv) => {
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 };
 
-module.exports = { encryptField, decryptField, getKey };
+/**
+ * Blind index for email lookup/uniqueness (ENC-02).
+ *
+ * Randomized AES ciphertext can't be queried (same email → different
+ * ciphertext), so login + duplicate checks use a deterministic HMAC instead:
+ *   email_hmac = HMAC-SHA256(EMAIL_HMAC_PEPPER, lowercase(trim(email)))
+ * The pepper lives in server env next to ENC_KEY. Honest caveat: emails are
+ * guessable, so DB + pepper together allow address confirmation — still far
+ * better than today's plaintext, and the ciphertext itself stays safe.
+ * NULL emails stay NULL (no HMAC row).
+ */
+const normalizeEmail = (email) =>
+  email == null ? null : String(email).trim().toLowerCase() || null;
+
+const getPepper = () => {
+  const raw = process.env.EMAIL_HMAC_PEPPER
+    ? String(process.env.EMAIL_HMAC_PEPPER).trim()
+    : '';
+  if (!raw) {
+    throw new Error(
+      'EMAIL_HMAC_PEPPER is not set — refusing email lookup (see docs/security.md §8).'
+    );
+  }
+  const pepper = Buffer.from(raw, 'base64');
+  if (pepper.length !== KEY_BYTES) {
+    throw new Error(
+      `EMAIL_HMAC_PEPPER must decode to ${KEY_BYTES} bytes (got ${pepper.length}).`
+    );
+  }
+  return pepper;
+};
+
+/** @returns {string|null} hex HMAC, or null for null/empty email */
+const emailHmac = (email) => {
+  const norm = normalizeEmail(email);
+  if (!norm) return null;
+  return crypto.createHmac('sha256', getPepper()).update(norm, 'utf8').digest('hex');
+};
+
+module.exports = { encryptField, decryptField, getKey, normalizeEmail, emailHmac };

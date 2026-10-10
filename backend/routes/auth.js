@@ -133,7 +133,7 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email || null
+        email: User.resolveEmail(user)
       }
     });
   } catch (error) {
@@ -149,7 +149,7 @@ router.get('/me', auth, async (req, res) => {
   try {
     const userId = req.user.id;
     const rows = await db.query(
-      'SELECT id, username, email, created_at FROM users WHERE id = ?',
+      'SELECT id, username, email, temp_email_enc, temp_email_iv, created_at FROM users WHERE id = ?',
       [userId]
     );
 
@@ -161,7 +161,7 @@ router.get('/me', auth, async (req, res) => {
     res.json({
       id: user.id,
       username: user.username,
-      email: user.email || null,
+      email: User.resolveEmail(user),
       created_at: user.created_at
     });
   } catch (error) {

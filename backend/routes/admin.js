@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const Admin = require('../models/Admin');
+const User = require('../models/User');
 const PasswordResetRequest = require('../models/PasswordResetRequest');
 const adminAuth = require('../middleware/adminAuth');
 const db = require('../config/db');
@@ -99,6 +100,8 @@ router.get('/users', adminAuth, async (req, res) => {
          u.id,
          u.username,
          u.email,
+         u.temp_email_enc,
+         u.temp_email_iv,
          u.created_at,
          (SELECT COUNT(*) FROM expenses e WHERE e.user_id = u.id) AS expense_count
        FROM users u
@@ -108,7 +111,7 @@ router.get('/users', adminAuth, async (req, res) => {
     const users = (rows || []).map((r) => ({
       id: r.id,
       username: r.username,
-      email: r.email || null,
+      email: User.resolveEmail(r),
       created_at: r.created_at,
       expense_count: Number(r.expense_count) || 0
     }));
@@ -118,7 +121,7 @@ router.get('/users', adminAuth, async (req, res) => {
       users
     });
   } catch (error) {
-    console.error('Admin list users error:', error);
+    console.error('Admin list users error:', error.message);
     res.status(500).json({ message: 'Server error' });
   }
 });
