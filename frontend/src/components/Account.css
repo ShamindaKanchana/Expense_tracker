@@ -244,19 +244,45 @@
   padding: 0.85rem 0.9rem 0.9rem;
 }
 
-.account-delete-panel h3 {
+.account-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: rgba(15, 18, 30, 0.55);
+}
+
+.account-modal {
+  width: 100%;
+  max-width: 26rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--danger-color);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.1rem 1.15rem;
+}
+
+.account-modal h3 {
   margin: 0 0 0.35rem;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--danger-color);
   line-height: 1.3;
 }
 
-.account-delete-panel .account-hint {
+.account-modal .account-hint {
   color: var(--text-secondary);
+  font-size: 0.82rem;
 }
 
-.account-delete-panel .auth-form-error {
+.account-modal .auth-form-error {
   margin-top: 0.5rem;
 }
 

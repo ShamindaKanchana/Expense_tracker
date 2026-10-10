@@ -114,7 +114,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 
 ### D — Play Store account, data & release gates
 
-- [x] **PLAY-01 In-app account deletion — SHIPPED 2026-10-10 (on `dev`).** `DELETE /api/auth/me` (password confirm, 400-not-401 on mismatch so session survives); cascade verified (0 orphans); Account danger zone with progressive disclosure, EN/SI/TA, mobile+desktop card layout; post-delete notice on login screen. Admin delete retained.
+- [x] **PLAY-01 In-app account deletion — SHIPPED 2026-10-10 (on `dev`).** `DELETE /api/auth/me` (password confirm, 400-not-401 on mismatch so session survives); cascade verified (0 orphans); Account danger zone as a modal message box (backdrop, Esc/backdrop close, autofocus, EN/SI/TA, mobile+desktop); post-delete notice on login screen. Admin delete retained.
 - [ ] **PLAY-02 Data Safety form truth (mobile-corrected).** Declare: Financial info (amount, description), Personal info (username/email/transcript), **Microphone (foreground voice input — not background)**, App activity, Device IDs; purposes: App functionality + Fraud prevention; **sharing: LLM subprocessor (D-6 provider) + infra (Aiven/Render)** — not "no sharing"; encryption in transit: yes; deletion: yes (PLAY-01).
 - [ ] **PLAY-03 Privacy policy.** Hosted URL (in-app + listing): columns collected, AES-256-GCM + TLS 1.2+, voice sharing (provider, purpose, retention), retention (expenses until delete; reset 90d; logs 30d), erasure contact.
 - [ ] **PLAY-04 Binary readiness (mobile-corrected).** Merge mobile branch; `targetSdk` = latest required, 64-bit, versionCode bump, Play App Signing, permissions = `INTERNET` + `RECORD_AUDIO` only (with rationale string — voice expense input); no `REQUEST_INSTALL_PACKAGES`.
