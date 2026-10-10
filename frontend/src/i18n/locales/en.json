@@ -269,7 +269,16 @@
     "passwordSame": "Your new password must be different from your current password.",
     "passwordUpdated": "Password updated successfully.",
     "passwordFailed": "We couldn't update your password. Please try again.",
-    "profileFailed": "We couldn't load your profile. Showing saved details."
+    "profileFailed": "We couldn't load your profile. Showing saved details.",
+    "deleteAccount": "Delete account",
+    "deleteConfirmTitle": "Delete your account?",
+    "deleteConsequences": "This permanently deletes your profile and all of your expenses. This can't be undone.",
+    "deletePasswordLabel": "Enter your password to confirm",
+    "deleteNeedPassword": "Please enter your password to continue.",
+    "deleteConfirmButton": "Yes, delete my account",
+    "deleting": "Deleting…",
+    "deleteFailed": "We couldn't delete your account. Please try again.",
+    "deletedNotice": "Your account and all its expenses were deleted."
   },
   "authHelp": {
     "info": "Info",

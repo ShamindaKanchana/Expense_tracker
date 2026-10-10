@@ -28,6 +28,11 @@ const Account = ({ setIsAuthenticated }) => {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -109,10 +114,55 @@ const Account = ({ setIsAuthenticated }) => {
     }
   };
 
+  // Modal UX: focus password on open, close on Escape.
+  useEffect(() => {
+    if (!deleteOpen) return;
+    const input = document.getElementById('deletePassword');
+    if (input) input.focus();
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !deletingAccount) {
+        setDeleteOpen(false);
+        setDeletePassword('');
+        setDeleteError('');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [deleteOpen, deletingAccount]);
+
+  const closeDeleteDialog = () => {
+    setDeleteOpen(false);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
   const handleLogout = () => {
     clearAuth();
     setIsAuthenticated(false);
     navigate('/login');
+  };
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    setDeleteError('');
+
+    if (!deletePassword) {
+      setDeleteError(t('account.deleteNeedPassword'));
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      await authApi.deleteAccount(deletePassword);
+      clearAuth();
+      setIsAuthenticated(false);
+      sessionStorage.setItem('authMessage', t('account.deletedNotice'));
+      navigate('/login');
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, t('account.deleteFailed')));
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   const username = profile?.username || '—';
@@ -240,8 +290,78 @@ const Account = ({ setIsAuthenticated }) => {
           <button type="button" className="account-logout-btn" onClick={handleLogout}>
             {t('account.signOut')}
           </button>
+
+          <div className="account-delete-zone">
+            <button
+              type="button"
+              className="account-delete-toggle"
+              onClick={() => {
+                setDeleteOpen(true);
+                setDeleteError('');
+              }}
+            >
+              {t('account.deleteAccount')}
+            </button>
+          </div>
         </section>
       </div>
+
+      {deleteOpen && (
+        <div
+          className="account-modal-backdrop"
+          onClick={() => {
+            if (!deletingAccount) closeDeleteDialog();
+          }}
+        >
+          <div
+            className="account-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="account-delete-heading"
+            aria-describedby="account-delete-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="account-delete-heading">{t('account.deleteConfirmTitle')}</h3>
+            <p id="account-delete-desc" className="account-hint">
+              {t('account.deleteConsequences')}
+            </p>
+            <form onSubmit={handleDeleteAccount} noValidate>
+              <label className="account-input-label" htmlFor="deletePassword">
+                {t('account.deletePasswordLabel')}
+              </label>
+              <PasswordInput
+                id="deletePassword"
+                name="deletePassword"
+                autoComplete="current-password"
+                value={deletePassword}
+                onChange={(e) => {
+                  setDeletePassword(e.target.value);
+                  setDeleteError('');
+                }}
+                className="account-input"
+              />
+              <AuthFormError message={deleteError} />
+              <div className="account-delete-actions">
+                <button
+                  type="button"
+                  className="account-cancel-btn"
+                  disabled={deletingAccount}
+                  onClick={closeDeleteDialog}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="account-delete-btn"
+                  disabled={deletingAccount}
+                >
+                  {deletingAccount ? t('account.deleting') : t('account.deleteConfirmButton')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

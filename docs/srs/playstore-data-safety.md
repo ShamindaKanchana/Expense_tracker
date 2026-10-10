@@ -101,7 +101,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 - [ ] **AUTH-01 Separate secrets.** `JWT_USER_SECRET` vs `JWT_ADMIN_SECRET` (or `iss`/`aud`); keep `role:'admin'` check. Rotation plan.
 - [ ] **AUTH-02 Token lifetime.** Access 15 min + rotating refresh (httpOnly Secure SameSite on web; encrypted storage on native); admin 15 min, no remember-me. Retire 1h/24h.
 - [ ] **AUTH-03 Password policy.** Min 10 chars (up from 6), breach-list check, extend `current≠new` to reset flow.
-- [ ] **AUTH-04 Rate limits + lockout.** Extend existing `voiceRateLimit` pattern to: login 10/15min/IP+account, register 5/hr/IP, forgot/reset 5–10/hr, admin login 10/15min. Generic 429, no password in logs.
+- [x] **AUTH-04 Rate limits + lockout — SHIPPED 2026-10-10 (on `dev`).** Zero-dep factory `middleware/rateLimit.js` (voice pattern): login 10/15min per IP+account, admin 5/15min per IP, register 5/hr/IP, forgot 5/hr per user+IP, reset 10/hr/IP. Generic 429 + `Retry-After`, no credential logging. Live-verified exact trip points; single-instance note in code.
 - [ ] **AUTH-05 Validation.** Extend voice zod-schema pattern to every body: username `^[a-zA-Z0-9_.]{3,30}`, amount `0–1e9 2dp`, description `≤500`, category enum. No stack/SQL to client.
 - [ ] **AUTH-06 LLM secrets.** `LLM_*_API_KEY` server-env only, never in frontend/build/logs; `VOICE_ALLOW_MOCK=false` in prod (fail closed); provider timeout/retry capped.
 
@@ -114,7 +114,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 
 ### D — Play Store account, data & release gates
 
-- [ ] **PLAY-01 In-app account deletion.** `DELETE /api/auth/me` (password confirm) → cascade deletes expenses + reset rows (+ voice-derived drafts); UI in Account page + deletion URL for Data Safety. Admin delete retained.
+- [x] **PLAY-01 In-app account deletion — SHIPPED 2026-10-10 (on `dev`).** `DELETE /api/auth/me` (password confirm, 400-not-401 on mismatch so session survives); cascade verified (0 orphans); Account danger zone as a modal message box (backdrop, Esc/backdrop close, autofocus, EN/SI/TA, mobile+desktop); post-delete notice on login screen. Admin delete retained.
 - [ ] **PLAY-02 Data Safety form truth (mobile-corrected).** Declare: Financial info (amount, description), Personal info (username/email/transcript), **Microphone (foreground voice input — not background)**, App activity, Device IDs; purposes: App functionality + Fraud prevention; **sharing: LLM subprocessor (D-6 provider) + infra (Aiven/Render)** — not "no sharing"; encryption in transit: yes; deletion: yes (PLAY-01).
 - [ ] **PLAY-03 Privacy policy.** Hosted URL (in-app + listing): columns collected, AES-256-GCM + TLS 1.2+, voice sharing (provider, purpose, retention), retention (expenses until delete; reset 90d; logs 30d), erasure contact.
 - [ ] **PLAY-04 Binary readiness (mobile-corrected).** Merge mobile branch; `targetSdk` = latest required, 64-bit, versionCode bump, Play App Signing, permissions = `INTERNET` + `RECORD_AUDIO` only (with rationale string — voice expense input); no `REQUEST_INSTALL_PACKAGES`.
@@ -166,7 +166,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 
 | Phase | Ships | Notes |
 |-------|-------|-------|
-| P0 (this week) | LOG-01, MOB-01, PLAY-01 spec, D-6 provider pick | Zero-migration wins; locks mobile privacy story |
+| P0 (this week) | LOG-01, MOB-01, PLAY-01 ✅shipped, D-6 provider pick | Zero-migration wins; locks mobile privacy story |
 | P1 | ENC-01–05+07 ✅ENC-01/02 done, MIG-01–04 ✅done, AUTH-04/05/06, STORE-01/MOB-02 | Description + email encryption shipped (PR #42 + dev); remaining: IP/reason, rate limits, secure storage |
 | P2 | AUTH-01/02/03, TLS-01/02, APP-01, MOB-03–06, PLAY-02–05 | Merge mobile branch, signed `aab`, store submission |
 

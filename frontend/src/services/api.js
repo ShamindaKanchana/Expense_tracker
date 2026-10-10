@@ -114,6 +114,15 @@ export const authApi = {
     } catch (error) {
       throw toRequestError(error, "We couldn't update your password. Please try again.");
     }
+  },
+
+  deleteAccount: async (password) => {
+    try {
+      const response = await api.delete('/auth/me', { data: { password } });
+      return response.data;
+    } catch (error) {
+      throw toRequestError(error, "We couldn't delete your account. Please try again.");
+    }
   }
 };
 

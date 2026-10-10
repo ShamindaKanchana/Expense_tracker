@@ -41,6 +41,20 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 |--------|---------|
 | `401` | Missing token, invalid token, or expired token |
 | `404` | User not found (`/api/auth/me` only) |
+| `429` | Rate limit exceeded — see Rate limits below (`Retry-After` header, `RATE_LIMITED` code) |
+
+### Rate limits (AUTH-04)
+
+Hardcoded per route (in-memory, per process). Exceeding returns `429` with a generic message + `Retry-After` seconds.
+
+| Endpoint | Limit | Key |
+|----------|-------|-----|
+| `POST /api/auth/login` | 10 / 15 min | IP + account |
+| `POST /api/admin/login` | 5 / 15 min | IP |
+| `POST /api/auth/register` | 5 / hour | IP |
+| `POST /api/auth/forgot-password` | 5 / hour | Username + IP |
+| `POST /api/auth/reset-password` | 10 / hour | IP |
+| `POST /api/voice-expenses/draft` | 10 / min | User / IP |
 
 ---
 
@@ -248,6 +262,43 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
 | Status | When |
 |--------|------|
 | `400` | Missing fields, weak password, or incorrect current password |
+| `401` | Invalid or missing token |
+| `404` | User not found |
+| `500` | Server error |
+
+---
+
+### `DELETE /api/auth/me`
+
+| | |
+|--|--|
+| **Access** | Private |
+| **Description** | Delete your own account (PLAY-01). Requires password confirmation. Cascades to expenses + password-reset rows. Client clears local storage on success. |
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request body**
+
+```json
+{
+  "password": "secret123"
+}
+```
+
+**Success:** `200`
+
+```json
+{
+  "success": true,
+  "message": "Your account and all its expenses were deleted."
+}
+```
+
+**Errors**
+
+| Status | When |
+|--------|------|
+| `400` | Missing password, or incorrect password (session is kept — not a logout) |
 | `401` | Invalid or missing token |
 | `404` | User not found |
 | `500` | Server error |
@@ -657,6 +708,7 @@ If no expenses exist: `data` is `null`.
 | `POST` | `/api/auth/login` | Public | Sign in (username or email + password) + JWT |
 | `GET` | `/api/auth/me` | Private | Current user profile |
 | `POST` | `/api/auth/change-password` | Private | Change password |
+| `DELETE` | `/api/auth/me` | Private | Delete own account (password confirm, cascade) |
 | `GET` | `/api/expenses/test-db` | Public | DB diagnostic |
 | `GET` | `/api/expenses` | Private* | List expenses (*not implemented) |
 | `POST` | `/api/expenses` | Private | Add expense |

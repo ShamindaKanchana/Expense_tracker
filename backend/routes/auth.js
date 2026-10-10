@@ -6,6 +6,12 @@ const User = require('../models/User');
 const PasswordResetRequest = require('../models/PasswordResetRequest');
 const db = require('../config/db');
 const auth = require('../middleware/auth');
+const {
+  loginRateLimit,
+  registerRateLimit,
+  forgotPasswordRateLimit,
+  resetPasswordRateLimit
+} = require('../middleware/rateLimit');
 
 if (!process.env.JWT_SECRET) {
   console.error('FATAL ERROR: JWT_SECRET is not defined.');
@@ -15,7 +21,7 @@ if (!process.env.JWT_SECRET) {
 // @route   POST /api/auth/register
 // @desc    Register with username + password (email optional, not required)
 // @access  Public
-router.post('/register', async (req, res) => {
+router.post('/register', registerRateLimit, async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     const password = req.body.password;
@@ -92,7 +98,7 @@ router.post('/register', async (req, res) => {
 // @route   POST /api/auth/login
 // @desc    Sign in with username or email + password
 // @access  Public
-router.post('/login', async (req, res) => {
+router.post('/login', loginRateLimit, async (req, res) => {
   try {
     // Accept: login, identifier, username, or email (for older clients)
     const login =
@@ -170,6 +176,56 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// @route   DELETE /api/auth/me
+// @desc    Delete own account (PLAY-01): password confirm, cascade wipes
+//          expenses + reset rows via FK. Client clears storage on success.
+// @access  Private
+router.delete('/me', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const password = req.body.password || req.body.currentPassword;
+
+    if (!password) {
+      return res.status(400).json({
+        message: 'Please enter your password to delete your account.'
+      });
+    }
+
+    const rows = await db.query(
+      'SELECT id, username, password FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      // 400 (not 401) so the client does not treat this as session expiry
+      return res.status(400).json({
+        message: 'Password is incorrect. Your account was not deleted.'
+      });
+    }
+
+    const username = user.username;
+    await db.query('DELETE FROM users WHERE id = ?', [userId]);
+
+    console.log(`User ${userId} deleted own account (username=${username})`);
+
+    res.json({
+      success: true,
+      message: 'Your account and all its expenses were deleted.'
+    });
+  } catch (error) {
+    console.error('Delete account error:', error.message);
+    res.status(500).json({
+      message: "We couldn't delete your account right now. Please try again in a moment."
+    });
+  }
+});
+
 // @route   POST /api/auth/change-password
 // @desc    Change password for the logged-in user
 // @access  Private
@@ -238,7 +294,7 @@ const GENERIC_FORGOT_MESSAGE =
 // @route   POST /api/auth/forgot-password
 // @desc    Create pending password-reset request (admin must approve)
 // @access  Public
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotPasswordRateLimit, async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     // Always same response shape (no account enumeration)
@@ -272,7 +328,7 @@ router.post('/forgot-password', async (req, res) => {
 // @route   POST /api/auth/reset-password
 // @desc    Set new password with username + one-time admin code
 // @access  Public
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', resetPasswordRateLimit, async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     const code = String(req.body.code || '').trim();

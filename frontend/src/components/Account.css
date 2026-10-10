@@ -214,6 +214,118 @@
   background: var(--danger-soft-bg);
 }
 
+.account-delete-zone {
+  margin-top: 0.75rem;
+}
+
+.account-delete-toggle {
+  appearance: none;
+  width: 100%;
+  padding: 0.55rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.account-delete-toggle:hover {
+  color: var(--danger-color);
+}
+
+.account-delete-panel {
+  border: 1px solid var(--danger-color);
+  border-radius: 8px;
+  background: var(--danger-soft-bg);
+  padding: 0.85rem 0.9rem 0.9rem;
+}
+
+.account-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: rgba(15, 18, 30, 0.55);
+}
+
+.account-modal {
+  width: 100%;
+  max-width: 26rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--danger-color);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.1rem 1.15rem;
+}
+
+.account-modal h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--danger-color);
+  line-height: 1.3;
+}
+
+.account-modal .account-hint {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.account-modal .auth-form-error {
+  margin-top: 0.5rem;
+}
+
+.account-delete-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.account-cancel-btn,
+.account-delete-btn {
+  appearance: none;
+  flex: 1;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 2.75rem;
+}
+
+.account-cancel-btn {
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.account-delete-btn {
+  border: none;
+  background: var(--danger-color);
+  color: #fff;
+}
+
+.account-delete-btn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.account-cancel-btn:disabled,
+.account-delete-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .account-theme-row {
   display: flex;
   align-items: center;
