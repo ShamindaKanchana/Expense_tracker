@@ -71,8 +71,12 @@ class Expense {
           this.id
         ];
         
-        console.log('Updating expense with SQL:', sql, 'Params:', params);
-        
+        // Dev-only: full params (amount/description) stay out of prod logs (LOG-01).
+        // Enable locally with NODE_ENV=development when debugging.
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Updating expense, id:', this.id);
+        }
+
         const result = await db.query(sql, params);
         
         // Fetch the updated record
@@ -100,8 +104,11 @@ class Expense {
           this.date
         ];
         
-        console.log('Inserting new expense with SQL:', sql, 'Params:', params);
-        
+        // Dev-only (see above): never log description/amount in production.
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Inserting new expense for user:', this.userId);
+        }
+
         const result = await db.query(sql, params);
         
         if (result.insertId) {
@@ -118,11 +125,8 @@ class Expense {
         }
       }
     } catch (err) {
-      console.error('Error in save method:', {
-        error: err,
-        message: err.message,
-        stack: err.stack
-      });
+      // Never log params/stack with user data; message only (LOG-01).
+      console.error('Error in save method:', err.message);
       callback(err);
     }
   }
