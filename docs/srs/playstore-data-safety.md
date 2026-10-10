@@ -33,7 +33,7 @@
 |---|---------------|------|----------------|-------|
 | S-1 | `expenses.description` (TEXT) | Free text — health, account nos, locations, names | Highest. Financial + personal notes in one column | **Encrypted since 2026-10-10 (PR #42):** AES-256-GCM `temp_*` + `enc_v`, 132/132 backfilled, dual-read with legacy fallback; legacy column retained until MIG-05 |
 | S-2 | `expenses.amount` (DECIMAL) | Financial behavior profile | Profiling, extortion | Plaintext (required for `SUM()` — see §3 D-1) |
-| S-3 | `users.email` (VARCHAR, UNIQUE) | PII, login identifier | Phishing, identity link | Plaintext |
+| S-3 | `users.email` (VARCHAR, UNIQUE) | PII, login identifier | Phishing, identity link | **Encrypted since 2026-10-10 (ENC-02):** AES-256-GCM `temp_*` + `email_hmac` blind index, 4/4 backfilled, login via username/lower/UPPER email verified; legacy retained until MIG-05-style email cleanup |
 | S-4 | `password_reset_requests.request_ip` | PII, location-ish | Tracks user network | Plaintext, no retention/TTL |
 | S-5 | `password_reset_requests.reject_reason` | Free text by admin | May contain personal data | Plaintext, indefinite |
 | S-6 | JWT (`localStorage` user, `sessionStorage` admin) | Session bearer | WebView/ADB/Log theft → full takeover | **Still `localStorage`/`sessionStorage`** (`frontend/src/utils/authStorage.js`); `@capacitor/preferences` installed on mobile branch but **migration not done** — and Preferences is **unencrypted** anyway |
@@ -87,7 +87,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 ### A — Column-level encryption (the "some fields" you heard about)
 
 - [x] **ENC-01 `expenses.description` encrypted at rest — SHIPPED 2026-10-10 (PR #42).** Columns `temp_description_enc TEXT, temp_description_iv VARCHAR(32), enc_v INT` live; `utils/fieldCrypto.js` (AES-256-GCM, per-row IV, key from `ENC_KEY`); dual-write on save, dual-read with legacy fallback, ciphertext stripped from API responses; backfill 132/132 verified decrypt-match, 0 remaining `enc_v=0`. Legacy `description` retained until MIG-05. *Play maps to: Data Safety "Financial info + Personal info — encrypted in transit and at rest".*
-- [ ] **ENC-02 `users.email` encrypted at rest.** Same envelope (`email_enc`, `email_iv`). Keep `UNIQUE` via HMAC-SHA256 blind index (`email_hmac`); never log plaintext email. Decide: keep email-login (needs HMAC) or username-only (simpler).
+- [x] **ENC-02 `users.email` encrypted at rest — SHIPPED 2026-10-10.** Same envelope (`temp_email_enc`, `temp_email_iv`) + `email_hmac` blind index for uniqueness/login (NULLs stay NULL); dual-write/read with legacy fallback; backfill 4/4, 9/9 verified; email-login kept (no behavior change). Bonus: fixed boot loop creating 61 duplicate `email_N` keys (dropped, `initTable` idempotent).
 - [ ] **ENC-03 `request_ip` minimized.** Store `/24`-truncated or salted HMAC only; auto-purge after 90 days; never return IP to admin UI.
 - [ ] **ENC-04 `reject_reason` structured.** Enum (`invalid_user`, `duplicate`, `abuse`, `other`) + ≤140-char note, encrypted as ENC-01, purged with row.
 - [ ] **ENC-05 Key management.** `ENC_KEY` (base64 32B) + `ENC_KEY_ID` from **server env/KMS only** — never repo/frontend/logs. Rotation: `enc_v=2` rows, background re-encrypt, old key read-only 30 days. Dev key ≠ prod key.
@@ -167,7 +167,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 | Phase | Ships | Notes |
 |-------|-------|-------|
 | P0 (this week) | LOG-01, MOB-01, PLAY-01 spec, D-6 provider pick | Zero-migration wins; locks mobile privacy story |
-| P1 | ENC-01–05+07 ✅ENC-01 done, MIG-01–04 ✅done, AUTH-04/05/06, STORE-01/MOB-02 | Description encryption shipped (PR #42); remaining: email/IP/reason, rate limits, secure storage |
+| P1 | ENC-01–05+07 ✅ENC-01/02 done, MIG-01–04 ✅done, AUTH-04/05/06, STORE-01/MOB-02 | Description + email encryption shipped (PR #42 + dev); remaining: IP/reason, rate limits, secure storage |
 | P2 | AUTH-01/02/03, TLS-01/02, APP-01, MOB-03–06, PLAY-02–05 | Merge mobile branch, signed `aab`, store submission |
 
 ---
