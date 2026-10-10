@@ -8,6 +8,7 @@ Product requirements that guide design and implementation. These are **not** dep
 | [password-reset-admin-approval.md](./password-reset-admin-approval.md) | **Draft** | Forgot password → admin approve → one-time code → user sets new password |
 | [monthly-expense-list.md](./monthly-expense-list.md) | **Draft** | Monthly report: on-demand paginated expense list for a selected month/year |
 | [voice-expense-input.md](./voice-expense-input.md) | **Implementation in progress** | Voice input: mic → browser STT → LLM draft preview → confirm → reuse POST /api/expenses |
+| [playstore-data-safety.md](./playstore-data-safety.md) | **Draft v2** | Play Store readiness: column encryption + mobile (Capacitor/voice) hardening + account deletion |
 
 ## How to use
 

@@ -1,0 +1,181 @@
+# SRS: Play Store Data Safety — Encryption & App Hardening
+
+| Field | Value |
+|-------|--------|
+| **Product** | Expense Tracker |
+| **Feature** | Play Store readiness with safety-first data protection (not checkbox compliance) |
+| **Status** | **Draft v2** — updated for Capacitor Android + voice input; review before Play submission |
+| **Depends on** | [admin-panel.md](./admin-panel.md), [password-reset-admin-approval.md](./password-reset-admin-approval.md), [voice-expense-input.md](./voice-expense-input.md) |
+| **Related docs** | [database.md](../database.md), [api.md](../api.md), [deployment/architecture.md](../deployment/architecture.md), [deployment/capacitor-android-plan.md](../deployment/capacitor-android-plan.md) |
+| **Goal** | Protect financial + identity + voice data even if DB leaks, logs leak, device is lost, or API is probed — then satisfy Play Data Safety / account-deletion rules as a consequence |
+
+> Scope note: this SRS is **safety-first**, not "minimum to pass review". Each item states the real risk, then maps to the Play requirement it also satisfies. v2 accounts for the real mobile shell on `feature/mobile-capacitor-plan` (not the "no capacitor" assumption in v1).
+
+---
+
+## 1. Current state audit (2026-10-10, `dev` @ 07da124 + `feature/mobile-capacitor-plan`)
+
+### 1.1 Already protected ✅
+
+| Field | Protection | Source |
+|-------|-----------|--------|
+| `users.password` | bcrypt(10) hash, never returned by API | `backend/models/User.js:41` |
+| `admins.password` | bcrypt(10) hash | `backend/models/Admin.js:40` |
+| `password_reset_requests.code_hash` | bcrypt(10) of 6-digit code, single-use, 30-min expiry | `backend/models/PasswordResetRequest.js:106` |
+| Forgot-password form | Generic message, no account enumeration | `backend/routes/auth.js:235-236` |
+| Expense isolation | All queries filter `user_id` from JWT | `docs/database.md` |
+| Voice endpoint (new) | Auth required, zod schema (`voiceDraftRequestSchema`), dedicated `voiceRateLimit`, mock forbidden in prod (`VOICE_ALLOW_MOCK`) | `backend/routes/voiceExpenses.js`, `backend/services/voice/schema.js`, `backend/middleware/voiceRateLimit.js` |
+| Capacitor shell (new, on branch) | `appId com.shaminda.expensetracker`, `webDir build`, `homepage ./`, native STT fallback via `@capacitor-community/speech-recognition` | `frontend/capacitor.config.ts`, `frontend/android/`, `VoiceExpenseInput.jsx` (branch `feature/mobile-capacitor-plan`) |
+
+### 1.2 Sensitive but plaintext ⚠️ — the reason for this SRS
+
+| # | Field / store | Type | Risk if leaked | Today |
+|---|---------------|------|----------------|-------|
+| S-1 | `expenses.description` (TEXT) | Free text — health, account nos, locations, names | Highest. Financial + personal notes in one column | Plaintext, **also `console.log`d with SQL params** in `Expense.save()` |
+| S-2 | `expenses.amount` (DECIMAL) | Financial behavior profile | Profiling, extortion | Plaintext (required for `SUM()` — see §3 D-1) |
+| S-3 | `users.email` (VARCHAR, UNIQUE) | PII, login identifier | Phishing, identity link | Plaintext |
+| S-4 | `password_reset_requests.request_ip` | PII, location-ish | Tracks user network | Plaintext, no retention/TTL |
+| S-5 | `password_reset_requests.reject_reason` | Free text by admin | May contain personal data | Plaintext, indefinite |
+| S-6 | JWT (`localStorage` user, `sessionStorage` admin) | Session bearer | WebView/ADB/Log theft → full takeover | **Still `localStorage`/`sessionStorage`** (`frontend/src/utils/authStorage.js`); `@capacitor/preferences` installed on mobile branch but **migration not done** — and Preferences is **unencrypted** anyway |
+| S-7 | Server logs | `auth.js` logs decoded tokens; `Expense.js` logs amounts/descriptions; error handler returns `err.message` (can include SQL) | Log aggregator / Render logs become a data store | Verbose logging on |
+| S-8 | Transport gaps | No `helmet`, general auth rate-limit still missing (voice only), `rejectUnauthorized:false` on Aiven SSL, same `JWT_SECRET` for user+admin, min password 6 chars, JWT 1h with no rotation | MITM / brute-force / token reuse | Confirmed in `server.js`, `config/db.js`, `routes/auth.js` |
+| S-9 | Delete path | Only admin can delete a user (`DELETE /api/admin/users/:id`); user cannot self-delete | Violates **Play account-deletion policy** (must offer in-app deletion) and GDPR erasure | By design in `admin-panel.md` |
+| S-10 | **Voice transcripts (new)** | Spoken expense text + locale + timezone → `POST /api/voice-expenses/draft` → forwarded to **third-party LLM** (Gemini / Cohere / OpenAI-compatible / DeepSeek per `LLM_PROVIDER`) | Same sensitivity as S-1, **plus new subprocessor sharing**; `LLM_*_API_KEY` are new high-value secrets; prompt/logs may retain PII | Transcript-only (STT on device/browser, no audio upload — verify and lock this); no transcript retention policy yet; provider logging unknown |
+| S-11 | **Android backup (new)** | `android:allowBackup="true"` in branch `AndroidManifest.xml` | `adb backup` / auto-backup extracts WebView `localStorage` → JWTs + cached expenses leave the device in clear | `true` today; no backup rules file |
+| S-12 | **CORS widening (new)** | Capacitor plan adds `capacitor://localhost`, `http://localhost`, `https://localhost`, LAN IP to `CORS_ALLOWED_ORIGINS` | Overly broad allow-list + `NODE_ENV=development` (allow-all) accidentally left on in a device-test build | Plan-doc stage; must be exact-origin in release |
+
+### 1.3 Packaging reality (v1 "gap" now resolved in direction, not in `main`)
+
+Capacitor is **decided and built on `feature/mobile-capacitor-plan`** (`frontend/android/` shell, app icons/splash, `RECORD_AUDIO` + `INTERNET` permissions, `capacitor.config.ts`). It is **not yet merged to `main`/`dev`**. Remaining gaps before Play: §§ MOB-01–07 below (backup rules, secure storage, mic rationale, versionCode/signing, release API URL).
+
+---
+
+## 2. Threat model (what we defend against)
+
+| Attacker | Capability | SRS must hold |
+|----------|-----------|---------------|
+| DB dump reader (SQL leak, stolen backup, ex-admin) | Reads all tables | S-1/S-3/S-4 unreadable without app key |
+| Log scraper (Render/Railway logs, `console.log`) | Reads logs | No amounts, descriptions, emails, tokens, transcripts, SQL in logs |
+| Network observer (open WiFi, proxy) | Sniffs HTTP | TLS-only, HSTS, no HTTP fallback, no cleartext WebView traffic |
+| XSS / malicious browser ext / rogue WebView JS | Runs JS in origin | Short-lived access token, no long secrets in plain WebView storage |
+| Lost/stolen phone / `adb backup` | Reads app files + backups | Tokens in encrypted storage, `allowBackup=false` + rules, optional app-lock |
+| Abusive client | Brute-forces login/reset/voice | Rate limits + lockout on all public routes, no enumeration |
+| Curious admin | Browses DB | Sees minimum; sensitive columns encrypted, reason codes not free text |
+| LLM subprocessor | Receives transcripts | Minimal prompt (no username/email), no logging retention, DPA in place |
+
+Out of scope: rooted-device OS compromise, Aiven disk theft (covered by Aiven AES-256 + our column encryption as second layer).
+
+---
+
+## 3. Key decisions (record before coding)
+
+| # | Decision | Options | Recommendation / status |
+|---|----------|---------|------------------------|
+| D-1 | `amount` encryption? | A) Keep plaintext + TLS + Aiven disk encryption; B) Deterministic AES-SIV | **A for v1** — document explicitly; encrypt `description` + `email` + `ip` instead |
+| D-2 | Encryption primitive | AES-256-GCM per-row vs libsodium sealed box | **AES-256-GCM, `ENC_KEY` 32B, columns `*_enc` + `*_iv`, `enc_v INT`**; key via env/KMS, versioned rotation |
+| D-3 | Search on encrypted columns? | HMAC index vs no search | **No search on `description` v1**; HMAC index on `email` only if email-login kept |
+| D-4 | Native wrapper | Capacitor vs TWA | **RESOLVED: Capacitor** — shell exists on `feature/mobile-capacitor-plan`; merge + harden per §4F |
+| D-5 | User self-delete | `DELETE /api/auth/me` vs admin-only | **Add self-delete** (Play requires it); keep admin delete |
+| D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **Pick ONE prod provider**, forbid `mock` in prod (already enforced), declare it in privacy + Data Safety, set `LLM_TIMEOUT_MS`/retries, confirm provider zero-retention/DPA; never send username/email, only transcript+locale+timezone |
+
+---
+
+## 4. Requirements checklist
+
+Tick `[x]` when shipped + verified. IDs are stable for branch references.
+
+### A — Column-level encryption (the "some fields" you heard about)
+
+- [ ] **ENC-01 `expenses.description` encrypted at rest.** New columns `description_enc TEXT, description_iv VARCHAR(32), enc_v INT DEFAULT 1`. Write path encrypts with AES-256-GCM; read path decrypts in API before responding. Migration backfills existing rows; old `description` dropped only after verified re-read. *Play maps to: Data Safety "Financial info + Personal info — encrypted in transit and at rest".*
+- [ ] **ENC-02 `users.email` encrypted at rest.** Same envelope (`email_enc`, `email_iv`). Keep `UNIQUE` via HMAC-SHA256 blind index (`email_hmac`); never log plaintext email. Decide: keep email-login (needs HMAC) or username-only (simpler).
+- [ ] **ENC-03 `request_ip` minimized.** Store `/24`-truncated or salted HMAC only; auto-purge after 90 days; never return IP to admin UI.
+- [ ] **ENC-04 `reject_reason` structured.** Enum (`invalid_user`, `duplicate`, `abuse`, `other`) + ≤140-char note, encrypted as ENC-01, purged with row.
+- [ ] **ENC-05 Key management.** `ENC_KEY` (base64 32B) + `ENC_KEY_ID` from **server env/KMS only** — never repo/frontend/logs. Rotation: `enc_v=2` rows, background re-encrypt, old key read-only 30 days. Dev key ≠ prod key.
+- [ ] **ENC-06 `amount` explicitly NOT encrypted v1.** Record rationale (aggregation) + compensations: TLS-only, Aiven encryption, no amount in logs/URLs/errors, admin API never returns others' amounts.
+- [ ] **ENC-07 Voice transcripts minimized + not persisted.** Send only transcript+locale+timezone to LLM (no username/email/user_id in prompt — verify `prompt.js`); never store raw transcript server-side beyond request scope; LLM request/response excluded from logs; document provider retention (D-6).
+
+### B — Transport & API hardening
+
+- [ ] **TLS-01 HTTPS everywhere.** No `http://` reachable in prod; HSTS; Aiven `rejectUnauthorized:true` with real `DB_CA_CERT`; WebView `cleartextTrafficPermitted=false`.
+- [ ] **TLS-02 Security headers.** `helmet()` (CSP, nosniff, frame-ancestors) without breaking CRA/Recharts; verify inside Capacitor WebView.
+- [ ] **AUTH-01 Separate secrets.** `JWT_USER_SECRET` vs `JWT_ADMIN_SECRET` (or `iss`/`aud`); keep `role:'admin'` check. Rotation plan.
+- [ ] **AUTH-02 Token lifetime.** Access 15 min + rotating refresh (httpOnly Secure SameSite on web; encrypted storage on native); admin 15 min, no remember-me. Retire 1h/24h.
+- [ ] **AUTH-03 Password policy.** Min 10 chars (up from 6), breach-list check, extend `current≠new` to reset flow.
+- [ ] **AUTH-04 Rate limits + lockout.** Extend existing `voiceRateLimit` pattern to: login 10/15min/IP+account, register 5/hr/IP, forgot/reset 5–10/hr, admin login 10/15min. Generic 429, no password in logs.
+- [ ] **AUTH-05 Validation.** Extend voice zod-schema pattern to every body: username `^[a-zA-Z0-9_.]{3,30}`, amount `0–1e9 2dp`, description `≤500`, category enum. No stack/SQL to client.
+- [ ] **AUTH-06 LLM secrets.** `LLM_*_API_KEY` server-env only, never in frontend/build/logs; `VOICE_ALLOW_MOCK=false` in prod (fail closed); provider timeout/retry capped.
+
+### C — Logs, storage, client
+
+- [ ] **LOG-01 No sensitive logs.** Remove `console.log(SQL, params)`, decoded-token logs, transcripts, LLM prompts/responses, request bodies. IDs + result codes only. Generic client errors; redacted server log.
+- [ ] **STORE-01 Token storage (mobile-corrected).** `@capacitor/preferences` is **not encrypted** — do NOT store JWT there as final state. Use a secure-storage plugin (EncryptedSharedPreferences / Keychain) for tokens; Preferences only for theme/lang. Web: short access in memory + httpOnly refresh cookie. **Nothing long-lived in plain WebView `localStorage`.**
+- [ ] **STORE-02 Logout hygiene.** Clears WebView + secure storage + server-side refresh revocation; admin tab-close behavior preserved.
+- [ ] **APP-01 App lock (Should).** PIN/biometric (`@capacitor/biometrics`) gating display; 3-strike local token wipe.
+
+### D — Play Store account, data & release gates
+
+- [ ] **PLAY-01 In-app account deletion.** `DELETE /api/auth/me` (password confirm) → cascade deletes expenses + reset rows (+ voice-derived drafts); UI in Account page + deletion URL for Data Safety. Admin delete retained.
+- [ ] **PLAY-02 Data Safety form truth (mobile-corrected).** Declare: Financial info (amount, description), Personal info (username/email/transcript), **Microphone (foreground voice input — not background)**, App activity, Device IDs; purposes: App functionality + Fraud prevention; **sharing: LLM subprocessor (D-6 provider) + infra (Aiven/Render)** — not "no sharing"; encryption in transit: yes; deletion: yes (PLAY-01).
+- [ ] **PLAY-03 Privacy policy.** Hosted URL (in-app + listing): columns collected, AES-256-GCM + TLS 1.2+, voice sharing (provider, purpose, retention), retention (expenses until delete; reset 90d; logs 30d), erasure contact.
+- [ ] **PLAY-04 Binary readiness (mobile-corrected).** Merge mobile branch; `targetSdk` = latest required, 64-bit, versionCode bump, Play App Signing, permissions = `INTERNET` + `RECORD_AUDIO` only (with rationale string — voice expense input); no `REQUEST_INSTALL_PACKAGES`.
+- [ ] **PLAY-05 Pre-launch.** Internal track → pre-launch report clean (no cleartext, no weak crypto, mic disclosure OK); Data Safety + deletion URL verified; SI/TA screenshots; content rating done.
+
+### E — Retention & ops
+
+- [ ] **OPS-01 Retention job.** Nightly: expire codes (30 min done), purge reset rows > 90d, logs > 30d, voice draft artifacts (if any) > 30d. Documented in `database.md`.
+- [ ] **OPS-02 Backup encryption.** Aiven backups encrypted; manual dumps GPG-encrypted; restore tested.
+- [ ] **OPS-03 Secret hygiene.** Rotate placeholder `JWT_SECRET`, exposed Aiven password, admin password post-ENC; `.env` gitignored; prod secrets in dashboard/KMS only (now incl. `ENC_KEY`, `LLM_*_API_KEY`).
+
+### F — Mobile shell hardening (new — branch `feature/mobile-capacitor-plan` → `main`)
+
+- [ ] **MOB-01 Backup rules.** `allowBackup=false` (or scoped `backup_rules.xml` excluding WebView storage); verify `adb backup` yields no tokens; `allowCleartextTraffic=false`.
+- [ ] **MOB-02 Secure storage migration.** Replace `authStorage.js` WebView storage with secure-storage plugin for tokens on native; keep Preferences for theme/lang; test login persists after app kill + reboot (plan §5 checklist).
+- [ ] **MOB-03 Mic permission UX.** `RECORD_AUDIO` rationale dialog (EN/SI/TA) before system prompt; graceful denial (text input still works); no background recording; Data Safety matches.
+- [ ] **MOB-04 Release build config.** Prod `REACT_APP_API_URL` → Render URL, `NODE_ENV=production`, exact `CORS_ALLOWED_ORIGINS` (Vercel + `capacitor://localhost` only — no LAN IPs); versionCode/versionName bump; signed `aab`.
+- [ ] **MOB-05 Router/WebView check.** Confirm `BrowserRouter` vs `HashRouter` decision from plan §2 (no blank screens on deep link); `homepage ./` retained.
+- [ ] **MOB-06 Merge + version.** Merge mobile branch to `main`, tag (e.g. v0.8.0-mobile), update `architecture.md` + release notes.
+
+### G — Encryption migration verification & legacy removal (no data loss)
+
+> Rule: never `DELETE`/`DROP` user data to "start fresh encrypted". Every step below keeps the app working with rollback intact. Temporary migration columns are named `temp_*` (or suffixed `_legacy`) and **must be removed** in the release after verification — each carries its removal item below. *Play maps to: Data Safety "deletion" means user-initiated erasure — admin wipes/dumps look like data loss to review.*
+
+- [ ] **MIG-01 Additive schema (no breakage).** `ALTER TABLE expenses ADD temp_description_enc TEXT NULL, temp_description_iv VARCHAR(32) NULL, enc_v INT NOT NULL DEFAULT 0` (same envelope pattern for `users.email` later; `amount` untouched per ENC-06). `enc_v=0` = legacy plaintext. App still reads the old column — zero user impact. Backup taken + row counts recorded before running.
+- [ ] **MIG-02 Dual-write + dual-read deploy.** New/edits write **both** old + `temp_*` (`enc_v=1`); reads prefer `enc_v=1`, fall back to legacy. New data protected from day one; old data still served.
+- [ ] **MIG-03 Backfill (re-runnable).** Offline batch script (500/batch, `UPDATE … WHERE id=? AND enc_v=0`), counts only in logs, never text. Re-run safe until `SELECT COUNT(*) … WHERE enc_v=0` = 0.
+- [ ] **MIG-04 Test-account verification (gate before any removal).** Dedicated account (e.g. `enctest`) with EN + Sinhala + Tamil + emoji + long-text + voice-confirmed expenses. Verify: (a) API as that user renders every description exactly (list, monthly, recent, edit-resave); (b) SQL spot-check — all rows `enc_v=1`, identical text yields different ciphertext (random IV); (c) wrong-key decrypt on a copy fails loudly (GCM tag); (d) fallback-to-legacy log (ids only) shows 0 hits for the test account.
+- [ ] **MIG-05 Legacy removal (one release later, only on evidence).** Requires: `enc_v=0` = 0 table-wide, test-account + real-account sample verified via API, one full release with zero fallback hits, fresh backup taken immediately before. Then `ALTER TABLE expenses DROP COLUMN description` (and rename `temp_description_enc → description_enc`, `temp_description_iv → description_iv`). Re-run MIG-04 checks post-drop; monitor decrypt errors 48h. Rollback = restore pre-`ALTER` backup.
+- [ ] **MIG-06 Temp-column hygiene.** No `temp_*`/`*_legacy` column survives past its MIG-05. Pre-submission grep of schema for `temp_` must be empty; Data Safety + privacy policy describe only final columns.
+
+---
+
+## 5. Acceptance criteria
+
+1. SQL dump without `ENC_KEY` reveals **no** readable description, email, IP, or transcript.
+2. Log grep for `amount|description|transcript|prompt|@|Bearer|BEGIN|API_KEY` empty on prod logs.
+3. `curl http://` → redirect/HSTS; DB connects with `rejectUnauthorized:true`; WebView blocks cleartext.
+4. 11th login in 15 min → 429; voice over-limit → 429 with `VOICE_*` code.
+5. `adb backup` of release build contains no JWT/expense data.
+6. Mic denied → app still works via typing; mic granted → no background recording indicator abuse.
+7. User self-delete from app cascades; Data Safety + privacy + deletion URL live.
+8. Data Safety "sharing" lists the chosen LLM provider truthfully.
+9. Migration: `enc_v=0` = 0, test-account decrypt verified (MIG-04), no `temp_*` columns remain (MIG-05/06).
+
+---
+
+## 6. Phased rollout (suggested)
+
+| Phase | Ships | Notes |
+|-------|-------|-------|
+| P0 (this week) | LOG-01, MOB-01, PLAY-01 spec, D-6 provider pick | Zero-migration wins; locks mobile privacy story |
+| P1 | ENC-01–05+07, MIG-01–04, AUTH-04/05/06, STORE-01/MOB-02 | Dual-read `enc_v` + backfill + test-account verification; secure-storage migration |
+| P2 | AUTH-01/02/03, TLS-01/02, APP-01, MOB-03–06, PLAY-02–05 | Merge mobile branch, signed `aab`, store submission |
+
+---
+
+## 7. Open questions for owner
+
+1. Email-login keep (HMAC index) or username-only to simplify ENC-02?
+2. Prod LLM provider pick (Gemini/Cohere/OpenAI/DeepSeek) + DPA/retention terms? (D-6)
+3. Retention OK (reset 90d, logs 30d, voice artifacts 30d)?
+4. Prod `ENC_KEY` + `LLM_*_API_KEY` holder (Render env vs external KMS)?
+5. Merge `feature/mobile-capacitor-plan` to `main` now, or after P1 encryption lands?
