@@ -41,6 +41,20 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 |--------|---------|
 | `401` | Missing token, invalid token, or expired token |
 | `404` | User not found (`/api/auth/me` only) |
+| `429` | Rate limit exceeded — see Rate limits below (`Retry-After` header, `RATE_LIMITED` code) |
+
+### Rate limits (AUTH-04)
+
+Hardcoded per route (in-memory, per process). Exceeding returns `429` with a generic message + `Retry-After` seconds.
+
+| Endpoint | Limit | Key |
+|----------|-------|-----|
+| `POST /api/auth/login` | 10 / 15 min | IP + account |
+| `POST /api/admin/login` | 5 / 15 min | IP |
+| `POST /api/auth/register` | 5 / hour | IP |
+| `POST /api/auth/forgot-password` | 5 / hour | Username + IP |
+| `POST /api/auth/reset-password` | 10 / hour | IP |
+| `POST /api/voice-expenses/draft` | 10 / min | User / IP |
 
 ---
 
