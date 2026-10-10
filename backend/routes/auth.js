@@ -76,7 +76,7 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Registration error:', error.message);
 
     if (error.code === 'ER_DUP_ENTRY') {
       const message = error.message?.includes('email')
@@ -137,7 +137,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login error:', error.message);
     res.status(500).json({ message: "We couldn't sign you in right now. Please try again in a moment." });
   }
 });
@@ -165,7 +165,7 @@ router.get('/me', auth, async (req, res) => {
       created_at: user.created_at
     });
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('Error fetching user profile:', error.message);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -225,7 +225,7 @@ router.post('/change-password', auth, async (req, res) => {
       message: 'Password updated successfully.'
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error('Change password error:', error.message);
     res.status(500).json({
       message: "We couldn't update your password right now. Please try again in a moment."
     });
@@ -263,7 +263,7 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json({ success: true, message: GENERIC_FORGOT_MESSAGE });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error('Forgot password error:', error.message);
     // Still avoid leaking internals; generic message
     res.json({ success: true, message: GENERIC_FORGOT_MESSAGE });
   }
@@ -316,7 +316,7 @@ router.post('/reset-password', async (req, res) => {
       message: 'Password updated. You can sign in with your new password.'
     });
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('Reset password error:', error.message);
     res.status(500).json({
       message: "We couldn't reset your password right now. Please try again."
     });
