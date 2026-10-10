@@ -89,7 +89,7 @@ All `.env` files are gitignored — only `*.example` is committed. If a real sec
 
 ## 9. Accounts, deletion, retention
 
-* Admin can delete any user (cascade wipes expenses + reset rows). **Users cannot self-delete yet** — Play requires in-app deletion, so `DELETE /api/auth/me` + Account-page UI + public deletion URL is specified as PLAY-01.
+* Admin can delete any user (cascade wipes expenses + reset rows). **Users can self-delete since 2026-10-10 (on `dev`, PLAY-01):** `DELETE /api/auth/me` with password confirm → same cascade (verified 0 orphans); UI in Account danger zone; deletion URL for Data Safety still needs hosting (PLAY-02).
 * Retention targets: reset rows 90d, logs 30d, voice artifacts 30d, expenses until user deletes (OPS-01, privacy policy).
 
 ## 10. Play Store mapping (summary — full checklist in Play SRS §4D/F)
@@ -98,7 +98,7 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ## 11. Known gaps (do not ship store build until P0+P1 land)
 
-**Fixed 2026-10-10 (PR #40/#42 on `main`, ENC-02 on `dev`):** bearer-token logging, hash-dumping script, SQL-param logs, PUT/DELETE 500 crash, description + email at rest, 61 duplicate `email_N` keys. Still open: `rejectUnauthorized:false` · no `helmet` · auth rate limits missing · 6-char passwords + shared JWT secret + 1h tokens · plaintext IP/reason · `allowBackup=true` · tokens in WebView storage · voice provider/sharing undecided · no self-delete · ISO-`Z` date 500 (#41). Each has an ID in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md) §4.
+**Fixed 2026-10-10 (PR #40/#42 on `main`, ENC-02 + PLAY-01 on `dev`):** bearer-token logging, hash-dumping script, SQL-param logs, PUT/DELETE 500 crash, description + email at rest, 61 duplicate `email_N` keys, user self-delete. Still open: `rejectUnauthorized:false` · no `helmet` · auth rate limits missing · 6-char passwords + shared JWT secret + 1h tokens · plaintext IP/reason · `allowBackup=true` · tokens in WebView storage · voice provider/sharing undecided · no self-delete · ISO-`Z` date 500 (#41). Each has an ID in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md) §4.
 
 ## 12. Runbook (common tasks)
 
@@ -109,4 +109,4 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ---
 
-*Changelog: v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. v3 same day: ENC-02 shipped on `dev` (email encrypted + HMAC index, 4/4 backfilled, logins verified), 61 duplicate `email_N` keys dropped. Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*
+*Changelog: v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. v3 same day: ENC-02 shipped on `dev` (email encrypted + HMAC index, 4/4 backfilled, logins verified), 61 duplicate `email_N` keys dropped. v4 same day: PLAY-01 shipped on `dev` (`DELETE /api/auth/me`, cascade verified, trilingual danger-zone UI). Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*

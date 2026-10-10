@@ -170,6 +170,56 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// @route   DELETE /api/auth/me
+// @desc    Delete own account (PLAY-01): password confirm, cascade wipes
+//          expenses + reset rows via FK. Client clears storage on success.
+// @access  Private
+router.delete('/me', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const password = req.body.password || req.body.currentPassword;
+
+    if (!password) {
+      return res.status(400).json({
+        message: 'Please enter your password to delete your account.'
+      });
+    }
+
+    const rows = await db.query(
+      'SELECT id, username, password FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      // 400 (not 401) so the client does not treat this as session expiry
+      return res.status(400).json({
+        message: 'Password is incorrect. Your account was not deleted.'
+      });
+    }
+
+    const username = user.username;
+    await db.query('DELETE FROM users WHERE id = ?', [userId]);
+
+    console.log(`User ${userId} deleted own account (username=${username})`);
+
+    res.json({
+      success: true,
+      message: 'Your account and all its expenses were deleted.'
+    });
+  } catch (error) {
+    console.error('Delete account error:', error.message);
+    res.status(500).json({
+      message: "We couldn't delete your account right now. Please try again in a moment."
+    });
+  }
+});
+
 // @route   POST /api/auth/change-password
 // @desc    Change password for the logged-in user
 // @access  Private

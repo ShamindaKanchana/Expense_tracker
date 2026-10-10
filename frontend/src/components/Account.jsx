@@ -28,6 +28,11 @@ const Account = ({ setIsAuthenticated }) => {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -113,6 +118,29 @@ const Account = ({ setIsAuthenticated }) => {
     clearAuth();
     setIsAuthenticated(false);
     navigate('/login');
+  };
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    setDeleteError('');
+
+    if (!deletePassword) {
+      setDeleteError(t('account.deleteNeedPassword'));
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      await authApi.deleteAccount(deletePassword);
+      clearAuth();
+      setIsAuthenticated(false);
+      sessionStorage.setItem('authMessage', t('account.deletedNotice'));
+      navigate('/login');
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, t('account.deleteFailed')));
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   const username = profile?.username || '—';
@@ -240,6 +268,71 @@ const Account = ({ setIsAuthenticated }) => {
           <button type="button" className="account-logout-btn" onClick={handleLogout}>
             {t('account.signOut')}
           </button>
+
+          <div className="account-delete-zone">
+            {!deleteOpen ? (
+              <button
+                type="button"
+                className="account-delete-toggle"
+                onClick={() => {
+                  setDeleteOpen(true);
+                  setDeleteError('');
+                }}
+              >
+                {t('account.deleteAccount')}
+              </button>
+            ) : (
+              <div
+                className="account-delete-panel"
+                role="alertdialog"
+                aria-labelledby="account-delete-heading"
+                aria-describedby="account-delete-desc"
+              >
+                <h3 id="account-delete-heading">{t('account.deleteConfirmTitle')}</h3>
+                <p id="account-delete-desc" className="account-hint">
+                  {t('account.deleteConsequences')}
+                </p>
+                <form onSubmit={handleDeleteAccount} noValidate>
+                  <label className="account-input-label" htmlFor="deletePassword">
+                    {t('account.deletePasswordLabel')}
+                  </label>
+                  <PasswordInput
+                    id="deletePassword"
+                    name="deletePassword"
+                    autoComplete="current-password"
+                    value={deletePassword}
+                    onChange={(e) => {
+                      setDeletePassword(e.target.value);
+                      setDeleteError('');
+                    }}
+                    className="account-input"
+                  />
+                  <AuthFormError message={deleteError} />
+                  <div className="account-delete-actions">
+                    <button
+                      type="button"
+                      className="account-cancel-btn"
+                      disabled={deletingAccount}
+                      onClick={() => {
+                        setDeleteOpen(false);
+                        setDeletePassword('');
+                        setDeleteError('');
+                      }}
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      type="submit"
+                      className="account-delete-btn"
+                      disabled={deletingAccount}
+                    >
+                      {deletingAccount ? t('account.deleting') : t('account.deleteConfirmButton')}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </div>

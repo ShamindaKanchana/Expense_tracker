@@ -254,6 +254,43 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
 
 ---
 
+### `DELETE /api/auth/me`
+
+| | |
+|--|--|
+| **Access** | Private |
+| **Description** | Delete your own account (PLAY-01). Requires password confirmation. Cascades to expenses + password-reset rows. Client clears local storage on success. |
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request body**
+
+```json
+{
+  "password": "secret123"
+}
+```
+
+**Success:** `200`
+
+```json
+{
+  "success": true,
+  "message": "Your account and all its expenses were deleted."
+}
+```
+
+**Errors**
+
+| Status | When |
+|--------|------|
+| `400` | Missing password, or incorrect password (session is kept — not a logout) |
+| `401` | Invalid or missing token |
+| `404` | User not found |
+| `500` | Server error |
+
+---
+
 ## Voice expense drafts (`/api/voice-expenses`)
 
 ### `POST /api/voice-expenses/draft`
@@ -657,6 +694,7 @@ If no expenses exist: `data` is `null`.
 | `POST` | `/api/auth/login` | Public | Sign in (username or email + password) + JWT |
 | `GET` | `/api/auth/me` | Private | Current user profile |
 | `POST` | `/api/auth/change-password` | Private | Change password |
+| `DELETE` | `/api/auth/me` | Private | Delete own account (password confirm, cascade) |
 | `GET` | `/api/expenses/test-db` | Public | DB diagnostic |
 | `GET` | `/api/expenses` | Private* | List expenses (*not implemented) |
 | `POST` | `/api/expenses` | Private | Add expense |
