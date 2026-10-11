@@ -76,7 +76,7 @@ Out of scope: rooted-device OS compromise, Aiven disk theft (covered by Aiven AE
 | D-3 | Search on encrypted columns? | HMAC index vs no search | **No search on `description` v1**; HMAC index on `email` only if email-login kept |
 | D-4 | Native wrapper | Capacitor vs TWA | **RESOLVED: Capacitor** — shell exists on `feature/mobile-capacitor-plan`; merge + harden per §4F |
 | D-5 | User self-delete | `DELETE /api/auth/me` vs admin-only | **Add self-delete** (Play requires it); keep admin delete |
-| D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **Pick ONE prod provider**, forbid `mock` in prod (already enforced), declare it in privacy + Data Safety, set `LLM_TIMEOUT_MS`/retries, confirm provider zero-retention/DPA; never send username/email, only transcript+locale+timezone |
+| D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **DECIDED 2026-10-11: Cohere in prod** (`LLM_PROVIDER=cohere`, model per `LLM_MODEL` on Render, `VOICE_ALLOW_MOCK=false` confirmed, timeout 15s / retries ≤2). Prompt sends transcript+locale+timezone only (no username/email/userId — verified `prompt.js`); mock fails closed in prod. Remaining: confirm Cohere retention opt-out + DPA, then declare in privacy + Data Safety |
 
 ---
 
@@ -92,7 +92,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 - [ ] **ENC-04 `reject_reason` structured.** Enum (`invalid_user`, `duplicate`, `abuse`, `other`) + ≤140-char note, encrypted as ENC-01, purged with row.
 - [ ] **ENC-05 Key management.** `ENC_KEY` (base64 32B) + `ENC_KEY_ID` from **server env/KMS only** — never repo/frontend/logs. Rotation: `enc_v=2` rows, background re-encrypt, old key read-only 30 days. Dev key ≠ prod key.
 - [ ] **ENC-06 `amount` explicitly NOT encrypted v1.** Record rationale (aggregation) + compensations: TLS-only, Aiven encryption, no amount in logs/URLs/errors, admin API never returns others' amounts.
-- [ ] **ENC-07 Voice transcripts minimized + not persisted.** Send only transcript+locale+timezone to LLM (no username/email/user_id in prompt — verify `prompt.js`); never store raw transcript server-side beyond request scope; LLM request/response excluded from logs; document provider retention (D-6).
+- [ ] **ENC-07 Voice transcripts minimized + not persisted.** Send only transcript+locale+timezone to LLM (no username/email/user_id in prompt — verified `prompt.js` 2026-10-11); never store raw transcript server-side beyond request scope (draft endpoint does not persist — verified); LLM request/response excluded from logs (route logs `error.message` only — verified); document Cohere retention (D-6, retention opt-out pending).
 
 ### B — Transport & API hardening
 
@@ -103,7 +103,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 - [ ] **AUTH-03 Password policy.** Min 10 chars (up from 6), breach-list check, extend `current≠new` to reset flow.
 - [x] **AUTH-04 Rate limits + lockout — SHIPPED 2026-10-10 (merged to `main` via PR #44).** Zero-dep factory `middleware/rateLimit.js` (voice pattern): login 10/15min per IP+account, admin 5/15min per IP, register 5/hr/IP, forgot 5/hr per user+IP, reset 10/hr/IP. Generic 429 + `Retry-After`, no credential logging. Live-verified exact trip points; single-instance note in code.
 - [ ] **AUTH-05 Validation.** Extend voice zod-schema pattern to every body: username `^[a-zA-Z0-9_.]{3,30}`, amount `0–1e9 2dp`, description `≤500`, category enum. No stack/SQL to client.
-- [ ] **AUTH-06 LLM secrets.** `LLM_*_API_KEY` server-env only, never in frontend/build/logs; `VOICE_ALLOW_MOCK=false` in prod (fail closed); provider timeout/retry capped.
+- [ ] **AUTH-06 LLM secrets.** `LLM_*_API_KEY` server-env only, never in frontend/build/logs; `VOICE_ALLOW_MOCK=false` in prod — **confirmed on Render 2026-10-11 (fail closed)**; provider timeout/retry capped (15s / ≤2 — verified in code).
 
 ### C — Logs, storage, client
 
@@ -115,7 +115,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 ### D — Play Store account, data & release gates
 
 - [x] **PLAY-01 In-app account deletion — SHIPPED 2026-10-10 (on `dev`).** `DELETE /api/auth/me` (password confirm, 400-not-401 on mismatch so session survives); cascade verified (0 orphans); Account danger zone as a modal message box (backdrop, Esc/backdrop close, autofocus, EN/SI/TA, mobile+desktop); post-delete notice on login screen. Admin delete retained.
-- [ ] **PLAY-02 Data Safety form truth (mobile-corrected).** Declare: Financial info (amount, description), Personal info (username/email/transcript), **Microphone (foreground voice input — not background)**, App activity, Device IDs; purposes: App functionality + Fraud prevention; **sharing: LLM subprocessor (D-6 provider) + infra (Aiven/Render)** — not "no sharing"; encryption in transit: yes; deletion: yes (PLAY-01).
+- [ ] **PLAY-02 Data Safety form truth (mobile-corrected).** Declare: Financial info (amount, description), Personal info (username/email/transcript), **Microphone (foreground voice input — not background)**, App activity, Device IDs; purposes: App functionality + Fraud prevention; **sharing: Cohere (voice transcript/locale/timezone for extraction — D-6 decided 2026-10-11) + infra (Aiven/Render)** — not "no sharing"; encryption in transit: yes; deletion: yes (PLAY-01).
 - [ ] **PLAY-03 Privacy policy.** Hosted URL (in-app + listing): columns collected, AES-256-GCM + TLS 1.2+, voice sharing (provider, purpose, retention), retention (expenses until delete; reset 90d; logs 30d), erasure contact.
 - [ ] **PLAY-04 Binary readiness (mobile-corrected).** Merge mobile branch; `targetSdk` = latest required, 64-bit, versionCode bump, Play App Signing, permissions = `INTERNET` + `RECORD_AUDIO` only (with rationale string — voice expense input); no `REQUEST_INSTALL_PACKAGES`.
 - [ ] **PLAY-05 Pre-launch.** Internal track → pre-launch report clean (no cleartext, no weak crypto, mic disclosure OK); Data Safety + deletion URL verified; SI/TA screenshots; content rating done.
@@ -175,7 +175,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 ## 7. Open questions for owner
 
 1. Email-login keep (HMAC index) or username-only to simplify ENC-02?
-2. Prod LLM provider pick (Gemini/Cohere/OpenAI/DeepSeek) + DPA/retention terms? (D-6)
+2. ~~Prod LLM provider pick~~ DECIDED: Cohere (2026-10-11). Remaining: DPA/retention terms + logging opt-out? (D-6)
 3. Retention OK (reset 90d, logs 30d, voice artifacts 30d)?
 4. Prod `ENC_KEY` + `LLM_*_API_KEY` holder (Render env vs external KMS)?
 5. Merge `feature/mobile-capacitor-plan` to `main` now, or after P1 encryption lands?
