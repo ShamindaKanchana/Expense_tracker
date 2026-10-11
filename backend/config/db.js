@@ -1,6 +1,33 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+// Build SSL config: verify with Aiven CA in prod / when CA is provided,
+// disable SSL for localhost dev without CA.
+function buildSslConfig() {
+  const raw = process.env.DB_CA_CERT;
+  const ca = raw ? raw.replace(/\\n/g, '\n') : undefined;
+  const host = process.env.DB_HOST || '';
+
+  const isLocalHost = ['', 'localhost', '127.0.0.1', '::1'].includes(host);
+  if (isLocalHost && !ca) {
+    return undefined; // local MySQL without SSL
+  }
+  if (ca) {
+    return {
+      rejectUnauthorized: true,
+      ca,
+    };
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('DB_CA_CERT is required in production for verified SSL (rejectUnauthorized:true)');
+  }
+  // Dev fallback without CA (e.g. local DB with SSL on but no cert yet)
+  console.warn('⚠️ DB_CA_CERT not set — using unverified SSL (rejectUnauthorized:false) for dev only');
+  return {
+    rejectUnauthorized: false,
+  };
+}
+
 // MySQL connection configuration
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -11,10 +38,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 20,
   queueLimit: 0,
-  ssl: {
-    rejectUnauthorized: false, // Set to false to bypass self-signed certificate error
-    ca: process.env.DB_CA_CERT // You might need to provide the CA certificate
-  }
+  ssl: buildSslConfig(),
 });
 
 // Test the connection
