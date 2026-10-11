@@ -11,18 +11,20 @@ The app uses a **three-tier, multi-cloud** layout:
 | Layer    | Platform      | Role                                      |
 |----------|---------------|-------------------------------------------|
 | Frontend | **Vercel**    | Hosts the React SPA (static build)        |
-| Backend  | **Railway**   | Runs the Node.js / Express REST API       |
-| Database | **Aiven**     | Managed MySQL (SSL)                       |
+| Backend  | **Render**    | Runs the Node.js / Express REST API       |
+| Database | **Aiven**     | Managed MySQL (SSL, verified cert)        |
 
-Source code lives in a single GitHub repository. Vercel and Railway are both connected to that repo and deploy from it (no Docker, Kubernetes, or CI workflow files in the repo).
+Source code lives in a single GitHub repository. Vercel and Render are both connected to that repo and deploy from it (no Docker, Kubernetes, or CI workflow files in the repo).
 
 ## Production URLs
 
 | Service  | URL |
 |----------|-----|
 | Frontend | https://expense-tracker-liard-nine.vercel.app |
-| Backend  | https://expensetracker-production-b2a5.up.railway.app |
+| Backend  | https://expense-tracker-api-bjju.onrender.com |
 | Database | Aiven Cloud MySQL (private host; not exposed to the browser) |
+
+> Old Railway backend (`https://expensetracker-production-b2a5.up.railway.app`) is decommissioned (returns 404).
 
 ## Architecture Diagram
 
@@ -70,25 +72,25 @@ flowchart TB
 sequenceDiagram
     actor User
     participant Vercel as Vercel (React SPA)
-    participant Railway as Railway (Express API)
+    participant Render as Render (Express API)
     participant Aiven as Aiven (MySQL)
 
     User->>Vercel: Open app / navigate
     Vercel-->>User: Serve static HTML/JS/CSS
 
     User->>Vercel: Login (email + password)
-    Vercel->>Railway: POST /api/auth/login
-    Railway->>Aiven: Query users table
-    Aiven-->>Railway: User record
-    Railway-->>Vercel: JWT token
+    Vercel->>Render: POST /api/auth/login
+    Render->>Aiven: Query users table
+    Aiven-->>Render: User record
+    Render-->>Vercel: JWT token
     Vercel->>Vercel: Store token in localStorage
 
     User->>Vercel: View dashboard or add expense
-    Vercel->>Railway: GET or POST /api/expenses with Bearer JWT
-    Railway->>Railway: Verify JWT via auth middleware
-    Railway->>Aiven: Read/write expenses
-    Aiven-->>Railway: Data
-    Railway-->>Vercel: JSON response
+    Vercel->>Render: GET or POST /api/expenses with Bearer JWT
+    Render->>Render: Verify JWT via auth middleware
+    Render->>Aiven: Read/write expenses
+    Aiven-->>Render: Data
+    Render-->>Vercel: JSON response
     Vercel-->>User: Render UI
 ```
 
@@ -113,7 +115,7 @@ There is no `vercel.json` in the repository — Vercel project settings (root di
 - **Runtime:** Node.js (engine `>=22.0.0`)
 - **Entry point:** `server.js`
 - **Start command:** `npm start` → `node server.js`
-- **Port:** `process.env.PORT` (Railway injects this)
+- **Port:** `process.env.PORT` (Render injects this)
 - **Routes:**
   - `POST /api/auth/register`, `POST /api/auth/login`
   - `GET|POST|PUT|DELETE /api/expenses/*` (protected)
@@ -121,18 +123,18 @@ There is no `vercel.json` in the repository — Vercel project settings (root di
 - **CORS:** In production, only `https://expense-tracker-liard-nine.vercel.app` is allowed (plus localhost in development)
 - **Database access:** `backend/config/db.js` — `mysql2` connection pool with SSL
 
-There is no `railway.toml` or `Procfile` in the repository — Railway service settings and environment variables are configured in the Railway dashboard.
+There is no `render.yaml`, `railway.toml` or `Procfile` in the repository — Render service settings and environment variables are configured in the Render dashboard.
 
 ### Database (Aiven Cloud)
 
 - **Engine:** MySQL 8
-- **Connection:** SSL enabled (`rejectUnauthorized: false`; optional `DB_CA_CERT`)
+- **Connection:** SSL verified (`rejectUnauthorized: true` with required `DB_CA_CERT` since 2026-10-11; localhost dev disables SSL when no CA is set)
 - **Tables:** `users`, `expenses`, `categories` (created/managed by backend models and migrations)
-- **Access:** Only the Railway backend connects; the database is not reachable from the browser or Vercel
+- **Access:** Only the Render backend connects; the database is not reachable from the browser or Vercel
 
 ## Environment Variables
 
-### Railway (Backend)
+### Render (Backend)
 
 | Variable       | Purpose                          |
 |----------------|----------------------------------|
@@ -145,7 +147,7 @@ There is no `railway.toml` or `Procfile` in the repository — Railway service s
 | `DB_PASSWORD`  | Database password                |
 | `DB_NAME`      | Database name                    |
 | `DB_PORT`      | MySQL port (if non-default)      |
-| `DB_CA_CERT`   | Optional CA certificate for SSL  |
+| `DB_CA_CERT`   | Required CA certificate for verified SSL (production fails fast if missing)  |
 
 ### Vercel (Frontend)
 
@@ -164,7 +166,7 @@ flowchart LR
 
     subgraph Prod["Production"]
         ProdFE["Vercel CDN"]
-        ProdBE["Railway container"]
+        ProdBE["Render service"]
         ProdDB[("Aiven MySQL")]
         ProdFE --> ProdBE --> ProdDB
     end
@@ -173,10 +175,10 @@ flowchart LR
 | Aspect        | Development                         | Production                              |
 |---------------|-------------------------------------|-----------------------------------------|
 | Frontend      | `npm start` on port 3000            | Vercel serves `frontend/build`          |
-| Backend       | `npm run dev` (nodemon) on 5000     | Railway runs `npm start`                |
-| API URL       | `http://localhost:5000/api`         | Railway production URL                  |
+| Backend       | `npm run dev` (nodemon) on 5000     | Render runs `npm start`                 |
+| API URL       | `http://localhost:5000/api`         | Render production URL                   |
 | CORS          | All origins allowed                 | Vercel origin only                      |
-| Database      | Local `.env` credentials            | Aiven credentials on Railway            |
+| Database      | Local `.env` credentials            | Aiven credentials on Render             |
 
 ## Deployment Pipeline
 
@@ -188,10 +190,10 @@ flowchart LR
     GH --> VBuild["Vercel: npm run build"]
     VBuild --> VCDN["Deploy static assets to CDN"]
 
-    GH --> RBuild["Railway: npm install"]
-    RBuild --> RRun["Railway: npm start"]
+    GH --> RBuild["Render: npm install"]
+    RBuild --> RRun["Render: npm start"]
     RRun --> REnv["Inject env vars PORT DB JWT_SECRET"]
-    REnv --> APIUp["API live on *.up.railway.app"]
+    REnv --> APIUp["API live on *.onrender.com"]
 ```
 
 There is no `.github/workflows` CI/CD in the repo — each platform builds and deploys independently when the connected branch is updated.
@@ -200,8 +202,8 @@ There is no `.github/workflows` CI/CD in the repo — each platform builds and d
 
 - JWTs are issued by the backend and validated on protected routes via `backend/middleware/auth.js`.
 - CORS restricts browser-origin API access in production to the Vercel domain.
-- Database credentials exist only on Railway; they are never shipped to the frontend bundle.
-- MySQL traffic from Railway to Aiven uses SSL.
+- Database credentials exist only on Render; they are never shipped to the frontend bundle.
+- MySQL traffic from Render to Aiven uses verified SSL (`rejectUnauthorized:true` + `DB_CA_CERT`).
 
 ## Key Source Files
 

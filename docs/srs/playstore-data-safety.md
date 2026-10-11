@@ -96,12 +96,12 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 
 ### B — Transport & API hardening
 
-- [ ] **TLS-01 HTTPS everywhere.** No `http://` reachable in prod; HSTS; Aiven `rejectUnauthorized:true` with real `DB_CA_CERT`; WebView `cleartextTrafficPermitted=false`.
+- [ ] **TLS-01 HTTPS everywhere.** No `http://` reachable in prod; HSTS; Aiven `rejectUnauthorized:true` with real `DB_CA_CERT` (**DB leg ✅ since 2026-10-11 `c7581ca`, Render verified**); WebView `cleartextTrafficPermitted=false`.
 - [ ] **TLS-02 Security headers.** `helmet()` (CSP, nosniff, frame-ancestors) without breaking CRA/Recharts; verify inside Capacitor WebView.
 - [ ] **AUTH-01 Separate secrets.** `JWT_USER_SECRET` vs `JWT_ADMIN_SECRET` (or `iss`/`aud`); keep `role:'admin'` check. Rotation plan.
 - [ ] **AUTH-02 Token lifetime.** Access 15 min + rotating refresh (httpOnly Secure SameSite on web; encrypted storage on native); admin 15 min, no remember-me. Retire 1h/24h.
 - [ ] **AUTH-03 Password policy.** Min 10 chars (up from 6), breach-list check, extend `current≠new` to reset flow.
-- [x] **AUTH-04 Rate limits + lockout — SHIPPED 2026-10-10 (on `dev`).** Zero-dep factory `middleware/rateLimit.js` (voice pattern): login 10/15min per IP+account, admin 5/15min per IP, register 5/hr/IP, forgot 5/hr per user+IP, reset 10/hr/IP. Generic 429 + `Retry-After`, no credential logging. Live-verified exact trip points; single-instance note in code.
+- [x] **AUTH-04 Rate limits + lockout — SHIPPED 2026-10-10 (merged to `main` via PR #44).** Zero-dep factory `middleware/rateLimit.js` (voice pattern): login 10/15min per IP+account, admin 5/15min per IP, register 5/hr/IP, forgot 5/hr per user+IP, reset 10/hr/IP. Generic 429 + `Retry-After`, no credential logging. Live-verified exact trip points; single-instance note in code.
 - [ ] **AUTH-05 Validation.** Extend voice zod-schema pattern to every body: username `^[a-zA-Z0-9_.]{3,30}`, amount `0–1e9 2dp`, description `≤500`, category enum. No stack/SQL to client.
 - [ ] **AUTH-06 LLM secrets.** `LLM_*_API_KEY` server-env only, never in frontend/build/logs; `VOICE_ALLOW_MOCK=false` in prod (fail closed); provider timeout/retry capped.
 
