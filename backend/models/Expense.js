@@ -36,15 +36,29 @@ const initTable = async () => {
     );
     // MIG-01 convergence: bring pre-encryption DBs up to the encrypted schema.
     // Duplicate-column errors mean the column is already there — safe to ignore.
+    // Deadlocks (ER_LOCK_DEADLOCK 1213) are transient under concurrent DDL
+    // (e.g. two boots racing) — retry with backoff instead of failing boot.
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const alter of [
       'ALTER TABLE expenses ADD COLUMN temp_description_enc TEXT NULL',
       'ALTER TABLE expenses ADD COLUMN temp_description_iv VARCHAR(32) NULL',
       'ALTER TABLE expenses ADD COLUMN enc_v INT NOT NULL DEFAULT 0'
     ]) {
-      try {
-        await db.query(alter);
-      } catch (alterErr) {
-        if (alterErr.code !== 'ER_DUP_FIELDNAME') throw alterErr;
+      let done = false;
+      for (let attempt = 1; attempt <= 3 && !done; attempt += 1) {
+        try {
+          await db.query(alter);
+          done = true;
+        } catch (alterErr) {
+          if (alterErr.code === 'ER_DUP_FIELDNAME') { done = true; break; }
+          const deadlock = alterErr.code === 'ER_LOCK_DEADLOCK' || alterErr.errno === 1213;
+          if (deadlock && attempt < 3) {
+            console.warn(`Deadlock on expenses migration (attempt ${attempt}/3), retrying:`, alterErr.message);
+            await sleep(500 * attempt);
+            continue;
+          }
+          throw alterErr;
+        }
       }
     }
     console.log('✅ Expenses table is ready');
