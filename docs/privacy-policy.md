@@ -45,7 +45,7 @@ prevention:
 
 | Recipient | What they receive | Retention |
 |-----------|-------------------|-----------|
-| **Cohere** (language provider) | Voice transcript, locale, timezone | Prompts kept **30 days by default** (free tier; no data-processing agreement in place). Opted-out prompts are not used to train models. |
+| **Cohere** (language provider) | Voice transcript, locale, timezone | Prompts kept **30 days by default**. On our current free tier there is **no training opt-out and no data-processing agreement**, so prompts may be used for model improvement. Upgrading our Cohere plan would change this row. |
 | **Aiven** (database hosting) | Encrypted account and expense records | As per account lifetime below |
 | **Render** (API hosting) | Data you send and receive while using the app | Operational logs ≤ 30 days |
 | **Vercel** (app download hosting) | Standard web delivery signals | Per their policy |

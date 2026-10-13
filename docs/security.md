@@ -84,7 +84,7 @@ All `.env` files are gitignored — only `*.example` is committed. If a real sec
 | `users.email` | **AES-256-GCM + HMAC blind index ✅ since 2026-10-10 (merged to `main` via PR #44)** — `temp_*` + `email_hmac`, 4/4 backfilled, login via username/email verified | Keep; drop legacy per email MIG-05 |
 | `request_ip`, `reject_reason` | Plaintext ⚠️ | Minimization/TTL + structured enum (ENC-03–04) |
 | `expenses.amount` | Plaintext (needed for `SUM()`) | **Stays plaintext v1** by decision D-1, compensated by TLS + no-logging + isolation (ENC-06) |
-| Voice transcripts | In-memory + Cohere call, 30-day Cohere-side retention default (recorded 2026-10-13; ZDR enterprise-only) | Prompt minimal (no username/email) + no persist + "Data Controls" opt-out on; DPA via privacy@cohere.com pending (ENC-07, D-6) |
+| Voice transcripts | In-memory + Cohere call, 30-day Cohere-side retention default; training opt-out absent on free tier (assume improvement use) | Prompt minimal (no username/email) + no persist; upgrade plan for ZDR/DPA (ENC-07, D-6) |
 | Backups | Aiven encrypted ✅ / manual dumps unknown ⚠️ | GPG-encrypt any manual dump; test restore (OPS-02) |
 
 ## 9. Accounts, deletion, retention
@@ -98,7 +98,7 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ## 11. Known gaps (do not ship store build until P0+P1 land)
 
-**Fixed 2026-10-10–11 (PR #40/#42/#44 on `main`, plus `c7581ca`):** bearer-token logging, hash-dumping script, SQL-param logs, PUT/DELETE 500 crash, description + email at rest, 61 duplicate `email_N` keys, user self-delete, auth rate limits (AUTH-04), Aiven verified SSL (`rejectUnauthorized:true` with `DB_CA_CERT`). Still open: no `helmet`/HSTS · 6-char passwords + shared JWT secret + 1h tokens · plaintext IP/reason · `allowBackup=true` · tokens in WebView storage · Cohere DPA + "Data Controls" opt-out confirmation (retention recorded 30-day default 2026-10-13) · ISO-`Z` date 500 (#41). Ops watch 2026-10-11: Render `expenses` init hits transient `ER_LOCK_DEADLOCK 1213` on `ADD COLUMN temp_*` (converges ~1 column per boot; cause = concurrent DDL incl. local dev pointed at prod Aiven — stop local prod writes during deploys, retry restart). Each has an ID in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md) §4.
+**Fixed 2026-10-10–11 (PR #40/#42/#44 on `main`, plus `c7581ca`):** bearer-token logging, hash-dumping script, SQL-param logs, PUT/DELETE 500 crash, description + email at rest, 61 duplicate `email_N` keys, user self-delete, auth rate limits (AUTH-04), Aiven verified SSL (`rejectUnauthorized:true` with `DB_CA_CERT`). Still open: no `helmet`/HSTS · 6-char passwords + shared JWT secret + 1h tokens · plaintext IP/reason · `allowBackup=true` · tokens in WebView storage · Cohere free-tier training/retention posture (opt-out + DPA unavailable; needs plan upgrade) · ISO-`Z` date 500 (#41). Ops watch 2026-10-11: Render `expenses` init hits transient `ER_LOCK_DEADLOCK 1213` on `ADD COLUMN temp_*` (converges ~1 column per boot; cause = concurrent DDL incl. local dev pointed at prod Aiven — stop local prod writes during deploys, retry restart). Each has an ID in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md) §4.
 
 ## 12. Runbook (common tasks)
 
