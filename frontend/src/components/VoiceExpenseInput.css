@@ -49,6 +49,16 @@
   font-size: 0.78rem;
   line-height: 1.4;
   margin: 0.35rem 0 0;
+  overflow-wrap: break-word;
+}
+
+/* Idle hint sits inside .dashboard-heading grid (44px 1fr 44px) next to the
+   mic button — span the full row so text isn't squeezed into one column. */
+.dashboard-heading > .voice-privacy-hint {
+  grid-column: 1 / -1;
+  margin-left: auto;
+  max-width: 340px;
+  text-align: right;
 }
 
 .voice-panel {
@@ -184,8 +194,11 @@
   border-radius: 10px;
   color: var(--text-primary) !important;
   max-width: 100%;
+  overflow-wrap: break-word;
   padding: 0.65rem 0.75rem;
   text-align: left;
+  white-space: pre-wrap;
+  width: 100%;
 }
 
 .voice-spinner {
@@ -216,7 +229,10 @@
   color: #fff;
   margin: 0 0 1rem auto;
   max-width: 92%;
+  overflow-wrap: break-word;
   padding: 0.7rem 0.85rem;
+  text-align: left;
+  white-space: pre-wrap;
 }
 
 .voice-draft-card {
