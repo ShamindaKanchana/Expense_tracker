@@ -76,7 +76,7 @@ Out of scope: rooted-device OS compromise, Aiven disk theft (covered by Aiven AE
 | D-3 | Search on encrypted columns? | HMAC index vs no search | **No search on `description` v1**; HMAC index on `email` only if email-login kept |
 | D-4 | Native wrapper | Capacitor vs TWA | **RESOLVED: Capacitor** — shell exists on `feature/mobile-capacitor-plan`; merge + harden per §4F |
 | D-5 | User self-delete | `DELETE /api/auth/me` vs admin-only | **Add self-delete** (Play requires it); keep admin delete |
-| D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **DECIDED 2026-10-11: Cohere in prod** (`LLM_PROVIDER=cohere`, model per `LLM_MODEL` on Render, `VOICE_ALLOW_MOCK=false` confirmed, timeout 15s / retries ≤2). Prompt sends transcript+locale+timezone only (no username/email/userId — verified `prompt.js`); mock fails closed in prod. Remaining: confirm Cohere retention opt-out + DPA, then declare in privacy + Data Safety |
+| D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **DECIDED 2026-10-11: Cohere in prod** (`LLM_PROVIDER=cohere`, model per `LLM_MODEL` on Render, `VOICE_ALLOW_MOCK=false` confirmed, timeout 15s / retries ≤2). Prompt sends transcript+locale+timezone only (no username/email/userId — verified `prompt.js`); mock fails closed in prod. **Cohere terms recorded 2026-10-13:** prompts kept **30 days by default** (Zero Data Retention = approved enterprise only); prompts/generations **not used for training when opted out** (toggle under Cohere Platform **"Data Controls"** — verify opt-out is on); DPA for GDPR/enterprise via **privacy@cohere.com** (request pending). Declare 30-day retention in privacy + Data Safety until ZDR/DPA lands |
 
 ---
 
@@ -92,7 +92,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 - [ ] **ENC-04 `reject_reason` structured.** Enum (`invalid_user`, `duplicate`, `abuse`, `other`) + ≤140-char note, encrypted as ENC-01, purged with row.
 - [ ] **ENC-05 Key management.** `ENC_KEY` (base64 32B) + `ENC_KEY_ID` from **server env/KMS only** — never repo/frontend/logs. Rotation: `enc_v=2` rows, background re-encrypt, old key read-only 30 days. Dev key ≠ prod key.
 - [ ] **ENC-06 `amount` explicitly NOT encrypted v1.** Record rationale (aggregation) + compensations: TLS-only, Aiven encryption, no amount in logs/URLs/errors, admin API never returns others' amounts.
-- [ ] **ENC-07 Voice transcripts minimized + not persisted.** Send only transcript+locale+timezone to LLM (no username/email/user_id in prompt — verified `prompt.js` 2026-10-11); never store raw transcript server-side beyond request scope (draft endpoint does not persist — verified); LLM request/response excluded from logs (route logs `error.message` only — verified); document Cohere retention (D-6, retention opt-out pending).
+- [ ] **ENC-07 Voice transcripts minimized + not persisted.** Send only transcript+locale+timezone to LLM (no username/email/user_id in prompt — verified `prompt.js` 2026-10-11); never store raw transcript server-side beyond request scope (draft endpoint does not persist — verified); LLM request/response excluded from logs (route logs `error.message` only — verified); Cohere retention recorded 2026-10-13 (30-day default; training excluded when opted out — confirm "Data Controls" opt-out is on).
 
 ### B — Transport & API hardening
 
@@ -175,7 +175,7 @@ Tick `[x]` when shipped + verified. IDs are stable for branch references.
 ## 7. Open questions for owner
 
 1. Email-login keep (HMAC index) or username-only to simplify ENC-02?
-2. ~~Prod LLM provider pick~~ DECIDED: Cohere (2026-10-11). Remaining: DPA/retention terms + logging opt-out? (D-6)
+2. ~~Prod LLM provider pick~~ DECIDED: Cohere (2026-10-11). Retention recorded 2026-10-13 (30-day default; ZDR enterprise-only). Remaining: confirm "Data Controls" opt-out is on + email privacy@cohere.com for DPA? (D-6)
 3. Retention OK (reset 90d, logs 30d, voice artifacts 30d)?
 4. Prod `ENC_KEY` + `LLM_*_API_KEY` holder (Render env vs external KMS)?
 5. Merge `feature/mobile-capacitor-plan` to `main` now, or after P1 encryption lands?
