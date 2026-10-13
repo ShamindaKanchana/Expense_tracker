@@ -180,6 +180,7 @@
     "languageName": "English (Sri Lanka)",
     "listening": "Listening…",
     "speakHelp": "Say the item, amount, category, and date naturally.",
+    "privacyHint": "Voice is transcribed on your device and sent to Cohere to extract the expense — avoid speaking account numbers or other people's names.",
     "stop": "Stop recording",
     "processing": "Preparing your expense…",
     "processingHelp": "Converting the transcript into a reviewed draft.",

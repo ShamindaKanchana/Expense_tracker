@@ -436,6 +436,9 @@ const VoiceExpenseInput = ({ onSaved }) => {
       >
         <MicIcon />
       </button>
+      {stage === 'idle' && (
+        <p className="voice-privacy-hint">{t('voice.privacyHint')}</p>
+      )}
 
       {stage !== 'idle' && (
         <section className="voice-panel" aria-live="polite" aria-label={t('voice.title')}>
@@ -462,6 +465,7 @@ const VoiceExpenseInput = ({ onSaved }) => {
               <time>{String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')} / 00:30</time>
               {transcript && <p className="voice-interim">{transcript}</p>}
               <p>{t('voice.speakHelp')}</p>
+              <p className="voice-privacy-hint">{t('voice.privacyHint')}</p>
               <div className="voice-actions">
                 <button type="button" className="voice-secondary" onClick={discard}>{t('common.cancel')}</button>
                 <button type="button" onClick={stopRecording}>{t('voice.stop')}</button>
