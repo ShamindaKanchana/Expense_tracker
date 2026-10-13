@@ -44,6 +44,13 @@
   outline-offset: 3px;
 }
 
+.voice-privacy-hint {
+  color: var(--text-muted, #6c757d);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  margin: 0.35rem 0 0;
+}
+
 .voice-panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
