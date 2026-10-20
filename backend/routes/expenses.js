@@ -1,10 +1,33 @@
 const express = require('express');
 const router = express.Router();
+const { z } = require('zod');
 const Expense = require('../models/Expense');
 const db = require('../config/db');
 const auth = require('../middleware/auth');
 const path = require('path');
-const { isExpenseCategory } = require('../domain/expenseCategories');
+const { EXPENSE_CATEGORIES } = require('../domain/expenseCategories');
+const { validateBody } = require('../middleware/validateBody');
+
+// AUTH-05: strict body schema for create/update. Amount bound 0–1e9 with at
+// most 2 decimal places; description capped at 500 chars.
+const amountSchema = z
+  .number()
+  .finite()
+  .positive()
+  .max(1000000000)
+  .refine(
+    (value) => Math.round(value * 100) / 100 === value,
+    'Amount supports at most 2 decimal places'
+  );
+
+const expenseBodySchema = z
+  .object({
+    amount: amountSchema,
+    description: z.string().trim().min(1).max(500),
+    category: z.enum(EXPENSE_CATEGORIES),
+    date: z.union([z.string().min(1).max(40), z.date()]).optional()
+  })
+  .strict();
 
 // Test database connection (MySQL)
 router.get('/test-db', async (req, res) => {
@@ -20,10 +43,10 @@ router.get('/test-db', async (req, res) => {
       tables: tables.map(t => t.table_name)
     });
   } catch (err) {
+    console.error('test-db error:', err.message);
     res.status(500).json({
       success: false,
-      error: 'Failed to connect to database',
-      details: err.message
+      error: 'Failed to connect to database'
     });
   }
 });
@@ -161,7 +184,7 @@ router.get('/years', auth, async (req, res) => {
     res.json({ years });
   } catch (error) {
     console.error('Error fetching expense years:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -184,10 +207,9 @@ router.get('/monthly', auth, async (req, res) => {
     // Pass year into the model so SQL filters YEAR(date) = ?
     Expense.getMonthlySummary(userId, year, null, (err, monthlyData) => {
       if (err) {
-        console.error('Error getting monthly summary:', err);
+        console.error('Error getting monthly summary:', err.message);
         return res.status(500).json({
-          message: 'Error getting monthly summary',
-          error: err.message
+          message: 'Error getting monthly summary'
         });
       }
 
@@ -201,10 +223,9 @@ router.get('/monthly', auth, async (req, res) => {
       res.json(formattedData);
     });
   } catch (err) {
-    console.error('Error in monthly summary route:', err);
+    console.error('Error in monthly summary route:', err.message);
     res.status(500).json({
-      message: 'Server error',
-      error: err.message
+      message: 'Server error'
     });
   }
 });
@@ -282,7 +303,7 @@ router.get('/list', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error in expense list endpoint:', error);
-    res.status(500).json({ success: false, message: 'Server error while fetching expense list', error: error.message });
+    res.status(500).json({ success: false, message: 'Server error while fetching expense list' });
   }
 });
 
@@ -364,7 +385,7 @@ router.get('/recent', auth, async (req, res) => {
     res.json(expenses);
   } catch (error) {
     console.error('Error fetching recent expenses:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -406,10 +427,9 @@ router.get('/categories', auth, async (req, res) => {
     
     res.json(categories);
   } catch (error) {
-    console.error('Error in categories route:', error);
+    console.error('Error in categories route:', error.message);
     res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message 
+      message: 'Server error'
     });
   }
 });
@@ -417,30 +437,16 @@ router.get('/categories', auth, async (req, res) => {
 // @route   POST /api/expenses
 // @desc    Add a new expense
 // @access  Private
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, validateBody(expenseBodySchema), async (req, res) => {
   try {
-    // 1. Validate request data
     const { amount, description, category, date } = req.body;
-    
-    if (!amount || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ message: 'Please provide a valid amount' });
-    }
-    
-    if (!description || description.trim() === '') {
-      return res.status(400).json({ message: 'Please provide a description' });
-    }
-    
-    const normalizedCategory = String(category || '').trim();
-    if (!isExpenseCategory(normalizedCategory)) {
-      return res.status(400).json({ message: 'Please provide a valid category' });
-    }
 
-    // 2. Create new expense instance
+    // Create new expense instance (body already schema-validated)
     const expense = new Expense({
       userId: req.user.id,
       amount: parseFloat(amount),
       description: description.trim(),
-      category: normalizedCategory,
+      category,
       date: date || new Date().toISOString()
     });
 
@@ -448,7 +454,7 @@ router.post('/', auth, async (req, res) => {
     expense.save((err, savedExpense) => {
       if (err) {
         console.error('Error saving expense:', err);
-        return res.status(500).json({ message: 'Error saving expense', error: err.message });
+        return res.status(500).json({ message: 'Error saving expense' });
       }
       
       // 4. Return created expense
@@ -457,32 +463,21 @@ router.post('/', auth, async (req, res) => {
     
   } catch (err) {
     console.error('Error adding expense:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 // @route   PUT /api/expenses/:id
 // @desc    Update an expense
 // @access  Private
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, validateBody(expenseBodySchema), async (req, res) => {
   try {
     const { amount, description, category, date } = req.body;
     const { id } = req.params;
     const userId = req.user.id;
 
-    // Validate request data
-    if (!amount || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ message: 'Please provide a valid amount' });
-    }
-    
-    if (!description || description.trim() === '') {
-      return res.status(400).json({ message: 'Please provide a description' });
-    }
-    
-    const normalizedCategory = String(category || '').trim();
-    if (!isExpenseCategory(normalizedCategory)) {
-      return res.status(400).json({ message: 'Please provide a valid category' });
-    }
+    // Body already schema-validated (AUTH-05)
+    const normalizedCategory = category;
 
     // Find and update the expense (dual-write MIG-02: legacy + encrypted)
     const cryptoEnv = Expense.encryptDescription(String(description).trim());
@@ -511,7 +506,7 @@ router.put('/:id', auth, async (req, res) => {
     res.json(row);
   } catch (err) {
     console.error('Error updating expense:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -536,7 +531,7 @@ router.delete('/:id', auth, async (req, res) => {
     res.json({ success: true, message: 'Expense deleted successfully' });
   } catch (err) {
     console.error('Error deleting expense:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
 import { clearAuth, getUser } from '../utils/authStorage';
+import { authApi } from '../services/api';
 import './Navbar.css';
 
 const readUsername = () => {
@@ -50,9 +51,12 @@ const Navbar = ({ setIsAuthenticated }) => {
   const initial = (username || 'U').charAt(0).toUpperCase();
 
   const handleLogout = () => {
-    clearAuth();
-    setIsAuthenticated(false);
-    navigate('/login');
+    // AUTH-02: revoke the refresh session server-side, then drop local state.
+    authApi.logout().finally(() => {
+      clearAuth();
+      setIsAuthenticated(false);
+      navigate('/login');
+    });
   };
 
   const isActive = (path) => (location.pathname === path ? 'active' : '');

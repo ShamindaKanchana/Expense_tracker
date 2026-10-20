@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { userJwtSecret } = require('../config/jwt');
 
 // Dev-only debug: never prints token values, headers, or decoded payloads.
 // Enable with NODE_ENV=development when debugging locally; silent in production
@@ -28,10 +29,10 @@ const auth = (req, res, next) => {
       return res.status(401).json({ message: 'No token, authorization denied' });
     }
 
-    debug('JWT Secret exists:', !!process.env.JWT_SECRET);
+    debug('JWT Secret exists:', !!userJwtSecret());
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Verify token (user secret only — admin tokens use JWT_ADMIN_SECRET)
+    const decoded = jwt.verify(token, userJwtSecret());
     debug('Decoded token: <redacted>');
 
     // Add user from payload
@@ -41,13 +42,12 @@ const auth = (req, res, next) => {
     next();
   } catch (err) {
     console.error('Auth middleware error:', err.name);
-    console.error('Error message:', err.message);
     
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Token has expired' });
     }
     
-    res.status(401).json({ message: 'Token is not valid', error: err.message });
+    res.status(401).json({ message: 'Token is not valid' });
   }
 };
 

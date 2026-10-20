@@ -137,9 +137,11 @@ const Account = ({ setIsAuthenticated }) => {
   };
 
   const handleLogout = () => {
-    clearAuth();
-    setIsAuthenticated(false);
-    navigate('/login');
+    authApi.logout().finally(() => {
+      clearAuth();
+      setIsAuthenticated(false);
+      navigate('/login');
+    });
   };
 
   const handleDeleteAccount = async (e) => {
