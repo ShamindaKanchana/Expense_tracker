@@ -46,7 +46,7 @@ Policy today: username ≥ 3 chars, password ≥ 6 chars (`routes/auth.js:29,33,
 
 * Browser ↔ API: HTTPS in prod (Vercel/Render/Railway TLS). `frontend/src/config.js` defaults to `http://localhost:5000/api` for local only — prod must set `REACT_APP_API_URL` to `https://…/api`.
 * CORS: `backend/server.js:9-35` — permissive when `NODE_ENV=development`, strict allow-list from `CORS_ALLOWED_ORIGINS` in production (exact origins, no trailing slash). Capacitor builds also need `capacitor://localhost` (+ `https://localhost`); never ship LAN-test IPs in release.
-* API ↔ DB: `backend/config/db.js` — `mysql2` pool over SSL to Aiven. **Gap:** `rejectUnauthorized:false` today — must become `true` with real `DB_CA_CERT` (TLS-01).
+* API ↔ DB: `backend/config/db.js` — `mysql2` pool over SSL to Aiven with **verified cert since 2026-10-11 (`c7581ca`): `rejectUnauthorized:true` whenever `DB_CA_CERT` is present**, localhost dev disables SSL when no CA is set, production fails fast if the cert is missing (TLS-01 DB leg done; HSTS/`helmet`/cleartext still open).
 * Headers: no `helmet()` yet (TLS-02). Error middleware (`server.js:67-74`) returns `err.message` — keep messages generic so SQL/stack never reaches clients (LOG-01).
 
 ## 5. Secrets inventory
@@ -66,7 +66,7 @@ All `.env` files are gitignored — only `*.example` is committed. If a real sec
 ## 6. Validation & abuse control
 
 * Auth/expenses: hand-rolled length/enum checks (`routes/auth.js`, `routes/expenses.js`) — being replaced by zod schemas following the voice pattern `services/voice/schema.js` (`voiceDraftRequestSchema`, AUTH-05).
-* Rate limiting: `middleware/voiceRateLimit.js` (voice 10/min) + **`middleware/rateLimit.js` since 2026-10-10 (on `dev`, AUTH-04):** login 10/15min per IP+account, admin 5/15min/IP, register 5/hr/IP, forgot 5/hr per user+IP, reset 10/hr/IP — generic 429 + `Retry-After`, live-verified. Single-process store (needs Redis if multi-instance).
+* Rate limiting: `middleware/voiceRateLimit.js` (voice 10/min) + **`middleware/rateLimit.js` (AUTH-04, merged to `main` via PR #44):** login 10/15min per IP+account, admin 5/15min/IP, register 5/hr/IP, forgot 5/hr per user+IP, reset 10/hr/IP — generic 429 + `Retry-After`, live-verified. Single-process store (needs Redis if multi-instance).
 * Uploads: none. No `REQUEST_INSTALL_PACKAGES` or extra Android permissions beyond `INTERNET` + `RECORD_AUDIO`.
 
 ## 7. Storage, logs, device
@@ -81,15 +81,15 @@ All `.env` files are gitignored — only `*.example` is committed. If a real sec
 |------|-------|------------------------------|
 | Passwords, reset codes | bcrypt ✅ | Keep |
 | `expenses.description` | **AES-256-GCM ✅ since 2026-10-10 (PR #42)** — `temp_*` + `enc_v`, 132/132 backfilled, dual-read w/ legacy fallback until MIG-05 | Keep; drop legacy per MIG-05 |
-| `users.email` | **AES-256-GCM + HMAC blind index ✅ since 2026-10-10 (on `dev`)** — `temp_*` + `email_hmac`, 4/4 backfilled, login via username/email verified | Keep; drop legacy per email MIG-05 |
+| `users.email` | **AES-256-GCM + HMAC blind index ✅ since 2026-10-10 (merged to `main` via PR #44)** — `temp_*` + `email_hmac`, 4/4 backfilled, login via username/email verified | Keep; drop legacy per email MIG-05 |
 | `request_ip`, `reject_reason` | Plaintext ⚠️ | Minimization/TTL + structured enum (ENC-03–04) |
 | `expenses.amount` | Plaintext (needed for `SUM()`) | **Stays plaintext v1** by decision D-1, compensated by TLS + no-logging + isolation (ENC-06) |
-| Voice transcripts | In-memory + LLM call, no retention policy yet | Minimize prompt (no username/email), no persist, confirm provider zero-retention (ENC-07, D-6) |
+| Voice transcripts | In-memory + Cohere call, 30-day Cohere-side retention default; training opt-out absent on free tier (assume improvement use) | Prompt minimal (no username/email) + no persist; upgrade plan for ZDR/DPA (ENC-07, D-6) |
 | Backups | Aiven encrypted ✅ / manual dumps unknown ⚠️ | GPG-encrypt any manual dump; test restore (OPS-02) |
 
 ## 9. Accounts, deletion, retention
 
-* Admin can delete any user (cascade wipes expenses + reset rows). **Users can self-delete since 2026-10-10 (on `dev`, PLAY-01):** `DELETE /api/auth/me` with password confirm → same cascade (verified 0 orphans); UI in Account danger zone; deletion URL for Data Safety still needs hosting (PLAY-02).
+* Admin can delete any user (cascade wipes expenses + reset rows). **Users can self-delete since 2026-10-10 (PLAY-01, merged to `main` via PR #44):** `DELETE /api/auth/me` with password confirm → same cascade (verified 0 orphans); UI in Account danger zone; deletion URL for Data Safety still needs hosting (PLAY-02).
 * Retention targets: reset rows 90d, logs 30d, voice artifacts 30d, expenses until user deletes (OPS-01, privacy policy).
 
 ## 10. Play Store mapping (summary — full checklist in Play SRS §4D/F)
@@ -98,7 +98,7 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ## 11. Known gaps (do not ship store build until P0+P1 land)
 
-**Fixed 2026-10-10 (PR #40/#42 on `main`, ENC-02 + PLAY-01 on `dev`):** bearer-token logging, hash-dumping script, SQL-param logs, PUT/DELETE 500 crash, description + email at rest, 61 duplicate `email_N` keys, user self-delete. Still open: `rejectUnauthorized:false` · no `helmet` · auth rate limits missing · 6-char passwords + shared JWT secret + 1h tokens · plaintext IP/reason · `allowBackup=true` · tokens in WebView storage · voice provider/sharing undecided · no self-delete · ISO-`Z` date 500 (#41). Each has an ID in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md) §4.
+**Fixed 2026-10-10–11 (PR #40/#42/#44 on `main`, plus `c7581ca`):** bearer-token logging, hash-dumping script, SQL-param logs, PUT/DELETE 500 crash, description + email at rest, 61 duplicate `email_N` keys, user self-delete, auth rate limits (AUTH-04), Aiven verified SSL (`rejectUnauthorized:true` with `DB_CA_CERT`). Still open: no `helmet`/HSTS · 6-char passwords + shared JWT secret + 1h tokens · plaintext IP/reason · `allowBackup=true` · tokens in WebView storage · Cohere free-tier training/retention posture (opt-out + DPA unavailable; needs plan upgrade) · ISO-`Z` date 500 (#41). Ops watch 2026-10-11: Render `expenses` init hits transient `ER_LOCK_DEADLOCK 1213` on `ADD COLUMN temp_*` (converges ~1 column per boot; cause = concurrent DDL incl. local dev pointed at prod Aiven — stop local prod writes during deploys, retry restart). Each has an ID in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md) §4.
 
 ## 12. Runbook (common tasks)
 
@@ -109,4 +109,4 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ---
 
-*Changelog: v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. v3 same day: ENC-02 shipped on `dev` (email encrypted + HMAC index, 4/4 backfilled, logins verified), 61 duplicate `email_N` keys dropped. v4 same day: PLAY-01 shipped on `dev` (`DELETE /api/auth/me`, cascade verified, trilingual danger-zone UI). v5 same day: AUTH-04 shipped on `dev` (hardcoded limits, live-verified trip points). Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*
+*Changelog: v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. v3 same day: ENC-02 shipped on `dev` (email encrypted + HMAC index, 4/4 backfilled, logins verified), 61 duplicate `email_N` keys dropped. v4 same day: PLAY-01 shipped on `dev` (`DELETE /api/auth/me`, cascade verified, trilingual danger-zone UI). v5 same day: AUTH-04 shipped on `dev` (hardcoded limits, live-verified trip points). v6 2026-10-11: PR #44 merged to `main` (ENC-02 + PLAY-01 + AUTH-04 live on prod branch); `c7581ca` enforces Aiven verified SSL (`rejectUnauthorized:true` + `DB_CA_CERT`, Render redeploy verified `Successfully connected`, no unverified-SSL warning). Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*

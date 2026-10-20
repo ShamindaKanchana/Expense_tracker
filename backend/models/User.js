@@ -49,16 +49,27 @@ const initTable = async () => {
     }
     // ENC-02 convergence: bring pre-encryption DBs up to the encrypted schema.
     // Duplicate-column/index errors mean it is already there — safe to ignore.
+    // Deadlocks (ER_LOCK_DEADLOCK 1213) are transient under concurrent DDL — retry.
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const alter of [
       'ALTER TABLE users ADD COLUMN temp_email_enc TEXT NULL',
       'ALTER TABLE users ADD COLUMN temp_email_iv VARCHAR(32) NULL',
       'ALTER TABLE users ADD COLUMN email_hmac VARCHAR(64) NULL',
       'ALTER TABLE users ADD INDEX idx_users_email_hmac (email_hmac)'
     ]) {
-      try {
-        await db.query(alter);
-      } catch (alterErr) {
-        if (alterErr.code !== 'ER_DUP_FIELDNAME' && alterErr.code !== 'ER_DUP_KEYNAME') {
+      let done = false;
+      for (let attempt = 1; attempt <= 3 && !done; attempt += 1) {
+        try {
+          await db.query(alter);
+          done = true;
+        } catch (alterErr) {
+          if (alterErr.code === 'ER_DUP_FIELDNAME' || alterErr.code === 'ER_DUP_KEYNAME') { done = true; break; }
+          const deadlock = alterErr.code === 'ER_LOCK_DEADLOCK' || alterErr.errno === 1213;
+          if (deadlock && attempt < 3) {
+            console.warn(`Deadlock on users migration (attempt ${attempt}/3), retrying:`, alterErr.message);
+            await sleep(500 * attempt);
+            continue;
+          }
           throw alterErr;
         }
       }
