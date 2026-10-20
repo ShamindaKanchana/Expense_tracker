@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { adminJwtSecret } = require('../config/jwt');
 
 /**
  * Require a JWT with role === 'admin'. User tokens must not pass.
@@ -15,11 +16,14 @@ const adminAuth = (req, res, next) => {
       return res.status(401).json({ message: 'No token, authorization denied' });
     }
 
-    if (!process.env.JWT_SECRET) {
+    const secret = adminJwtSecret();
+    if (!secret) {
       return res.status(500).json({ message: 'Server misconfiguration' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Verify with the admin secret only — a user token signed with
+    // JWT_USER_SECRET cannot validate here even if role checks were bypassed.
+    const decoded = jwt.verify(token, secret);
 
     if (decoded.role !== 'admin' || !decoded.adminId) {
       return res.status(403).json({ message: 'Admin access required' });

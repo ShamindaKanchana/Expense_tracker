@@ -12,7 +12,8 @@ import AdminLogin from './components/admin/AdminLogin';
 import AdminDashboard from './components/admin/AdminDashboard';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-import { getToken } from './utils/authStorage';
+import { getToken, setAuth, getUser } from './utils/authStorage';
+import { authApi } from './services/api';
 import './App.css';
 
 function App() {
@@ -23,10 +24,25 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (getToken()) {
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+    const bootstrap = async () => {
+      if (getToken()) {
+        setIsAuthenticated(true);
+        setLoading(false);
+        return;
+      }
+
+      // AUTH-02: no access token (15-min expiry or new tab) — try the
+      // httpOnly refresh cookie for a silent restore before showing login.
+      const token = await authApi.refresh();
+      if (token) {
+        const user = getUser();
+        // Preserve the previous remember-me bucket (default localStorage).
+        setAuth(token, user, true);
+        setIsAuthenticated(true);
+      }
+      setLoading(false);
+    };
+    bootstrap();
   }, []);
 
   useEffect(() => {

@@ -223,6 +223,19 @@ The [README.md](../README.md) database section is **outdated**. Differences from
 
 ---
 
+## Retention & purge (OPS-01, owner-confirmed 2026-10-20)
+
+| Data | Retention | Mechanism |
+|------|-----------|-----------|
+| `password_reset_requests` rows (incl. `request_ip`, `reject_reason`, `code_hash`) | **90 days** from `created_at` | `backend/scripts/purge-retention.js` (DELETE); scheduled nightly ~03:00 server time by `server.js` unless `RETENTION_JOB=false`. Codes themselves expire in 30 min (`CODE_EXPIRY_MINUTES`); rows are status-marked until the 90d purge removes them. |
+| `password_reset_requests.request_ip` | Same 90d (row-level) | Deleted with its row; never returned to admin UI (`listPending` omits the column). Minimization (ENC-03) tracked separately. |
+| Server logs | **30 days** | App writes stdout only; retention is platform-side (Render dashboard log retention — confirm setting there). No file logs, no in-app log store. |
+| Voice transcripts/artifacts | **None stored** | Draft endpoint persists nothing (ENC-07); transcripts live in request memory only. Rule if that ever changes: delete artifacts > 30 days. |
+
+Manual run: `node scripts/purge-retention.js` (add `--dry-run` to count candidates first).
+
+---
+
 ## Related docs
 
 - [api.md](./api.md) — REST endpoints that read/write these tables

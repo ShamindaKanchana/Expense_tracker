@@ -2,30 +2,34 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { z } = require('zod');
 const Admin = require('../models/Admin');
 const User = require('../models/User');
 const PasswordResetRequest = require('../models/PasswordResetRequest');
 const adminAuth = require('../middleware/adminAuth');
 const { adminLoginRateLimit } = require('../middleware/rateLimit');
+const { adminJwtSecret, missingAdminSecretMessage } = require('../config/jwt');
+const { validateBody } = require('../middleware/validateBody');
 const db = require('../config/db');
 
-if (!process.env.JWT_SECRET) {
-  console.error('FATAL ERROR: JWT_SECRET is not defined (admin routes).');
+if (!adminJwtSecret()) {
+  console.error('FATAL ERROR:', missingAdminSecretMessage, '(admin routes).');
 }
+
+const adminLoginSchema = z
+  .object({
+    username: z.string().trim().min(1).max(100),
+    password: z.string().min(1).max(128)
+  })
+  .strict();
 
 // @route   POST /api/admin/login
 // @desc    Admin sign-in (separate from user auth)
 // @access  Public
-router.post('/login', adminLoginRateLimit, async (req, res) => {
+router.post('/login', adminLoginRateLimit, validateBody(adminLoginSchema), async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     const password = req.body.password;
-
-    if (!username || !password) {
-      return res.status(400).json({
-        message: 'Please enter admin username and password.'
-      });
-    }
 
     const admin = await new Promise((resolve, reject) => {
       Admin.findByUsername(username, (err, row) => {
@@ -47,10 +51,12 @@ router.post('/login', adminLoginRateLimit, async (req, res) => {
       });
     }
 
+    // AUTH-02: admin sessions are short-lived by design — 15 minutes,
+    // no refresh token / remember-me. Admin re-authenticates on expiry.
     const token = jwt.sign(
       { adminId: admin.id, role: 'admin' },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      adminJwtSecret(),
+      { expiresIn: '15m' }
     );
 
     res.json({
@@ -232,18 +238,39 @@ router.post('/password-resets/:id/approve', adminAuth, async (req, res) => {
 // @route   POST /api/admin/password-resets/:id/reject
 // @desc    Reject a pending password reset request
 // @access  Admin
-router.post('/password-resets/:id/reject', adminAuth, async (req, res) => {
+const rejectSchema = z
+  .object({
+    code: z
+      .enum(PasswordResetRequest.REJECT_CODES)
+      .optional(),
+    note: z.string().trim().max(PasswordResetRequest.REJECT_NOTE_MAX).optional()
+  })
+  .strict();
+
+router.post(
+  '/password-resets/:id/reject',
+  adminAuth,
+  validateBody(rejectSchema),
+  async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (Number.isNaN(id) || id < 1) {
       return res.status(400).json({ message: 'Invalid request id.' });
     }
 
-    const reason = req.body.reason
-      ? String(req.body.reason).trim().slice(0, 500)
-      : null;
+    // ENC-04: structured reason — closed enum code + optional ≤140-char note
+    // (note is encrypted at rest by the model; 'other' should carry a note).
+    const code =
+      typeof req.body.code === 'string' &&
+      PasswordResetRequest.REJECT_CODES.includes(req.body.code)
+        ? req.body.code
+        : null;
+    const note =
+      typeof req.body.note === 'string' && req.body.note.trim()
+        ? req.body.note.trim().slice(0, PasswordResetRequest.REJECT_NOTE_MAX)
+        : null;
 
-    const result = await PasswordResetRequest.reject(id, req.admin.id, reason);
+    const result = await PasswordResetRequest.reject(id, req.admin.id, code, note);
     if (result.error === 'not_found') {
       return res.status(404).json({ message: 'Request not found.' });
     }
