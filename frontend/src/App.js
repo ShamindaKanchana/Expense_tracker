@@ -6,6 +6,7 @@ import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import AddExpense from './components/AddExpense';
 import MonthlyExpenses from './components/MonthlyExpenses';
+import Reports from './components/Reports';
 import Account from './components/Account';
 import Navbar from './components/Navbar';
 import AdminLogin from './components/admin/AdminLogin';
@@ -120,6 +121,10 @@ function App() {
             element={
               isAuthenticated ? <MonthlyExpenses /> : <Navigate to="/login" />
             }
+          />
+          <Route
+            path="/reports"
+            element={isAuthenticated ? <Reports /> : <Navigate to="/login" />}
           />
           <Route
             path="/account"

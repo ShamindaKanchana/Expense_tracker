@@ -607,13 +607,15 @@ Empty list if the user has no expenses: `{ "years": [] }`.
 | | |
 |--|--|
 | **Access** | Private |
-| **Description** | Expenses grouped by category, optionally filtered by month and year. |
-| **Used by** | Dashboard, Monthly Report, Add Expense |
+| **Description** | Expenses grouped by category, optionally filtered by month/year or by an inclusive date range. |
+| **Used by** | Dashboard, Monthly Report, Reports |
 
 **Query parameters**
 
 | Param | Required | Notes |
 |-------|----------|-------|
+| `startDate` | No | Inclusive start date (`YYYY-MM-DD`). Must be sent together with `endDate`. Takes precedence over `month`/`year`. |
+| `endDate` | No | Inclusive end date (`YYYY-MM-DD`). All timestamps on this day are included. |
 | `month` | No | Month number (`01`–`12`) |
 | `year` | No | Four-digit year; use together with `month` |
 
@@ -637,14 +639,17 @@ Empty list if the user has no expenses: `{ "years": [] }`.
 | | |
 |--|--|
 | **Access** | Private |
-| **Description** | Paginated list of individual expense records for the logged-in user, optionally filtered by month and year. Used by Monthly Report to show expense details on demand. |
+| **Description** | Paginated list of individual expense records for the logged-in user, optionally filtered by month/year or by an inclusive date range. Used by Monthly Report and Reports to show expense details. |
 
 **Query parameters**
 
 | Param | Required | Notes |
 |-------|----------|-------|
+| `startDate` | No | Inclusive start date (`YYYY-MM-DD`). Must be sent together with `endDate`. Takes precedence over `month`/`year`. |
+| `endDate` | No | Inclusive end date (`YYYY-MM-DD`). All timestamps on this day are included. |
 | `month` | No | Month number (`01`–`12`) |
 | `year` | No | Four-digit year; use together with `month` |
+| `category` | No | Exact category name filter |
 | `page` | No | Page number (default `1`) |
 | `limit` | No | Items per page (default `10`, max `50`) |
 
@@ -721,7 +726,7 @@ If no expenses exist: `data` is `null`.
 | `GET` | `/api/expenses/years` | Private | Years with expense data |
 | `GET` | `/api/expenses/monthly` | Private | Monthly breakdown |
 | `GET` | `/api/expenses/categories` | Private | Category breakdown |
-| `GET` | `/api/expenses/list` | Private | Paginated expense list (filter by month/year) |
+| `GET` | `/api/expenses/list` | Private | Paginated expense list (filter by month/year or date range) |
 | `GET` | `/api/expenses/top-category` | Private | Top category |
 | `POST` | `/api/voice-expenses/draft` | Private | Extract an unsaved structured draft from a transcript |
 

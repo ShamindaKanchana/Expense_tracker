@@ -8,6 +8,39 @@ const path = require('path');
 const { EXPENSE_CATEGORIES } = require('../domain/expenseCategories');
 const { validateBody } = require('../middleware/validateBody');
 
+// RPT-01: parse an optional inclusive date range (YYYY-MM-DD) from query params.
+// Returns { startDate, endDate } (null when absent) or { error } for invalid input.
+// Both bounds are required together so the SQL range stays unambiguous.
+const parseDateRange = (query) => {
+  const startRaw = query.startDate;
+  const endRaw = query.endDate;
+
+  if (startRaw === undefined && endRaw === undefined) {
+    return { startDate: null, endDate: null };
+  }
+
+  if (!startRaw || !endRaw) {
+    return { error: 'Provide both startDate and endDate (YYYY-MM-DD).' };
+  }
+
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+  const isValidDate = (raw) => {
+    if (!isoDate.test(raw)) return false;
+    const parsed = new Date(`${raw}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === raw;
+  };
+
+  if (!isValidDate(startRaw) || !isValidDate(endRaw)) {
+    return { error: 'Dates must be valid calendar dates in YYYY-MM-DD format.' };
+  }
+
+  if (startRaw > endRaw) {
+    return { error: 'startDate must be on or before endDate.' };
+  }
+
+  return { startDate: startRaw, endDate: endRaw };
+};
+
 // AUTH-05: strict body schema for create/update. Amount bound 0–1e9 with at
 // most 2 decimal places; description capped at 500 chars.
 const amountSchema = z
@@ -244,22 +277,33 @@ router.get('/list', auth, async (req, res) => {
     const monthParam = req.query.month;
     const yearParam = req.query.year;
 
+    const { startDate, endDate, error: rangeError } = parseDateRange(req.query);
+    if (rangeError) {
+      return res.status(400).json({ success: false, message: rangeError });
+    }
+
     let whereClause = 'WHERE user_id = ?';
     const params = [userId];
 
-    if (monthParam) {
-      const month = parseInt(monthParam, 10);
-      if (!Number.isNaN(month) && month >= 1 && month <= 12) {
-        whereClause += ' AND MONTH(`date`) = ?';
-        params.push(month);
+    if (startDate && endDate) {
+      // Inclusive range: include every timestamp on endDate
+      whereClause += ' AND `date` >= ? AND `date` < DATE_ADD(?, INTERVAL 1 DAY)';
+      params.push(startDate, endDate);
+    } else {
+      if (monthParam) {
+        const month = parseInt(monthParam, 10);
+        if (!Number.isNaN(month) && month >= 1 && month <= 12) {
+          whereClause += ' AND MONTH(`date`) = ?';
+          params.push(month);
+        }
       }
-    }
 
-    if (yearParam) {
-      const year = parseInt(yearParam, 10);
-      if (!Number.isNaN(year) && year >= 1970 && year <= 2100) {
-        whereClause += ' AND YEAR(`date`) = ?';
-        params.push(year);
+      if (yearParam) {
+        const year = parseInt(yearParam, 10);
+        if (!Number.isNaN(year) && year >= 1970 && year <= 2100) {
+          whereClause += ' AND YEAR(`date`) = ?';
+          params.push(year);
+        }
       }
     }
 
@@ -395,10 +439,15 @@ router.get('/recent', auth, async (req, res) => {
 router.get('/categories', auth, async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
+    const { startDate, endDate, error: rangeError } = parseDateRange(req.query);
+    if (rangeError) {
+      return res.status(400).json({ message: rangeError });
+    }
+
     // Get month and year from query params (optional)
     const { month, year } = req.query;
-    
+
     let sql = `
       SELECT 
         category,
@@ -407,10 +456,14 @@ router.get('/categories', auth, async (req, res) => {
       FROM expenses 
       WHERE user_id = ?
     `;
-    
+
     const params = [userId];
-    
-    if (month && year) {
+
+    if (startDate && endDate) {
+      // Inclusive range: include every timestamp on endDate
+      sql += ' AND `date` >= ? AND `date` < DATE_ADD(?, INTERVAL 1 DAY)';
+      params.push(startDate, endDate);
+    } else if (month && year) {
       sql += ' AND MONTH(`date`) = ? AND YEAR(`date`) = ?';
       params.push(parseInt(month, 10), parseInt(year, 10));
     }
