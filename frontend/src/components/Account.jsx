@@ -83,7 +83,7 @@ const Account = ({ setIsAuthenticated }) => {
       return;
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 10) {
       setPasswordError(t('account.passwordMin'));
       return;
     }
@@ -256,7 +256,7 @@ const Account = ({ setIsAuthenticated }) => {
               id="newPassword"
               name="newPassword"
               autoComplete="new-password"
-              minLength={6}
+              minLength={10}
               value={passwords.newPassword}
               onChange={handlePasswordChange}
               className="account-input"
