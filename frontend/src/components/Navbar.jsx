@@ -31,6 +31,13 @@ const IconReport = () => (
   </svg>
 );
 
+const IconRange = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75">
+    <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
+    <path d="M4 10h16M8 3.5v4M16 3.5v4" strokeLinecap="round" />
+  </svg>
+);
+
 const IconAccount = () => (
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75">
     <circle cx="12" cy="9" r="3.25" />
@@ -65,6 +72,7 @@ const Navbar = ({ setIsAuthenticated }) => {
     { to: '/dashboard', label: t('nav.home'), Icon: IconHome },
     { to: '/add-expense', label: t('nav.add'), Icon: IconAdd },
     { to: '/monthly-expenses', label: t('nav.report'), Icon: IconReport },
+    { to: '/reports', label: t('nav.range'), Icon: IconRange },
     { to: '/account', label: t('nav.account'), Icon: IconAccount }
   ];
 
@@ -84,6 +92,9 @@ const Navbar = ({ setIsAuthenticated }) => {
           </Link>
           <Link to="/monthly-expenses" className={`nav-link ${isActive('/monthly-expenses')}`}>
             {t('nav.monthlyReport')}
+          </Link>
+          <Link to="/reports" className={`nav-link ${isActive('/reports')}`}>
+            {t('nav.reports')}
           </Link>
         </div>
 

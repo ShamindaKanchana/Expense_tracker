@@ -61,6 +61,21 @@ const initTable = async () => {
         }
       }
     }
+    // RPT-01: index for date-range aggregation/listing. MySQL has no
+    // CREATE INDEX IF NOT EXISTS, so check first (idempotent on every boot).
+    try {
+      const idxRows = await db.query(
+        `SELECT 1 FROM information_schema.statistics
+         WHERE table_schema = DATABASE()
+           AND table_name = 'expenses'
+           AND index_name = 'idx_expenses_user_date'`
+      );
+      if (!idxRows || idxRows.length === 0) {
+        await db.query('CREATE INDEX idx_expenses_user_date ON expenses (user_id, `date`)');
+      }
+    } catch (idxErr) {
+      console.warn('⚠️ Could not ensure expenses date index:', idxErr.message);
+    }
     console.log('✅ Expenses table is ready');
   } catch (err) {
     console.error('❌ Error creating expenses table:', err.message);
