@@ -26,7 +26,7 @@ const ResetPassword = () => {
       setError(t('reset.fillAll'));
       return;
     }
-    if (newPassword.length < 6) {
+    if (newPassword.length < 10) {
       setError(t('reset.passwordMin'));
       return;
     }
@@ -112,6 +112,7 @@ const ResetPassword = () => {
                 name="newPassword"
                 autoComplete="new-password"
                 required
+                minLength={10}
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder={t('reset.newPasswordPlaceholder')}
                 value={newPassword}
@@ -128,6 +129,7 @@ const ResetPassword = () => {
                 name="confirmPassword"
                 autoComplete="new-password"
                 required
+                minLength={10}
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder={t('reset.confirmPlaceholder')}
                 value={confirmPassword}

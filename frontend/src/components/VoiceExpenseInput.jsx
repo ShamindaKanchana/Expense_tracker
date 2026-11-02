@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition as NativeSpeech } from '@capacitor-community/speech-recognition';
 import api from '../services/api';
 import { translateCategory } from '../utils/categories';
 import './VoiceExpenseInput.css';
@@ -7,6 +9,12 @@ import './VoiceExpenseInput.css';
 const MAX_RECORDING_SECONDS = 30;
 const LOCALES = {
   en: 'en-LK',
+  si: 'si-LK',
+  ta: 'ta-LK'
+};
+// Native plugin language tags (device packs rarely include en-LK).
+const NATIVE_LOCALES = {
+  en: 'en-US',
   si: 'si-LK',
   ta: 'ta-LK'
 };
@@ -67,22 +75,36 @@ const VoiceExpenseInput = ({ onSaved }) => {
   const intervalRef = useRef(null);
   const timeoutRef = useRef(null);
   const successTimeoutRef = useRef(null);
+  const stopFnRef = useRef(null);
+  const nativeActiveRef = useRef(false);
+  // Set after startWebRecording is defined (avoids init-order issues).
+  const webRecorderRef = useRef(null);
+  const lastPartialRef = useRef(0);
+  const silenceIntervalRef = useRef(null);
 
   const clearRecordingTimers = useCallback(() => {
     window.clearInterval(intervalRef.current);
     window.clearTimeout(timeoutRef.current);
+    window.clearInterval(silenceIntervalRef.current);
     intervalRef.current = null;
     timeoutRef.current = null;
+    silenceIntervalRef.current = null;
   }, []);
 
   const reset = useCallback(() => {
     clearRecordingTimers();
     shouldProcessRef.current = false;
+    stopFnRef.current = null;
     if (recognitionRef.current) {
       recognitionRef.current.onend = null;
       recognitionRef.current.onerror = null;
       recognitionRef.current.abort();
       recognitionRef.current = null;
+    }
+    if (nativeActiveRef.current) {
+      nativeActiveRef.current = false;
+      NativeSpeech.removeAllListeners().catch(() => {});
+      NativeSpeech.stop().catch(() => {});
     }
     transcriptRef.current = '';
     setTranscript('');
@@ -97,6 +119,11 @@ const VoiceExpenseInput = ({ onSaved }) => {
     window.clearTimeout(successTimeoutRef.current);
     shouldProcessRef.current = false;
     recognitionRef.current?.abort();
+    NativeSpeech.removeAllListeners().catch(() => {});
+    if (nativeActiveRef.current) {
+      nativeActiveRef.current = false;
+      NativeSpeech.stop().catch(() => {});
+    }
   }, [clearRecordingTimers]);
 
   useEffect(() => {
@@ -137,14 +164,148 @@ const VoiceExpenseInput = ({ onSaved }) => {
     }
   }, [locale, t]);
 
-  const startRecording = useCallback(() => {
-    const Recognition = getSpeechRecognition();
-    if (!Recognition) {
-      setErrorMessage(t('voice.unsupported'));
+  const finishWithText = useCallback((spokenText) => {
+    clearRecordingTimers();
+    const text = String(spokenText || '').trim();
+    if (!text) {
+      setErrorMessage(t('voice.noSpeech'));
+      setStage('error');
+      return;
+    }
+    requestDraft(text);
+  }, [clearRecordingTimers, requestDraft, t]);
+
+  const beginTimers = useCallback((onTimeout) => {
+    intervalRef.current = window.setInterval(() => {
+      setSeconds((value) => Math.min(value + 1, MAX_RECORDING_SECONDS));
+    }, 1000);
+    timeoutRef.current = window.setTimeout(onTimeout, MAX_RECORDING_SECONDS * 1000);
+  }, []);
+
+  const startNativeRecording = useCallback(async (webFallback) => {
+    try {
+      const { available } = await NativeSpeech.available().catch(() => ({ available: false }));
+      console.log('[voice] native available=' + available);
+      if (!available) {
+        if (webFallback && webRecorderRef.current) {
+          webRecorderRef.current(webFallback);
+          return;
+        }
+        setErrorMessage(t('voice.unsupported'));
+        setStage('error');
+        return;
+      }
+      // Best-effort permission check (Honor devices sometimes report stale
+      // states — log raw values and let start() be the final arbiter).
+      let permission = await NativeSpeech.checkPermissions().catch((e) => {
+        console.log('[voice] checkPermissions failed', e);
+        return null;
+      });
+      console.log('[voice] checkPermissions', JSON.stringify(permission));
+      if (!permission || (permission.speechRecognition !== 'granted' && permission.speechRecognition !== 'limited')) {
+        permission = await NativeSpeech.requestPermissions().catch((e) => {
+          console.log('[voice] requestPermissions failed', e);
+          return null;
+        });
+        console.log('[voice] requestPermissions', JSON.stringify(permission));
+      }
+      const state = permission?.speechRecognition;
+      if (state !== 'granted' && state !== 'limited') {
+        console.log('[voice] proceeding to start() despite state', state);
+      }
+    } catch {
+      setErrorMessage(t('voice.recognitionFailed'));
       setStage('error');
       return;
     }
 
+    clearRecordingTimers();
+    setErrorMessage('');
+    setResult(null);
+    setTranscript('');
+    setSeconds(0);
+    transcriptRef.current = '';
+    shouldProcessRef.current = true;
+    nativeActiveRef.current = true;
+
+    await NativeSpeech.removeAllListeners().catch(() => {});
+    await NativeSpeech.addListener('partialResults', (data) => {
+      const text = (data?.matches?.[0] || '').trim();
+      if (!text) return;
+      transcriptRef.current = text;
+      lastPartialRef.current = Date.now();
+      setTranscript(text);
+    }).catch(() => {});
+    lastPartialRef.current = 0;
+    // Mimic browser end-of-speech: 2.5s of silence after heard speech → auto-stop.
+    silenceIntervalRef.current = window.setInterval(() => {
+      if (!shouldProcessRef.current || !nativeActiveRef.current) return;
+      if (!transcriptRef.current || !lastPartialRef.current) return;
+      if (Date.now() - lastPartialRef.current > 2500) {
+        console.log('[voice] silence auto-stop');
+        window.clearInterval(silenceIntervalRef.current);
+        silenceIntervalRef.current = null;
+        const stop = stopFnRef.current;
+        stopFnRef.current = null;
+        setStage('processing');
+        stop?.();
+      }
+    }, 500);
+
+    stopFnRef.current = () => {
+      if (!nativeActiveRef.current) return;
+      nativeActiveRef.current = false;
+      NativeSpeech.removeAllListeners().catch(() => {});
+      // Some devices never settle stop() — race it so the UI can't hang.
+      const stopAttempt = NativeSpeech.stop().catch((e) => {
+        console.log('[voice] stop error', e?.message || e);
+        return null;
+      });
+      const stopTimeout = new Promise((resolve) => {
+        window.setTimeout(() => {
+          console.log('[voice] stop timeout, falling back to last transcript');
+          resolve(null);
+        }, 4000);
+      });
+      Promise.race([stopAttempt, stopTimeout]).then((res) => {
+        if (!shouldProcessRef.current) return;
+        shouldProcessRef.current = false;
+        const text = res?.matches?.[0] || transcriptRef.current;
+        console.log('[voice] stop settled, text len=' + String(text || '').length);
+        finishWithText(text);
+      });
+    };
+
+    try {
+      // popup:false keeps our own UI; result comes from stop().
+      NativeSpeech.start({
+        language: NATIVE_LOCALES[languageCode] || 'en-US',
+        maxResults: 1,
+        partialResults: true,
+        popup: false
+      }).catch((err) => {
+        if (!shouldProcessRef.current) return;
+        shouldProcessRef.current = false;
+        nativeActiveRef.current = false;
+        console.log('[voice] start failed', err?.message || err);
+        const msg = String(err?.message || '');
+        const key = /permission|denied|not-allowed|not_allowed/i.test(msg)
+          ? 'voice.permissionDenied'
+          : 'voice.recognitionFailed';
+        setErrorMessage(t(key));
+        setStage('error');
+      });
+      setStage('recording');
+      beginTimers(() => stopFnRef.current?.());
+    } catch {
+      shouldProcessRef.current = false;
+      nativeActiveRef.current = false;
+      setErrorMessage(t('voice.recognitionFailed'));
+      setStage('error');
+    }
+  }, [beginTimers, clearRecordingTimers, finishWithText, languageCode, t]);
+
+  const startWebRecording = useCallback((Recognition) => {
     clearRecordingTimers();
     setErrorMessage('');
     setResult(null);
@@ -183,38 +344,57 @@ const VoiceExpenseInput = ({ onSaved }) => {
     };
 
     recognition.onend = () => {
-      clearRecordingTimers();
       recognitionRef.current = null;
       if (!shouldProcessRef.current) return;
       shouldProcessRef.current = false;
-      const spokenText = transcriptRef.current.trim();
-      if (!spokenText) {
-        setErrorMessage(t('voice.noSpeech'));
-        setStage('error');
-        return;
-      }
-      requestDraft(spokenText);
+      stopFnRef.current = null;
+      finishWithText(transcriptRef.current);
+    };
+
+    stopFnRef.current = () => {
+      recognitionRef.current?.stop();
     };
 
     try {
       recognition.start();
       setStage('recording');
-      intervalRef.current = window.setInterval(() => {
-        setSeconds((value) => Math.min(value + 1, MAX_RECORDING_SECONDS));
-      }, 1000);
-      timeoutRef.current = window.setTimeout(() => {
-        recognition.stop();
-      }, MAX_RECORDING_SECONDS * 1000);
+      beginTimers(() => stopFnRef.current?.());
     } catch {
       shouldProcessRef.current = false;
+      stopFnRef.current = null;
       setErrorMessage(t('voice.recognitionFailed'));
       setStage('error');
     }
-  }, [clearRecordingTimers, locale, requestDraft, t]);
+  }, [beginTimers, clearRecordingTimers, finishWithText, locale, t]);
+
+  const startRecording = useCallback(() => {
+    const Recognition = getSpeechRecognition();
+    const isNative = Capacitor.isNativePlatform();
+    console.log('[voice] tap; native=' + isNative + ' webSR=' + (!!Recognition));
+    if (isNative) {
+      // On device prefer the native plugin: some WebViews expose a stub
+      // webkitSpeechRecognition that fails with not-allowed.
+      startNativeRecording(Recognition || null);
+      return;
+    }
+    if (!Recognition) {
+      setErrorMessage(t('voice.unsupported'));
+      setStage('error');
+      return;
+    }
+    startWebRecording(Recognition);
+  }, [startNativeRecording, startWebRecording, t]);
+  webRecorderRef.current = startWebRecording;
 
   const stopRecording = () => {
-    clearRecordingTimers();
     setStage('processing');
+    if (stopFnRef.current) {
+      const stop = stopFnRef.current;
+      stopFnRef.current = null;
+      stop();
+      return;
+    }
+    clearRecordingTimers();
     recognitionRef.current?.stop();
   };
 

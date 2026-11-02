@@ -90,10 +90,11 @@ Android Studio is required at least for first setup (SDK + platform-tools + USB 
 
 ## 6. Play release (later, not this branch)
 
-1. Production `REACT_APP_API_URL` → Render backend URL, rebuild, sync.
-2. App icons/splash, `RECORD_AUDIO` rationale string, version bump.
-3. **Release signing (mandatory)**: Generate a keystore with `keytool` (store securely outside repo). Create gitignored `frontend/android/keystore.properties` with `storeFile`, `storePassword`, `keyAlias`, `keyPassword`. Add `signingConfigs.release` to `frontend/android/app/build.gradle` reading from it and apply to `release`. Build signed AAB via Android Studio (*Build > Generate Signed Bundle / APK*) or `./gradlew bundleRelease` in `frontend/android/`. Never commit keystore/keys/properties.
-4. Android Studio → signed `aab`, Play Console listing (privacy policy — expenses are personal data), content rating, staged rollout.
+1. Production `REACT_APP_API_URL` → Render backend URL (`https://expense-tracker-api-bjju.onrender.com/api`), rebuild, sync. The old Railway URL (`expensetracker-production-b2a5.up.railway.app`) is dead (404) — do not use it.
+2. Backend `CORS_ALLOWED_ORIGINS` on Render must include `capacitor://localhost` and `https://localhost` (verified working).
+3. App icons/splash, `RECORD_AUDIO` rationale string, version bump.
+4. **Release signing (mandatory)**: Generate a keystore with `keytool` (store securely outside repo). Create gitignored `frontend/android/keystore.properties` with `storeFile`, `storePassword`, `keyAlias`, `keyPassword`. `frontend/android/app/build.gradle` already has a `signingConfigs.release` block that reads it. Build signed AAB via Android Studio (*Build > Generate Signed Bundle / APK*) or `./gradlew bundleRelease` in `frontend/android/`. Never commit the keystore, `keystore.properties`, or passwords.
+5. Play Console listing (privacy policy — expenses are personal data), data safety, content rating, staged rollout.
 
 ---
 
@@ -102,3 +103,4 @@ Android Studio is required at least for first setup (SDK + platform-tools + USB 
 | Date | Change |
 |------|--------|
 | 2026-09-16 | Initial Capacitor Android transition plan (docs only, no code) |
+| 2026-10-30 | Align password minimum to 10 chars (register/reset/change), add release signing config + Play checklist |
