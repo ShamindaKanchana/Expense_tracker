@@ -75,6 +75,7 @@ cp .env.example .env
 | `DB_NAME` | `expense_tracker` | Database name |
 | `DB_PORT` | `3306` | MySQL port |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Only enforced when `NODE_ENV=production` |
+| `EXPENSE_EDIT_WINDOW_HOURS` | `24` | Hours after creation an expense can be edited; `0` disables edits |
 
 > **Safety:** If `DB_HOST` points at Aiven (cloud), local dev reads and writes **production data**. Use `DB_HOST=localhost` for safe testing.
 

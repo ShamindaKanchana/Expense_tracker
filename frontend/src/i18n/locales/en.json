@@ -188,6 +188,27 @@
     "enterDescription": "Please enter a description",
     "serverHtml": "Server returned an HTML error page. Please check that the backend API is running and REACT_APP_API_URL is configured correctly."
   },
+  "expenseActions": {
+    "actions": "Actions",
+    "edit": "Edit expense",
+    "delete": "Delete expense",
+    "save": "Save changes",
+    "saving": "Saving...",
+    "editTitle": "Edit expense",
+    "editSubtitle": "Correct the details below. Changes update your reports immediately.",
+    "deleteConfirm": "Delete this expense? This cannot be undone.",
+    "deleteFailed": "Could not delete this expense. Please try again.",
+    "editFailed": "Could not save your changes. Please try again.",
+    "editExpired": "This expense can no longer be edited because the 24-hour window has closed.",
+    "notFound": "This expense no longer exists. The list has been refreshed.",
+    "editWindowHint": "Editing is available for 24 hours after an expense is added.",
+    "enterDate": "Please choose a date on or before today.",
+    "invalidAmount": "Please enter a valid amount",
+    "selectCategory": "Please select a category",
+    "enterDescription": "Please enter a description",
+    "successEdit": "Expense updated.",
+    "successDelete": "Expense deleted."
+  },
   "dashboard": {
     "title": "Dashboard",
     "totalThisMonth": "Total Spent This Month",

@@ -1,0 +1,74 @@
+.expense-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.expense-row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.expense-row-action svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.expense-row-action:hover:not(:disabled),
+.expense-row-action:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.expense-row-action--edit:hover:not(:disabled),
+.expense-row-action--edit:focus-visible {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
+}
+
+.expense-row-action--delete:hover:not(:disabled),
+.expense-row-action--delete:focus-visible {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: #ffffff;
+}
+
+.expense-row-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .expense-row-action {
+    width: 40px;
+    height: 40px;
+  }
+
+  .expense-row-action svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+.expense-action-error {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #fecaca;
+  border-radius: 0.6rem;
+  background: #fff1f2;
+  color: #991b1b;
+  font-size: 0.85rem;
+  text-align: left;
+}
