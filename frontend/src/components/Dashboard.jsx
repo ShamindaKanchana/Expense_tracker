@@ -8,6 +8,9 @@ import { getChartTheme } from '../theme/chartTheme';
 import { translateCategory } from '../utils/categories';
 import { EN_MONTHS, translateEnglishMonth } from '../utils/months';
 import VoiceExpenseInput from './VoiceExpenseInput';
+import ExpenseEditModal from './ExpenseEditModal';
+import ExpenseRowActions from './ExpenseRowActions';
+import { getErrorMessage } from '../utils/errorMessage';
 import './Dashboard.css';
 
 // Register ChartJS components
@@ -22,6 +25,9 @@ const Dashboard = () => {
   const [monthlyData, setMonthlyData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState(null);
+  const [actionError, setActionError] = useState('');
   const [totalSpent, setTotalSpent] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMonthly, setIsLoadingMonthly] = useState(true);
@@ -308,6 +314,30 @@ const Dashboard = () => {
     }
   }, [monthlyData, categoryData, maxMonth.month]);
 
+  const handleExpenseSaved = () => {
+    setEditingExpense(null);
+    setActionError('');
+    setRefreshVersion((value) => value + 1);
+  };
+
+  const handleDeleteExpense = async (expense) => {
+    if (!window.confirm(t('expenseActions.deleteConfirm'))) return;
+    setDeletingExpenseId(expense.id);
+    setActionError('');
+    try {
+      await api.delete(`/expenses/${expense.id}`);
+      setRefreshVersion((value) => value + 1);
+    } catch (err) {
+      setActionError(
+        err.status === 404
+          ? t('expenseActions.notFound')
+          : getErrorMessage(err, t('expenseActions.deleteFailed'))
+      );
+    } finally {
+      setDeletingExpenseId(null);
+    }
+  };
+
   return (
     <div className="dashboard">
       <div className="dashboard-heading">
@@ -518,6 +548,11 @@ const Dashboard = () => {
       
       <div className="recent-expenses">
         <h3>{t('dashboard.recentExpenses')}</h3>
+        {actionError && (
+          <div className="expense-action-error" role="alert">
+            {actionError}
+          </div>
+        )}
         <div className="expenses-list">
           {recentExpenses.length > 0 ? (
             <table>
@@ -527,6 +562,7 @@ const Dashboard = () => {
                   <th>{t('common.category')}</th>
                   <th>{t('common.date')}</th>
                   <th>{t('common.amount')}</th>
+                  <th>{t('expenseActions.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -536,6 +572,14 @@ const Dashboard = () => {
                     <td>{translateCategory(t, expense.category)}</td>
                     <td>{new Date(expense.date).toLocaleDateString()}</td>
                     <td>Rs {expense.amount.toFixed(2)}</td>
+                    <td>
+                      <ExpenseRowActions
+                        expense={expense}
+                        onEdit={setEditingExpense}
+                        onDelete={handleDeleteExpense}
+                        deleting={deletingExpenseId === expense.id}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -545,7 +589,14 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-      
+
+      {editingExpense && (
+        <ExpenseEditModal
+          expense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onSaved={handleExpenseSaved}
+        />
+      )}
     </div>
   );
 };

@@ -4,9 +4,9 @@
 |-------|--------|
 | **Product** | Expense Tracker |
 | **Feature** | Monthly expense list (on-demand, paginated) |
-| **Status** | Draft |
+| **Status** | Implemented |
 | **Depends on** | [admin-panel.md](./admin-panel.md), [password-reset-admin-approval.md](./password-reset-admin-approval.md) |
-| **Related docs** | [../api.md](../api.md), [../database.md](../database.md), [../development.md](../development.md) |
+| **Related docs** | [../api.md](../api.md), [../database.md](../database.md), [../development.md](../development.md), [expense-edit.md](./expense-edit.md) |
 
 ---
 
@@ -125,7 +125,7 @@ The list must be **on-demand** (not always visible) so the UI stays scannable:
 
 ## 6. Out of scope (v1)
 
-- Inline editing or deleting expenses from the list
+- Inline editing/deleting from this list is specified separately in [expense-edit.md](./expense-edit.md); the list itself stays read-oriented.
 - Sorting/filtering the list client-side
 - Exporting the list (CSV/PDF)
 - Sharing or linking directly to an expanded list state

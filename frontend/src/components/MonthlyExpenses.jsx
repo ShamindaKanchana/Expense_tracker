@@ -15,6 +15,9 @@ import { useTheme } from '../theme/ThemeContext';
 import { getChartTheme } from '../theme/chartTheme';
 import { translateCategory, getCategoryRowColors, getCategoryChartColors } from '../utils/categories';
 import { allMonthLabels } from '../utils/months';
+import { getErrorMessage } from '../utils/errorMessage';
+import ExpenseEditModal from './ExpenseEditModal';
+import ExpenseRowActions from './ExpenseRowActions';
 import './MonthlyExpenses.css';
 
 // Register ChartJS components
@@ -56,6 +59,9 @@ const MonthlyExpenses = () => {
     [categoryData, theme]
   );
   const [loadingList, setLoadingList] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState(null);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
@@ -93,20 +99,98 @@ const MonthlyExpenses = () => {
       if (category) params.category = category;
       const response = await api.get('/expenses/list', { params });
       const data = response.data;
-      setExpenseList((data.expenses || []).map(e => ({
+      const mapped = (data.expenses || []).map(e => ({
         ...e,
         amount: Number(e.amount) || 0
-      })));
+      }));
+      setExpenseList(mapped);
       setListTotal(data.pagination?.total || 0);
       setListPage(data.pagination?.page || page);
+      return { expenses: mapped, pagination: data.pagination || {} };
     } catch (e) {
       console.error('Error fetching expense list:', e);
       setExpenseList([]);
       setListTotal(0);
+      return null;
     } finally {
       setLoadingList(false);
     }
   }, [listLimit]);
+
+  const refreshMonthlyTotals = useCallback(async (targetYear) => {
+    try {
+      const response = await api.get(`/expenses/monthly?year=${targetYear}`);
+      const rows = Array.isArray(response.data) ? response.data : [];
+      const formattedData = monthlyData.map((month) => {
+        const monthData = rows.find((row) => {
+          const rowMonth = Number(row.month);
+          const rowYear = Number(row.year);
+          return rowMonth === month.month && (!row.year || rowYear === targetYear);
+        });
+        return {
+          ...month,
+          total: monthData ? parseFloat(monthData.total) || 0 : 0,
+          count: monthData ? parseInt(monthData.count, 10) || 0 : 0
+        };
+      });
+      setMonthlyData(formattedData);
+      setSelectedMonth((previous) => {
+        if (!previous) return previous;
+        const updated = formattedData.find((month) => month.month === previous.month);
+        return updated ? { ...previous, total: updated.total, count: updated.count } : previous;
+      });
+    } catch (e) {
+      console.error('Error refreshing monthly totals:', e);
+    }
+  }, [monthlyData]);
+
+  const refreshAfterMutation = useCallback(async (monthNumber, targetYear) => {
+    if (!monthNumber || !targetYear) return;
+    const tasks = [
+      fetchCategoriesFor(monthNumber, targetYear),
+      refreshMonthlyTotals(targetYear)
+    ];
+    if (showExpenseList) {
+      tasks.push(fetchExpenseList(monthNumber, targetYear, listPage, selectedCategory));
+    }
+    await Promise.all(tasks);
+  }, [
+    fetchCategoriesFor,
+    fetchExpenseList,
+    listPage,
+    refreshMonthlyTotals,
+    selectedCategory,
+    showExpenseList
+  ]);
+
+  const handleExpenseSaved = () => {
+    const monthNumber = selectedMonth?.month;
+    const targetYear = selectedMonth?.year || year;
+    setEditingExpense(null);
+    setActionError('');
+    refreshAfterMutation(monthNumber, targetYear);
+  };
+
+  const handleDeleteExpense = async (expense) => {
+    if (!window.confirm(t('expenseActions.deleteConfirm'))) return;
+    setDeletingExpenseId(expense.id);
+    setActionError('');
+    try {
+      await api.delete(`/expenses/${expense.id}`);
+      const monthNumber = selectedMonth?.month;
+      const targetYear = selectedMonth?.year || year;
+      await refreshAfterMutation(monthNumber, targetYear);
+    } catch (err) {
+      if (err.status === 404) {
+        setActionError(t('expenseActions.notFound'));
+        await refreshAfterMutation(selectedMonth?.month, selectedMonth?.year || year);
+      } else {
+        setActionError(getErrorMessage(err, t('expenseActions.deleteFailed')));
+      }
+    } finally {
+      setDeletingExpenseId(null);
+    }
+  };
 
   // Load years that have expense data for this user only
   useEffect(() => {
@@ -528,6 +612,11 @@ const MonthlyExpenses = () => {
             {showExpenseList && selectedMonthHasExpenses && (
               <div className="expense-list-section">
                 <h3>{t('monthly.expensesList')} — {monthsFull[selectedMonth.month - 1]} {year}</h3>
+                {actionError && (
+                  <div className="expense-action-error" role="alert">
+                    {actionError}
+                  </div>
+                )}
                 {loadingList ? (
                   <p className="list-loading">{t('monthly.listLoading')}</p>
                 ) : expenseList.length === 0 ? (
@@ -562,6 +651,7 @@ const MonthlyExpenses = () => {
                             <th>{t('common.category')}</th>
                             <th>{t('common.description')}</th>
                             <th>{t('common.amount')}</th>
+                            <th>{t('expenseActions.actions')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -578,6 +668,14 @@ const MonthlyExpenses = () => {
                               <td>{translateCategory(t, expense.category)}</td>
                               <td>{expense.description}</td>
                               <td>Rs {expense.amount.toFixed(2)}</td>
+                              <td>
+                                <ExpenseRowActions
+                                  expense={expense}
+                                  onEdit={setEditingExpense}
+                                  onDelete={handleDeleteExpense}
+                                  deleting={deletingExpenseId === expense.id}
+                                />
+                              </td>
                             </tr>
                             );
                           })}
@@ -608,6 +706,14 @@ const MonthlyExpenses = () => {
           </div>
         )}
       </div>
+
+      {editingExpense && (
+        <ExpenseEditModal
+          expense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onSaved={handleExpenseSaved}
+        />
+      )}
     </div>
   );
 };

@@ -7,6 +7,7 @@ const auth = require('../middleware/auth');
 const path = require('path');
 const { EXPENSE_CATEGORIES } = require('../domain/expenseCategories');
 const { validateBody } = require('../middleware/validateBody');
+const { isExpenseEditable } = require('../utils/expenseEditWindow');
 
 // RPT-01: parse an optional inclusive date range (YYYY-MM-DD) from query params.
 // Returns { startDate, endDate } (null when absent) or { error } for invalid input.
@@ -319,7 +320,7 @@ router.get('/list', auth, async (req, res) => {
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
     const sql = `
-      SELECT id, description, temp_description_enc, temp_description_iv, enc_v, category, \`date\`, amount
+      SELECT id, description, temp_description_enc, temp_description_iv, enc_v, category, \`date\`, amount, created_at
       FROM expenses
       ${whereClause}
       ORDER BY \`date\` DESC
@@ -332,7 +333,9 @@ router.get('/list', auth, async (req, res) => {
       description: Expense.resolveDescription(r),
       category: r.category,
       date: r.date,
-      amount: Number(r.amount) || 0
+      amount: Number(r.amount) || 0,
+      created_at: r.created_at,
+      editable: isExpenseEditable(r.created_at)
     }));
 
     res.json({
@@ -411,7 +414,7 @@ router.get('/recent', auth, async (req, res) => {
   try {
     const userId = req.user.id;
     const rows = await db.query(
-      `SELECT id, description, temp_description_enc, temp_description_iv, enc_v, category, \`date\`, amount
+      `SELECT id, description, temp_description_enc, temp_description_iv, enc_v, category, \`date\`, amount, created_at
        FROM expenses
        WHERE user_id = ?
        ORDER BY \`date\` DESC
@@ -424,7 +427,9 @@ router.get('/recent', auth, async (req, res) => {
       description: Expense.resolveDescription(r),
       category: r.category,
       date: r.date,
-      amount: Number(r.amount)
+      amount: Number(r.amount),
+      created_at: r.created_at,
+      editable: isExpenseEditable(r.created_at)
     }));
     res.json(expenses);
   } catch (error) {
@@ -532,30 +537,42 @@ router.put('/:id', auth, validateBody(expenseBodySchema), async (req, res) => {
     // Body already schema-validated (AUTH-05)
     const normalizedCategory = category;
 
+    // EXP-EDIT: corrections are allowed only inside the edit window.
+    // Missing and unauthorized rows both return 404 (no ownership leak).
+    const existingRows = await db.query(
+      'SELECT created_at FROM expenses WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
+    if (!existingRows || existingRows.length === 0) {
+      return res.status(404).json({ message: 'Expense not found or unauthorized' });
+    }
+    if (!isExpenseEditable(existingRows[0].created_at)) {
+      return res.status(403).json({
+        code: 'EXPENSE_EDIT_WINDOW_EXPIRED',
+        message: 'This expense can no longer be edited. The edit window has closed.'
+      });
+    }
+
     // Find and update the expense (dual-write MIG-02: legacy + encrypted)
     const cryptoEnv = Expense.encryptDescription(String(description).trim());
-    // NOTE: db.query resolves to the OkPacket object itself for UPDATEs
-    // (not [rows]), so read .affectedRows directly — no destructuring.
-    const updateResult = await db.query(
+    await db.query(
       'UPDATE expenses SET amount = ?, description = ?, temp_description_enc = ?, temp_description_iv = ?, enc_v = ?, category = ?, date = ? WHERE id = ? AND user_id = ?',
       [amount, description.trim(), cryptoEnv.enc, cryptoEnv.iv, cryptoEnv.encV, normalizedCategory, date || new Date(), id, userId]
     );
 
-    if ((updateResult.affectedRows ?? 0) === 0) {
-      return res.status(404).json({ message: 'Expense not found or unauthorized' });
-    }
-
-    // Return the updated expense
+    // Return the updated expense. A no-op update (same values) can report
+    // zero affected rows, so the existence check above is the source of truth.
     const updatedRows = await db.query(
       'SELECT * FROM expenses WHERE id = ? AND user_id = ?',
       [id, userId]
     );
 
     const row = updatedRows[0];
-    if (row) {
-      row.description = Expense.resolveDescription(row);
-      Expense.stripCryptoMaterial(row);
+    if (!row) {
+      return res.status(404).json({ message: 'Expense not found or unauthorized' });
     }
+    row.description = Expense.resolveDescription(row);
+    Expense.stripCryptoMaterial(row);
     res.json(row);
   } catch (err) {
     console.error('Error updating expense:', err);

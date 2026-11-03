@@ -4,7 +4,7 @@
 |-------|-------|
 | **Product** | Expense Tracker |
 | **Feature** | Custom date-range spending report |
-| **Status** | Implementation in progress |
+| **Status** | Implemented |
 | **Depends on** | [monthly-expense-list.md](./monthly-expense-list.md) |
 | **Related docs** | [../api.md](../api.md), [../database.md](../database.md), [../development.md](../development.md) |
 
@@ -32,9 +32,10 @@ The report reuses existing aggregation and listing endpoints so it stays consist
 |---------|----------|
 | Presets | **Today**, **This week** (Mon–Sun), **This month**, **Last 7 days**, **Last 30 days** |
 | Custom | Selecting **Custom** enables the start/end date inputs and the **Apply** button |
-| Date inputs | Native `<input type="date">`, constrained by `min`/`max` so the end cannot precede the start |
+| Date inputs | Native `<input type="date">`, constrained by `min`/`max` so the end cannot precede the start. Editing either input switches the preset to **Custom**. |
 | Apply | Re-fetches aggregation and resets the expense list to page 1 |
 | Preset selection | Immediately applies the computed range (no Apply needed) |
+| Date display | `YYYY-MM-DD` values are parsed as local calendar dates before formatting, so the displayed day never shifts in timezones behind UTC. |
 
 ### 2.3 Report content
 
@@ -42,7 +43,7 @@ The report reuses existing aggregation and listing endpoints so it stays consist
 |---------|---------|
 | Summary | Total spent, transaction count, and the active range |
 | By category | Donut chart (top 6 categories + **Other**) and a full category breakdown with amount and percentage |
-| Transactions | Paginated expense list (10 per page) with date, category, and amount |
+| Transactions | Paginated expense list (10 per page) with date, category, and amount. On viewports below 640px the list is collapsed by default and toggled with **View/Hide transactions**. |
 
 ### 2.4 Empty and edge states
 
@@ -70,6 +71,10 @@ The report reuses existing aggregation and listing endpoints so it stays consist
 | **RPT-UI-09** | Changing the range shall reset the list to page 1. | Must |
 | **RPT-UI-10** | The page shall show validation, empty, loading, and error states. | Must |
 | **RPT-UI-11** | All new UI strings shall be available in English, Sinhala, and Tamil. | Must |
+| **RPT-UI-12** | Editing a date input shall switch the active preset to Custom; the range shall apply only after Apply. | Must |
+| **RPT-UI-13** | Date-only values shall be rendered using local calendar parsing (no UTC day shift). | Must |
+| **RPT-UI-14** | On viewports below 640px the transactions list shall be collapsed by default with an accessible toggle. | Should |
+| **RPT-UI-15** | The Reports transaction list shall remain read-only; edit/delete is out of scope for this report. | Must |
 
 ---
 

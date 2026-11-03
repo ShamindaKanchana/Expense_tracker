@@ -426,7 +426,7 @@ All expense data is scoped to the **authenticated user**. Users can only read, u
 | | |
 |--|--|
 | **Access** | Private |
-| **Description** | Update an existing expense (must belong to the logged-in user). |
+| **Description** | Update an existing expense (must belong to the logged-in user). Edits are allowed only within `EXPENSE_EDIT_WINDOW_HOURS` (default 24) of `created_at`. |
 
 **Request body** — same fields as `POST /api/expenses`
 
@@ -438,6 +438,7 @@ All expense data is scoped to the **authenticated user**. Users can only read, u
 |--------|------|
 | `400` | Invalid or missing fields |
 | `401` | Not authenticated |
+| `403` | Edit window closed (`code: "EXPENSE_EDIT_WINDOW_EXPIRED"`) |
 | `404` | Expense not found or not owned by user |
 | `500` | Server error |
 
@@ -486,10 +487,14 @@ All expense data is scoped to the **authenticated user**. Users can only read, u
     "description": "Bus fare",
     "category": "Transport",
     "date": "2026-07-15",
-    "amount": 250
+    "amount": 250,
+    "created_at": "2026-07-15T10:30:00.000Z",
+    "editable": true
   }
 ]
 ```
+
+`editable` is computed server-side from `created_at` and `EXPENSE_EDIT_WINDOW_HOURS`.
 
 ---
 
@@ -664,7 +669,9 @@ Empty list if the user has no expenses: `{ "years": [] }`.
       "description": "Bus fare",
       "category": "Transport",
       "date": "2026-07-15T10:30:00.000Z",
-      "amount": 250.00
+      "amount": 250.00,
+      "created_at": "2026-07-15T10:30:00.000Z",
+      "editable": true
     }
   ],
   "pagination": {
@@ -677,6 +684,9 @@ Empty list if the user has no expenses: `{ "years": [] }`.
 ```
 
 If no expenses match the filter, `expenses` is an empty array and `pagination.total` is `0`.
+
+Each record includes `created_at` and a server-computed `editable` flag used by the
+Dashboard/Monthly edit actions.
 
 ---
 
