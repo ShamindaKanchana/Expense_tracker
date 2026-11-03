@@ -7,6 +7,7 @@ Product requirements that guide design and implementation. These are **not** dep
 | [admin-panel.md](./admin-panel.md) | Prototype on `main` / extend on `dev` | Admin panel: account overview, hidden admin login, delete accounts |
 | [password-reset-admin-approval.md](./password-reset-admin-approval.md) | **Draft** | Forgot password → admin approve → one-time code → user sets new password |
 | [monthly-expense-list.md](./monthly-expense-list.md) | **Draft** | Monthly report: on-demand paginated expense list for a selected month/year |
+| [date-range-reports.md](./date-range-reports.md) | **Implementation in progress** | Custom date-range report: presets/custom range → category donut + paginated expense list |
 | [voice-expense-input.md](./voice-expense-input.md) | **Implementation in progress** | Voice input: mic → browser STT → LLM draft preview → confirm → reuse POST /api/expenses |
 | [playstore-data-safety.md](./playstore-data-safety.md) | **Draft v2** | Play Store readiness: column encryption + mobile (Capacitor/voice) hardening + account deletion |
 

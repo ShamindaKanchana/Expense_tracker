@@ -6,7 +6,13 @@ import { translateCategory } from '../utils/categories';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const CategoryPieChart = ({ categoryData }) => {
+const CategoryPieChart = ({
+  categoryData,
+  legendPosition = 'right',
+  maintainAspectRatio = true,
+  showLegend = true,
+  className = ''
+}) => {
   const { t } = useTranslation();
 
   const data = useMemo(
@@ -41,9 +47,16 @@ const CategoryPieChart = ({ categoryData }) => {
   const options = useMemo(
     () => ({
       responsive: true,
+      maintainAspectRatio,
       plugins: {
         legend: {
-          position: 'right'
+          display: showLegend,
+          position: legendPosition,
+          labels: {
+            boxWidth: 12,
+            padding: 10,
+            font: { size: 11 }
+          }
         },
         tooltip: {
           callbacks: {
@@ -58,11 +71,14 @@ const CategoryPieChart = ({ categoryData }) => {
         }
       }
     }),
-    []
+    [legendPosition, maintainAspectRatio, showLegend]
   );
 
   return (
-    <div className="pie-chart-container" style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}>
+    <div
+      className={`pie-chart-container ${className}`.trim()}
+      style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}
+    >
       <Pie data={data} options={options} />
     </div>
   );
