@@ -31,7 +31,7 @@ const checkBreached = (password) =>
     const suffix = digest.slice(5);
 
     const request = https.get(
-      `https://api.pwnedpasswordes.com/range/${prefix}`,
+      `https://api.pwnedpasswords.com/range/${prefix}`,
       { timeout: HIBP_TIMEOUT_MS },
       (response) => {
         if (response.statusCode !== 200) {
