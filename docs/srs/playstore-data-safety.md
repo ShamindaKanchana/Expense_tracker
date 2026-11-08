@@ -3,50 +3,76 @@
 | Field | Value |
 |-------|--------|
 | **Product** | Expense Tracker |
-| **Feature** | Play Store readiness with safety-first data protection (not checkbox compliance) |
-| **Status** | **Draft v2 + shipped ENC-01/MIG-01–04 (2026-10-10, PR #42 on `main`)** — review before Play submission |
+| **Feature** | Play Store readiness with safety-first data protection |
+| **Status** | **Living release checklist — audited 2026-11-03 against `main` @ `d5b9e42`. Not submission-ready; see §6.** |
 | **Depends on** | [admin-panel.md](./admin-panel.md), [password-reset-admin-approval.md](./password-reset-admin-approval.md), [voice-expense-input.md](./voice-expense-input.md) |
 | **Related docs** | [database.md](../database.md), [api.md](../api.md), [deployment/architecture.md](../deployment/architecture.md), [deployment/capacitor-android-plan.md](../deployment/capacitor-android-plan.md) |
-| **Goal** | Protect financial + identity + voice data even if DB leaks, logs leak, device is lost, or API is probed — then satisfy Play Data Safety / account-deletion rules as a consequence |
+| **Goal** | Protect financial + identity + voice data even if the DB leaks, logs leak, the device is lost, or the API is probed — then satisfy Play Data Safety / account-deletion rules as a consequence |
 
-> Scope note: this SRS is **safety-first**, not "minimum to pass review". Each item states the real risk, then maps to the Play requirement it also satisfies. v2 accounts for the real mobile shell on `feature/mobile-capacitor-plan` (not the "no capacitor" assumption in v1).
+> Scope note: this SRS tracks the code actually on `main`, not the old
+> `feature/mobile-capacitor-plan` branch state. Tick `[x]` only when the code
+> is shipped and locally verified. **PENDING** means code exists but a
+> production, device, Play Console, or operations check is still required.
 
 ---
 
-## 1. Current state audit (2026-10-10, `dev` @ 07da124 + `feature/mobile-capacitor-plan`)
+## 1. Current state audit (2026-11-03, `main` @ `d5b9e42`)
 
-### 1.1 Already protected ✅
+### 1.1 Implemented and verified in code
 
-| Field | Protection | Source |
-|-------|-----------|--------|
-| `users.password` | bcrypt(10) hash, never returned by API | `backend/models/User.js:41` |
-| `admins.password` | bcrypt(10) hash | `backend/models/Admin.js:40` |
-| `password_reset_requests.code_hash` | bcrypt(10) of 6-digit code, single-use, 30-min expiry | `backend/models/PasswordResetRequest.js:106` |
-| Forgot-password form | Generic message, no account enumeration | `backend/routes/auth.js:235-236` |
-| Expense isolation | All queries filter `user_id` from JWT | `docs/database.md` |
-| Voice endpoint (new) | Auth required, zod schema (`voiceDraftRequestSchema`), dedicated `voiceRateLimit`, mock forbidden in prod (`VOICE_ALLOW_MOCK`) | `backend/routes/voiceExpenses.js`, `backend/services/voice/schema.js`, `backend/middleware/voiceRateLimit.js` |
-| Capacitor shell (new, on branch) | `appId com.shaminda.expensetracker`, `webDir build`, `homepage ./`, native STT fallback via `@capacitor-community/speech-recognition` | `frontend/capacitor.config.ts`, `frontend/android/`, `VoiceExpenseInput.jsx` (branch `feature/mobile-capacitor-plan`) |
+| Area | Current protection | Source |
+|------|--------------------|--------|
+| Passwords | `bcrypt` cost 10; never returned by the API | `backend/models/User.js`, `backend/routes/auth.js` |
+| Reset codes | 6-digit CSPRNG, bcrypt-hashed, single-use, 30-minute expiry, admin-approved request | `backend/models/PasswordResetRequest.js` |
+| Expense isolation | Every expense query filters by `user_id` from the JWT; edit/delete verify ownership | `backend/routes/expenses.js` |
+| Voice endpoint | Auth required, zod schema, dedicated rate limit, mock provider forbidden in production | `backend/routes/voiceExpenses.js`, `backend/services/voice/` |
+| Capacitor shell | Merged to `main` via PR #35 (`4d164fa`); `appId com.shaminda.expensetracker`, `webDir build`, `homepage ./` | `frontend/capacitor.config.ts`, `frontend/android/` |
+| User sessions | 15-minute access JWT + rotating opaque refresh token (SHA-256 in DB), httpOnly/Secure/SameSite=None cookie, reuse detection revokes all sessions, logout/password change/reset revoke | `backend/config/jwt.js`, `backend/models/RefreshToken.js`, `backend/routes/auth.js` |
+| Admin sessions | Separate admin JWT secret, 15-minute expiry, no refresh, role check, dedicated login, not linked from user UI | `backend/middleware/adminAuth.js`, `backend/routes/admin.js` |
+| Password policy | 10-character minimum, HIBP k-anonymity breach check, `current != new`; frontend forms aligned | `backend/middleware/validateBody.js`, `backend/utils/breachCheck.js` |
+| Rate limits | Login 10/15 min (IP+account), admin 5/15 min, register 5/hour, forgot 5/hour, reset 10/hour, voice 10/min; generic 429 + `Retry-After` | `backend/middleware/rateLimit.js`, `backend/middleware/voiceRateLimit.js` |
+| Request validation | Strict zod schemas on every auth/admin/expense/voice JSON body; unknown keys rejected; uniform `400 REQUEST_INVALID` | `backend/middleware/validateBody.js`, `backend/routes/` |
+| CORS | Development is permissive; production uses exact `CORS_ALLOWED_ORIGINS` with credentials | `backend/server.js` |
+| Security headers | Helmet defaults + HSTS (1 year, `includeSubDomains`, `preload`); `trust proxy` for Render | `backend/server.js` |
+| DB transport | MySQL SSL with Aiven CA verification (`rejectUnauthorized:true`); production fails fast if `DB_CA_CERT` is missing | `backend/config/db.js` |
+| Field encryption | AES-256-GCM for expense description, user email, and encrypted reset-rejection notes; per-row IV + auth tag; key only from env | `backend/utils/fieldCrypto.js`, `backend/models/Expense.js`, `backend/models/User.js`, `backend/models/PasswordResetRequest.js` |
+| Email lookup | HMAC-SHA256 blind index (`email_hmac` + `EMAIL_HMAC_PEPPER`) for uniqueness/login | `backend/utils/fieldCrypto.js`, `backend/models/User.js` |
+| IP minimization | Reset-request IPs truncated to `/24` IPv4 or `/48` IPv6 on insert; never returned to the admin UI | `backend/models/PasswordResetRequest.js` |
+| Account deletion | Password-confirmed `DELETE /api/auth/me`; FK cascade verified; danger-zone UI in EN/SI/TA | `backend/routes/auth.js`, `frontend/src/components/Account.jsx` |
+| Android hardening | `allowBackup=false`, `fullBackupOnly=false`, `usesCleartextTraffic=false`; FileProvider not exported; only `INTERNET` + `RECORD_AUDIO` | `frontend/android/app/src/main/AndroidManifest.xml` |
+| Release signing | Reads `keystore.properties`; `*.jks` and keystore properties are gitignored | `frontend/android/app/build.gradle`, `frontend/android/.gitignore` |
+| Logging | Sensitive token/SQL/amount/description logs dev-gated or removed; production 5xx responses generic | `backend/middleware/auth.js`, `backend/models/Expense.js`, `backend/server.js` |
+| Retention | Nightly purge deletes reset rows and expired refresh tokens older than 90 days; voice artifacts are never persisted | `backend/scripts/purge-retention.js`, `backend/server.js` |
+| Debug surface | `/api/expenses/test-db` is now disabled in production (fixed 2026-11-03) | `backend/routes/expenses.js` |
 
-### 1.2 Sensitive but plaintext ⚠️ — the reason for this SRS
+### 1.2 Remaining risk register
 
-| # | Field / store | Type | Risk if leaked | Today |
-|---|---------------|------|----------------|-------|
-| S-1 | `expenses.description` (TEXT) | Free text — health, account nos, locations, names | Highest. Financial + personal notes in one column | **Encrypted since 2026-10-10 (PR #42):** AES-256-GCM `temp_*` + `enc_v`, 132/132 backfilled, dual-read with legacy fallback; legacy column retained until MIG-05 |
-| S-2 | `expenses.amount` (DECIMAL) | Financial behavior profile | Profiling, extortion | Plaintext (required for `SUM()` — see §3 D-1) |
-| S-3 | `users.email` (VARCHAR, UNIQUE) | PII, login identifier | Phishing, identity link | **Encrypted since 2026-10-10 (ENC-02):** AES-256-GCM `temp_*` + `email_hmac` blind index, 4/4 backfilled, login via username/lower/UPPER email verified; legacy retained until MIG-05-style email cleanup |
-| S-4 | `password_reset_requests.request_ip` | PII, location-ish | Tracks user network | Plaintext, no retention/TTL |
-| S-5 | `password_reset_requests.reject_reason` | Free text by admin | May contain personal data | Plaintext, indefinite |
-| S-6 | JWT (`localStorage` user, `sessionStorage` admin) | Session bearer | WebView/ADB/Log theft → full takeover | **Still `localStorage`/`sessionStorage`** (`frontend/src/utils/authStorage.js`); `@capacitor/preferences` installed on mobile branch but **migration not done** — and Preferences is **unencrypted** anyway |
-| S-7 | Server logs | `auth.js` logged decoded tokens; `Expense.js` logged amounts/descriptions; error handler returns `err.message` (can include SQL) | Log aggregator / Render logs become a data store | **Partially fixed 2026-10-10 (#36–38):** bearer-token/header logs gated dev-only, SQL-param logs gated dev-only, full error objects trimmed to messages, `list-users` no longer dumps hashes. Remaining: transcript/LLM prompt redaction (ENC-07), HSTS/helmet |
-| S-8 | Transport gaps | No `helmet`, general auth rate-limit still missing (voice only), `rejectUnauthorized:false` on Aiven SSL, same `JWT_SECRET` for user+admin, min password 6 chars, JWT 1h with no rotation | MITM / brute-force / token reuse | Confirmed in `server.js`, `config/db.js`, `routes/auth.js` |
-| S-9 | Delete path | Only admin can delete a user (`DELETE /api/admin/users/:id`); user cannot self-delete | Violates **Play account-deletion policy** (must offer in-app deletion) and GDPR erasure | By design in `admin-panel.md` |
-| S-10 | **Voice transcripts (new)** | Spoken expense text + locale + timezone → `POST /api/voice-expenses/draft` → forwarded to **third-party LLM** (Gemini / Cohere / OpenAI-compatible / DeepSeek per `LLM_PROVIDER`) | Same sensitivity as S-1, **plus new subprocessor sharing**; `LLM_*_API_KEY` are new high-value secrets; prompt/logs may retain PII | Transcript-only (STT on device/browser, no audio upload — verify and lock this); no transcript retention policy yet; provider logging unknown |
-| S-11 | **Android backup (new)** | `android:allowBackup="true"` in branch `AndroidManifest.xml` | `adb backup` / auto-backup extracts WebView `localStorage` → JWTs + cached expenses leave the device in clear | `true` today; no backup rules file |
-| S-12 | **CORS widening (new)** | Capacitor plan adds `capacitor://localhost`, `http://localhost`, `https://localhost`, LAN IP to `CORS_ALLOWED_ORIGINS` | Overly broad allow-list + `NODE_ENV=development` (allow-all) accidentally left on in a device-test build | Plan-doc stage; must be exact-origin in release |
+| # | Item | Current state | Required action |
+|---|------|---------------|-----------------|
+| S-1 | `expenses.description` | Encrypted `temp_*` columns exist and are backfilled, but **new writes still dual-write legacy plaintext `description`**. A raw DB dump still exposes it. | `MIG-05` |
+| S-2 | `expenses.amount` | Plaintext by decision (`SUM()` aggregation). | Keep documented; compensate with TLS, no-logging, admin isolation (`ENC-06`). |
+| S-3 | `users.email` | Encrypted `temp_*` columns + HMAC exist, but **new writes still dual-write legacy plaintext `email`**. There is no email legacy-removal item yet. | `MIG-07` |
+| S-4 | `password_reset_requests.request_ip` | New rows are minimized; existing production rows still need the backfill. | Run `ENC-03` backfill. |
+| S-5 | `password_reset_requests.reject_reason` | New writes use enum code + encrypted note; legacy plaintext rows still need migration. | Run `ENC-04` migration. |
+| S-6 | JWT storage in WebView | Access token still mirrored in `localStorage`/`sessionStorage`; secure native storage not implemented. | `STORE-01`, `MOB-02` |
+| S-7 | Server logs | Sensitive-log fixes are shipped. | Keep log-grep acceptance check in CI/release. |
+| S-8 | Transport | Helmet/HSTS, verified DB TLS, and Android cleartext blocking are shipped. | Re-verify headers on the deployed API and inside the Capacitor WebView. |
+| S-9 | Delete path | In-app self-delete shipped. | Host the external account-deletion URL required by Play (`PLAY-06`). |
+| S-10 | Voice transcripts | Prompt minimized; no server persistence; Cohere retention/training disclosed. | DPA/ZDR not available on the free tier; keep disclosure accurate (`D-6`). |
+| S-11 | Android backup | `allowBackup=false` and `usesCleartextTraffic=false` shipped. | Verify with `adb backup` on a release build. |
+| S-12 | CORS | Production allowlist code shipped. | Set exact Render + Vercel + Capacitor origins at release (`MOB-04`). |
+| S-13 | Encryption key rotation | `ENC_KEY` is env-only and length-validated, but `ENC_KEY_ID` is unused and key-version rotation is not implemented. | `ENC-05` |
+| S-14 | Dependencies | `npm audit --omit=dev` reports backend 7 (1 critical, 5 high) and frontend 72 (3 critical), including runtime `axios`/`react-router` advisories. | `DEP-01` |
+| S-15 | Play Console assets | Privacy policy, Data Safety, deletion URL, content rating, target audience, ads, and reviewer access are not complete. | `PLAY-02`, `PLAY-03`, `PLAY-05`, `PLAY-06`, `PLAY-07` |
 
-### 1.3 Packaging reality (v1 "gap" now resolved in direction, not in `main`)
+### 1.3 Packaging reality
 
-Capacitor is **decided and built on `feature/mobile-capacitor-plan`** (`frontend/android/` shell, app icons/splash, `RECORD_AUDIO` + `INTERNET` permissions, `capacitor.config.ts`). It is **not yet merged to `main`/`dev`**. Remaining gaps before Play: §§ MOB-01–07 below (backup rules, secure storage, mic rationale, versionCode/signing, release API URL).
+Capacitor is now merged to `main` (PR #35 / `4d164fa`). The Android shell uses
+`targetSdk 36`, `minSdk 24`, `versionCode 2`, `versionName 0.7.0`, and a release
+signing config that reads a gitignored `keystore.properties`. A signed AAB,
+Play App Signing registration, and 64-bit verification are still pending.
+The app still uses `BrowserRouter` with `homepage ./`; deep-link behavior inside
+the Capacitor WebView must be verified (`MOB-05`).
 
 ---
 
@@ -59,123 +85,151 @@ Capacitor is **decided and built on `feature/mobile-capacitor-plan`** (`frontend
 | Network observer (open WiFi, proxy) | Sniffs HTTP | TLS-only, HSTS, no HTTP fallback, no cleartext WebView traffic |
 | XSS / malicious browser ext / rogue WebView JS | Runs JS in origin | Short-lived access token, no long secrets in plain WebView storage |
 | Lost/stolen phone / `adb backup` | Reads app files + backups | Tokens in encrypted storage, `allowBackup=false` + rules, optional app-lock |
-| Abusive client | Brute-forces login/reset/voice | Rate limits + lockout on all public routes, no enumeration |
+| Abusive client | Brute-forces login/reset/voice | Rate limits on all public routes (no persistent account lockout), no enumeration |
 | Curious admin | Browses DB | Sees minimum; sensitive columns encrypted, reason codes not free text |
 | LLM subprocessor | Receives transcripts | Minimal prompt (no username/email), no logging retention, DPA in place |
 
-Out of scope: rooted-device OS compromise, Aiven disk theft (covered by Aiven AES-256 + our column encryption as second layer).
+Out of scope: rooted-device OS compromise, Aiven disk theft (covered by Aiven
+AES-256 plus our column encryption as a second layer).
 
 ---
 
-## 3. Key decisions (record before coding)
+## 3. Key decisions
 
-| # | Decision | Options | Recommendation / status |
-|---|----------|---------|------------------------|
-| D-1 | `amount` encryption? | A) Keep plaintext + TLS + Aiven disk encryption; B) Deterministic AES-SIV | **A for v1** — document explicitly; encrypt `description` + `email` + `ip` instead |
-| D-2 | Encryption primitive | AES-256-GCM per-row vs libsodium sealed box | **AES-256-GCM, `ENC_KEY` 32B, columns `*_enc` + `*_iv`, `enc_v INT`**; key via env/KMS, versioned rotation |
-| D-3 | Search on encrypted columns? | HMAC index vs no search | **No search on `description` v1**; HMAC index on `email` only if email-login kept |
-| D-4 | Native wrapper | Capacitor vs TWA | **RESOLVED: Capacitor** — shell exists on `feature/mobile-capacitor-plan`; merge + harden per §4F |
-| D-5 | User self-delete | `DELETE /api/auth/me` vs admin-only | **Add self-delete** (Play requires it); keep admin delete |
-| D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **DECIDED 2026-10-11: Cohere in prod** (`LLM_PROVIDER=cohere`, model per `LLM_MODEL` on Render, `VOICE_ALLOW_MOCK=false` confirmed, timeout 15s / retries ≤2). Prompt sends transcript+locale+timezone only (no username/email/userId — verified `prompt.js`); mock fails closed in prod. **Cohere terms recorded 2026-10-13:** prompts kept **30 days by default** (Zero Data Retention = approved enterprise only); **training opt-out ("Data Controls" toggle) is ABSENT on free tier — free prompts are opt-IN to model improvement by default (confirmed 2026-10-13)**; DPA for GDPR/enterprise via **privacy@cohere.com** (unavailable on free). Privacy + Data Safety must state possible training use until plan upgrade. **Decision 2026-10-13: keep Cohere as default with user disclosure (in-app hint + policy) and typing fallback; on-device offline mode deferred unless reviewers/parents push back** |
+| # | Decision | Options | Status |
+|---|----------|---------|--------|
+| D-1 | `amount` encryption? | A) Keep plaintext + TLS + Aiven disk encryption; B) Deterministic AES-SIV | **A for v1** — documented explicitly; encrypt description/email/IP instead |
+| D-2 | Encryption primitive | AES-256-GCM per-row vs libsodium sealed box | **AES-256-GCM, `ENC_KEY` 32B, `*_enc` + `*_iv`, `enc_v INT`** |
+| D-3 | Search on encrypted columns? | HMAC index vs no search | **No search on `description` v1**; HMAC index on `email` only |
+| D-4 | Native wrapper | Capacitor vs TWA | **RESOLVED: Capacitor shell merged to `main`** |
+| D-5 | User self-delete | `DELETE /api/auth/me` vs admin-only | **SHIPPED: self-delete added; admin delete retained** |
+| D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **Cohere in production.** Prompts retained 30 days by default; free tier has no training opt-out and no DPA. Keep disclosure + typing fallback; upgrade to paid/ZDR later. |
+| D-7 | Legacy plaintext cleanup | Drop before first Play release vs ship with documented legacy columns | **Open — drop before submission recommended** |
+| D-8 | Encryption key rotation | Single `ENC_KEY` v1 vs versioned `ENC_KEY_ID` before Play | **Open** |
 
 ---
 
 ## 4. Requirements checklist
 
-Tick `[x]` when shipped + verified. IDs are stable for branch references.
+Legend: `[x]` = code shipped and locally verified; `[ ]` = incomplete or
+production/device/console verification still pending. **PENDING** calls out the
+remaining step on shipped code.
 
-### A — Column-level encryption (the "some fields" you heard about)
+### A — Column-level encryption
 
-- [x] **ENC-01 `expenses.description` encrypted at rest — SHIPPED 2026-10-10 (PR #42).** Columns `temp_description_enc TEXT, temp_description_iv VARCHAR(32), enc_v INT` live; `utils/fieldCrypto.js` (AES-256-GCM, per-row IV, key from `ENC_KEY`); dual-write on save, dual-read with legacy fallback, ciphertext stripped from API responses; backfill 132/132 verified decrypt-match, 0 remaining `enc_v=0`. Legacy `description` retained until MIG-05. *Play maps to: Data Safety "Financial info + Personal info — encrypted in transit and at rest".*
-- [x] **ENC-02 `users.email` encrypted at rest — SHIPPED 2026-10-10.** Same envelope (`temp_email_enc`, `temp_email_iv`) + `email_hmac` blind index for uniqueness/login (NULLs stay NULL); dual-write/read with legacy fallback; backfill 4/4, 9/9 verified; email-login kept (no behavior change). Bonus: fixed boot loop creating 61 duplicate `email_N` keys (dropped, `initTable` idempotent).
-- [x] **ENC-03 `request_ip` minimized — CODE SHIPPED 2026-10-20; prod backfill pending run.** Chose /24 (IPv4) + /48 (IPv6) truncation over salted HMAC (no key mgmt; abuse attribution preserved). `PasswordResetRequest.minimizeIp()` applied on every insert; unrecognized values dropped to NULL; IPv4-mapped IPv6 handled. Never returned to admin UI (was already omitted from `listPending`/all routes). Auto-purge: 90d via OPS-01. **One-time backfill** for existing rows: `node scripts/backfill-request-ip-minimization.js` (re-runnable, `--dry-run` supported) — run once against prod, then confirm 0 raw-length IPs remain.
-- [x] **ENC-04 `reject_reason` structured — CODE SHIPPED 2026-10-20; prod migration pending run.** Enum column `reject_reason_code` (`invalid_user`, `duplicate`, `abuse`, `other`, `superseded`; unknown → `other`); optional note ≤140 chars stored AES-256-GCM-encrypted in `reject_reason` (ENC-01 envelope, requires `ENC_KEY`). `initTable` converges the new column on existing DBs; supersede path now writes code only. Admin reject route validates `{code, note}`; UI unchanged (sends nothing → `other`, no note — picker is optional follow-up). Backfill for legacy plaintext rows: `node scripts/migrate-reject-reason.js` (re-runnable, `--dry-run` supported) — **run once against prod after ENC_KEY is set**. Purged with row at 90d (OPS-01).
-- [ ] **ENC-05 Key management.** `ENC_KEY` (base64 32B) + `ENC_KEY_ID` from **server env/KMS only** — never repo/frontend/logs. Rotation: `enc_v=2` rows, background re-encrypt, old key read-only 30 days. Dev key ≠ prod key.
-- [x] **ENC-06 `amount` explicitly NOT encrypted v1 — RECORDED 2026-10-20.** Rationale: monthly/yearly reports need SQL aggregation (`SUM()` in `backend/models/Expense.js getMonthlySummary`); plaintext DECIMAL is required for that in v1. Compensations, each verified in code 2026-10-20: amounts never in URLs (query params are year/month/page only, `routes/expenses.js`); no amount/description in prod logs (`Expense.js` sensitive logs dev-gated; summary logs userId/year/month only; admin logs admin-id/username/id only); client errors return generic `err.message` without amounts (`server.js`); admin API never returns expense amounts (admin routes cover users + password-resets only). Transport: TLS (HSTS leg tracked in TLS-01); Aiven AES-256 disk encryption at rest (provider default — owner confirms in dashboard, OPS-02).
-- [x] **ENC-07 Voice transcripts minimized + not persisted — RE-VERIFIED 2026-10-20.** `prompt.js` sends only transcript+locale+timezone+localDate (no username/email/user_id — re-checked); draft endpoint persists nothing (no DB insert in `routes/voiceExpenses.js`); voice service + providers contain zero `console` logging; route logs `error.message` only; LLM request/response excluded from logs. Cohere retention recorded 2026-10-13 (30-day default; **training opt-out absent on free tier — assume prompts may be used for model improvement**; disclosed in privacy voice paragraph + PLAY-02).
+- [x] **ENC-01 `expenses.description` encrypted at rest.** AES-256-GCM `temp_description_enc`/`temp_description_iv` + `enc_v`; dual-write/dual-read; ciphertext stripped from API responses; 132/132 backfilled. Legacy `description` is still dual-written and retained until `MIG-05`.
+- [x] **ENC-02 `users.email` encrypted at rest.** AES-256-GCM `temp_email_enc`/`temp_email_iv` + `email_hmac` blind index; dual-write/read; 4/4 backfilled; email login works. Legacy `email` is still dual-written and retained until `MIG-07`.
+- [x] **ENC-03 `request_ip` minimized.** `/24` IPv4 + `/48` IPv6 truncation on insert; unrecognized values stored as NULL; never returned to admin. **PENDING:** run `node scripts/backfill-request-ip-minimization.js` once against production.
+- [x] **ENC-04 `reject_reason` structured.** Enum `reject_reason_code` + optional AES-256-GCM-encrypted note; admin reject route validates `{code, note}`; supersede writes code only. **PENDING:** run `node scripts/migrate-reject-reason.js` once against production.
+- [ ] **ENC-05 Key management — PARTIAL.** `ENC_KEY` is env-only and validated as 32 bytes. `ENC_KEY_ID` is documented but unused; there is no key-version rotation or background re-encrypt. Dev key must differ from prod.
+- [x] **ENC-06 `amount` explicitly not encrypted in v1.** Rationale and compensations recorded: no amounts in URLs, logs, client errors, or admin API; Aiven disk encryption is the provider layer.
+- [x] **ENC-07 Voice transcripts minimized + not persisted.** Prompt sends only transcript + locale + timezone + local date; no DB insert; no provider/transcript logging. Cohere retention/training is disclosed in the privacy paragraph and Play Data Safety.
 
-### B — Transport & API hardening
+### B — Transport, API hardening, and abuse control
 
-- [x] **TLS-01 HTTPS everywhere — SHIPPED 2026-10-20 (server legs).** `app.set('trust proxy', 1)` + HSTS via helmet (`max-age=31536000; includeSubDomains; preload`) — verified live on responses. HTTP→HTTPS redirect is Render-edge behavior (platform terminates TLS and redirects; not visible to the app). DB leg ✅ since 2026-10-11 (`c7581ca`, `rejectUnauthorized:true` + real `DB_CA_CERT`). WebView `usesCleartextTraffic=false` ✅ on mobile branch (MOB-01). **Owner verify on prod after deploy:** `curl -sI https://<render-url>/` shows the HSTS header.
-- [x] **TLS-02 Security headers — SHIPPED 2026-10-20.** `helmet()` with explicit HSTS config in `server.js` (nosniff, frameguard, referrer-policy, COOP/CORP, etc.) — verified live locally. API returns JSON only; SPA assets are served by Vercel / loaded from the Capacitor origin, so helmet's default CSP cannot break CRA/Recharts. **Re-verify inside Capacitor WebView after MOB-06 merge** (fingerprint: response headers on an API call from the app).
-- [x] **AUTH-01 Separate secrets — SHIPPED 2026-10-20 (code; Render env pending).** `config/jwt.js`: user tokens sign/verify with `JWT_USER_SECRET`, admin with `JWT_ADMIN_SECRET` (legacy `JWT_SECRET` fallback keeps deploy unbroken). Middleware split: user token cannot validate on admin routes even with `role` forged, and vice versa; `role:'admin'` check retained. Rotation = swap the env var on Render → old tokens 401 → clients re-login; admin rotates independently. **Owner: add both new secrets to Render env, then drop `JWT_SECRET`.**
-- [x] **AUTH-02 Token lifetime — SHIPPED 2026-10-20.** Access tokens **15 min** (`exp-iat=900s` verified live) for users; **admin 15 min, no refresh/remember-me** (re-auth on expiry). Sessions carried by rotating refresh tokens: opaque 32B, SHA-256-hashed in new `refresh_tokens` table (FK-cascade on user delete), 30-day expiry (`REFRESH_TOKEN_EXPIRY_DAYS`), httpOnly+Secure+SameSite=None cookie scoped to `/api/auth` (works from Vercel site and Capacitor WebView; localhost counts as secure context). Rotation on every `/auth/refresh`; **reuse of a rotated token = theft → all user sessions revoked** (live-verified: replay 401 + subsequent cookie also dead). Logout revokes server-side; password change/reset revoke all sessions. Frontend: silent refresh interceptor on 401 (single retry, loop-guarded), boot-time restore from cookie, logout calls `/auth/logout`. Purged >90d by OPS-01. Retires 1h/24h lifetimes. **Web note:** short access token still mirrored in localStorage/sessionStorage for reload continuity — moving it to memory-only + full native secure storage is STORE-01/MOB-02.
-- [x] **AUTH-03 Password policy — SHIPPED 2026-10-20.** Min length raised 6→**10** (zod `passwordSchema`, all of register / change-password / reset-password). Breach-list check via HIBP k-anonymity range API (`utils/breachCheck.js`) on register, change-password, and reset — only SHA-1 prefix leaves the server; 5s timeout, **fail-open** (availability over strictness, gap logged). `current≠new` rule extended to reset-password flow (was change-password only). Existing 6-char accounts still work until they next change a password.
-- [x] **AUTH-04 Rate limits + lockout — SHIPPED 2026-10-10 (merged to `main` via PR #44).** Zero-dep factory `middleware/rateLimit.js` (voice pattern): login 10/15min per IP+account, admin 5/15min per IP, register 5/hr/IP, forgot 5/hr per user+IP, reset 10/hr/IP. Generic 429 + `Retry-After`, no credential logging. Live-verified exact trip points; single-instance note in code.
-- [x] **AUTH-05 Validation — SHIPPED 2026-10-20.** zod schemas on every JSON body, following the voice pattern: auth (register/login/forgot/reset/change-password/delete), admin (login, password-reset reject), expenses (create/update). Bounds enforced: username `^[a-zA-Z0-9_.]{3,30}`, amount `0–1e9` ≤2dp, description ≤500, category enum, `.strict()` (unknown keys rejected). Uniform 400 `{code:'REQUEST_INVALID'}` — no zod internals/stack/SQL to client. Smoke-verified live (short-password + bad-amount + extra-key all rejected).
-- [x] **AUTH-06 LLM secrets — RE-VERIFIED 2026-10-20.** Keys read from server env only (`process.env` in `services/voice/providers`); no key material in repo (secret scan of `main`/`dev` clean), frontend, or build (frontend only has `LLM_*` i18n error strings); `.env` gitignored, 0 tracked env files; `VOICE_ALLOW_MOCK` fails closed — mock forbidden when `NODE_ENV=production` OR flag not `'true'` (`providers/index.js:21`); provider timeout/retry capped (default 15000ms, retries ≤2 in `httpClient.js`, overridable via `LLM_TIMEOUT_MS`). *Last Render dashboard re-check: 2026-10-11 — re-confirm env values at release (MOB-04/OPS-03).*
+- [x] **TLS-01 HTTPS everywhere (server legs).** `trust proxy` + HSTS via helmet; DB TLS verified with `DB_CA_CERT`; Android cleartext disabled. **PENDING:** run `curl -sI https://<render-url>/` against the deployed API and confirm the HSTS header.
+- [x] **TLS-02 Security headers.** Helmet defaults + explicit HSTS; verified locally. **PENDING:** re-verify response headers inside the Capacitor WebView.
+- [x] **AUTH-01 Separate secrets.** `JWT_USER_SECRET` and `JWT_ADMIN_SECRET`; middleware split; legacy `JWT_SECRET` fallback. **PENDING:** set both secrets in Render, then remove the legacy fallback.
+- [x] **AUTH-02 Token lifetime + rotation.** 15-minute user/admin access tokens; opaque rotating refresh tokens (SHA-256 in DB), httpOnly/Secure/SameSite=None cookie, reuse detection revokes all sessions; logout/password change/reset revoke.
+- [x] **AUTH-03 Password policy.** 10-character minimum, HIBP k-anonymity breach check, `current != new` on change and reset; frontend forms aligned. **Regression test missing:** the HIBP hostname typo (`pwnedpasswordes` -> `pwnedpasswords`) was fixed on 2026-11-03; add a test that locks the URL.
+- [x] **AUTH-04 Rate limits.** Login 10/15 min (IP+account), admin 5/15 min, register 5/hour, forgot 5/hour, reset 10/hour, voice 10/min; generic 429 + `Retry-After`. **No persistent account lockout is implemented** (rate limiting only); the store does not require lockout.
+- [x] **AUTH-05 Validation.** Zod schemas on every JSON body; username/amount/description/category bounds; `.strict()` rejects unknown keys; uniform `400 REQUEST_INVALID`.
+- [x] **AUTH-06 LLM secrets.** Provider keys read only from server env; no key material in repo/frontend/build; mock fails closed in production; timeout/retry capped.
+- [x] **API-01 CORS allowlist.** Production uses exact origins from `CORS_ALLOWED_ORIGINS` with credentials; development remains permissive. **PENDING:** set the release allowlist (`MOB-04`).
+- [x] **API-02 Voice rate limit.** Dedicated 10/minute limiter on `/api/voice-expenses/draft`.
+- [x] **API-03 Production debug endpoints disabled.** `/api/expenses/test-db` returns 404 when `NODE_ENV=production`; it no longer exposes table names or DB diagnostics.
 
 ### C — Logs, storage, client
 
-- [x] **LOG-01 No sensitive logs — SHIPPED 2026-10-10 (#36–38) + 2026-10-20.** SQL-param/decoded-token/bearer/header logs dev-gated (`middleware/auth.js`, `models/Expense.js`); no transcripts/LLM prompts in logs (voice service + providers have zero console logging, route logs `error.message` only — ENC-07). 2026-10-20: removed raw `err.message`/`error.message` from **all** client error responses (`server.js` global handler now generic for 5xx in prod, 4xx messages kept; `routes/expenses.js` 11 sites; `middleware/auth.js` invalid-token response) — no stack/SQL to clients. Remaining console output is IDs/usernames/result codes or dev-gated.
-- [ ] **STORE-01 Token storage (mobile-corrected).** `@capacitor/preferences` is **not encrypted** — do NOT store JWT there as final state. Use a secure-storage plugin (EncryptedSharedPreferences / Keychain) for tokens; Preferences only for theme/lang. Web: short access in memory + httpOnly refresh cookie. **Nothing long-lived in plain WebView `localStorage`.**
-- [ ] **STORE-02 Logout hygiene.** Clears WebView + secure storage + server-side refresh revocation; admin tab-close behavior preserved.
-- [ ] **APP-01 App lock (Should).** PIN/biometric (`@capacitor/biometrics`) gating display; 3-strike local token wipe.
+- [x] **LOG-01 No sensitive logs.** Bearer/header, decoded-token, SQL-param, amount, and description logs are dev-gated or removed; production 5xx responses are generic; voice service/providers have no request logging. **PENDING:** run the release log-grep check.
+- [ ] **STORE-01 Token storage.** Secure-storage plugin not implemented. `@capacitor/preferences` is unencrypted and must not hold JWTs. Web access token is still in `localStorage`/`sessionStorage`.
+- [ ] **STORE-02 Logout hygiene — PARTIAL.** Web logout clears storage and revokes the refresh session; admin session uses `sessionStorage` (tab-close ends it). Mobile secure-storage clearing is pending with `STORE-01/MOB-02`.
+- [ ] **APP-01 App lock (Should, not a Play blocker).** No PIN/biometric gate or 3-strike local wipe.
 
-### D — Play Store account, data & release gates
+### D — Play Store account, data, and release gates
 
-- [x] **PLAY-01 In-app account deletion — SHIPPED 2026-10-10 (on `dev`).** `DELETE /api/auth/me` (password confirm, 400-not-401 on mismatch so session survives); cascade verified (0 orphans); Account danger zone as a modal message box (backdrop, Esc/backdrop close, autofocus, EN/SI/TA, mobile+desktop); post-delete notice on login screen. Admin delete retained.
-- [ ] **PLAY-02 Data Safety form truth (mobile-corrected).** Declare: Financial info (amount, description), Personal info (username/email/transcript), **Microphone (foreground voice input — not background)**, App activity, Device IDs; purposes: App functionality + Fraud prevention; **sharing: Cohere (voice transcript/locale/timezone for extraction — D-6 decided 2026-10-11) + infra (Aiven/Render)** — not "no sharing"; encryption in transit: yes; deletion: yes (PLAY-01).
-- [ ] **PLAY-03 Privacy policy.** Hosted URL (in-app + listing): source text drafted at `docs/privacy-policy.md` (2026-10-13 — still needs a public host + in-app link; fill in the bracketed contact/date fields before publishing). Approved voice paragraph (2026-10-13, also shown as in-app mic hint `voice.privacyHint` EN/SI/TA — **SI/TA owner-verified 2026-10-13 (Gemini-reviewed, merged via PR #46)**): *"Voice input: your speech is transcribed on your device and the resulting text plus app locale and timezone are sent to Cohere solely to extract the expense details. We do not send your username, email, or account ID. Cohere retains prompts for 30 days by default and, on our free tier with no opt-out, prompts may be used for model improvement. Transcripts are not stored on our servers beyond processing the request. Typing works without voice."*
-- [ ] **PLAY-04 Binary readiness (mobile-corrected).** Merge mobile branch; `targetSdk` = latest required, 64-bit, versionCode bump, Play App Signing, permissions = `INTERNET` + `RECORD_AUDIO` only (with rationale string — voice expense input); no `REQUEST_INSTALL_PACKAGES`.
-- [ ] **PLAY-05 Pre-launch.** Internal track → pre-launch report clean (no cleartext, no weak crypto, mic disclosure OK); Data Safety + deletion URL verified; SI/TA screenshots; content rating done.
+- [x] **PLAY-01 In-app account deletion.** `DELETE /api/auth/me` with password confirmation; FK cascade verified; trilingual danger-zone modal; post-delete login notice. Admin delete retained.
+- [ ] **PLAY-02 Data Safety form truth.** Must declare financial info (amount/description), personal info (username/email/transcript), microphone (foreground only), app activity, and device IDs; sharing with Cohere + Aiven/Render; encryption in transit; deletion available.
+- [ ] **PLAY-03 Privacy policy.** Draft is in `docs/privacy-policy.md`; still needs a public URL, in-app link, and final contact/date fields. The approved voice disclosure paragraph is already shown as the in-app mic hint.
+- [ ] **PLAY-04 Binary readiness — PARTIAL.** Mobile shell is merged; `targetSdk 36`, release signing config, permissions limited to `INTERNET` + `RECORD_AUDIO`. **PENDING:** signed AAB, Play App Signing registration, 64-bit verification, versionCode/versionName bump if needed, and no `REQUEST_INSTALL_PACKAGES`.
+- [ ] **PLAY-05 Pre-launch.** Internal track -> clean pre-launch report (no cleartext, no weak crypto, mic disclosure OK); content rating done; SI/TA screenshots.
+- [ ] **PLAY-06 Hosted account-deletion URL.** Play requires a web deletion-request URL in addition to in-app deletion. **Not currently recorded as its own item before this audit.**
+- [ ] **PLAY-07 Play Console metadata.** Target audience, ads declaration, app access instructions, reviewer test account, and privacy-policy link. **Not explicitly recorded before this audit.**
 
-### E — Retention & ops
+### E — Retention and operations
 
-- [x] **OPS-01 Retention job — SHIPPED 2026-10-20 (code) / platform-confirm pending.** `scripts/purge-retention.js` deletes `password_reset_requests` rows > 90d (removes `request_ip`/`reject_reason`/`code_hash` with the row; `--dry-run` supported); scheduled nightly ~03:00 by `server.js` (disable: `RETENTION_JOB=false`). Codes already expire in 30 min. Logs = stdout-only, 30d retention is Render-dashboard-side (**owner: confirm log-retention setting in Render**). Voice: nothing persisted (ENC-07) — >30d rule is a written guarantee. Documented in `database.md` § Retention & purge.
-- [ ] **OPS-02 Backup encryption.** Aiven backups encrypted; manual dumps GPG-encrypted; restore tested.
-- [ ] **OPS-03 Secret hygiene.** Rotate placeholder `JWT_SECRET`, exposed Aiven password, admin password post-ENC; `.env` gitignored; prod secrets in dashboard/KMS only (now incl. `ENC_KEY`, `LLM_*_API_KEY`).
+- [x] **OPS-01 Retention job.** Nightly purge removes reset rows and expired refresh tokens older than 90 days; reset codes expire in 30 minutes; voice artifacts are never persisted. **PENDING:** confirm the Render log-retention setting.
+- [ ] **OPS-02 Backup encryption + Aiven disk-encryption confirmation.** Aiven backups encrypted; manual dumps GPG-encrypted; restore tested; owner confirms Aiven disk encryption at rest.
+- [ ] **OPS-03 Secret hygiene.** Rotate the placeholder `JWT_SECRET`, exposed Aiven password, and admin password post-encryption; keep `.env` gitignored; production secrets only in Render env/KMS.
+- [ ] **DEP-01 Dependency vulnerability gate.** Backend `npm audit --omit=dev`: 7 production advisories (1 critical, 5 high). Frontend: 72 advisories (3 critical), including runtime `axios` and `react-router` issues. Triage and upgrade before release.
+- [ ] **DOC-01 Release documentation sync.** `docs/security.md` still describes pre-2026-10-20 state (no helmet, 6-character passwords, shared JWT, `allowBackup=true`). Sync it with `main` before using it as release evidence.
 
-### F — Mobile shell hardening (new — branch `feature/mobile-capacitor-plan` → `main`)
+### F — Mobile shell hardening
 
-- [ ] **MOB-01 Backup rules.** `allowBackup=false` (or scoped `backup_rules.xml` excluding WebView storage); verify `adb backup` yields no tokens; `allowCleartextTraffic=false`.
-- [ ] **MOB-02 Secure storage migration.** Replace `authStorage.js` WebView storage with secure-storage plugin for tokens on native; keep Preferences for theme/lang; test login persists after app kill + reboot (plan §5 checklist).
-- [ ] **MOB-03 Mic permission UX.** `RECORD_AUDIO` rationale dialog (EN/SI/TA) before system prompt; graceful denial (text input still works); no background recording; Data Safety matches.
-- [ ] **MOB-04 Release build config.** Prod `REACT_APP_API_URL` → Render URL, `NODE_ENV=production`, exact `CORS_ALLOWED_ORIGINS` (Vercel + `capacitor://localhost` only — no LAN IPs); versionCode/versionName bump; signed `aab`.
-- [ ] **MOB-05 Router/WebView check.** Confirm `BrowserRouter` vs `HashRouter` decision from plan §2 (no blank screens on deep link); `homepage ./` retained.
-- [ ] **MOB-06 Merge + version.** Merge mobile branch to `main`, tag (e.g. v0.8.0-mobile), update `architecture.md` + release notes.
+- [ ] **MOB-01 Backup rules — CODE SHIPPED.** `allowBackup=false`, `fullBackupOnly=false`, `usesCleartextTraffic=false` are in the manifest. **PENDING:** verify `adb backup` of a release build contains no JWT/expense data.
+- [ ] **MOB-02 Secure storage migration.** Replace `authStorage.js` WebView storage with EncryptedSharedPreferences/Keychain for tokens on native; Preferences only for theme/language; verify login survives app kill/reboot.
+- [ ] **MOB-03 Mic permission UX — PARTIAL.** Trilingual privacy hint and permission-denied handling exist. **PENDING:** dedicated rationale dialog before the system prompt, no background recording verification, and Data Safety alignment.
+- [ ] **MOB-04 Release build config — PARTIAL.** Signing config, `targetSdk 36`, and version metadata exist. **PENDING:** production `REACT_APP_API_URL`, `NODE_ENV=production`, exact CORS origins (Vercel + `capacitor://localhost` + `https://localhost`, no LAN IPs), signed AAB.
+- [ ] **MOB-05 Router/WebView check — PARTIAL.** `BrowserRouter` and `homepage ./` are retained. **PENDING:** verify deep links and refreshes do not produce blank screens in the Capacitor WebView.
+- [ ] **MOB-06 Merge + version — PARTIAL.** Mobile branch is merged to `main` via PR #35. **PENDING:** mobile release tag (e.g. `v0.8.0-mobile`), architecture/release-notes update.
+- [x] **MOB-07 Android surface hygiene.** `MainActivity` is exported only for the launcher; FileProvider is `exported=false`; permissions are only `INTERNET` + `RECORD_AUDIO`; no `REQUEST_INSTALL_PACKAGES`.
 
-### G — Encryption migration verification & legacy removal (no data loss)
+### G — Encryption migration verification and legacy removal
 
-> Rule: never `DELETE`/`DROP` user data to "start fresh encrypted". Every step below keeps the app working with rollback intact. Temporary migration columns are named `temp_*` (or suffixed `_legacy`) and **must be removed** in the release after verification — each carries its removal item below. *Play maps to: Data Safety "deletion" means user-initiated erasure — admin wipes/dumps look like data loss to review.*
+> Rule: never delete/drop user data to "start fresh encrypted". Every step
+> keeps the app working with rollback intact.
 
-- [x] **MIG-01 Additive schema — DONE 2026-10-10.** `temp_*` + `enc_v` live on Aiven (132 rows intact); `initTable` converges fresh/existing DBs; backup + counts recorded pre-change.
-- [x] **MIG-02 Dual-write + dual-read — DONE 2026-10-10 (PR #42).** Model + list/recent/PUT paths; also fixed pre-existing PUT/DELETE OkPacket crash found during verification.
-- [x] **MIG-03 Backfill — DONE 2026-10-10.** `scripts/backfill-expense-encryption.js` (re-runnable, batched): 132/132, 0 failed, 0 remaining.
-- [x] **MIG-04 Test-account verification — DONE 2026-10-10.** `enctest` end-to-end (EN/SI/TA/emoji, POST/GET/PUT/DELETE exact, no crypto leakage, tamper rejected); account removed after, prod back to 9 users / 132 expenses, all `enc_v=1`.
-- [ ] **MIG-05 Legacy removal (one release later, only on evidence).** Requires: `enc_v=0` = 0 table-wide, test-account + real-account sample verified via API, one full release with zero fallback hits, fresh backup taken immediately before. Then `ALTER TABLE expenses DROP COLUMN description` (and rename `temp_description_enc → description_enc`, `temp_description_iv → description_iv`). Re-run MIG-04 checks post-drop; monitor decrypt errors 48h. Rollback = restore pre-`ALTER` backup.
-- [ ] **MIG-06 Temp-column hygiene.** No `temp_*`/`*_legacy` column survives past its MIG-05. Pre-submission grep of schema for `temp_` must be empty; Data Safety + privacy policy describe only final columns.
+- [x] **MIG-01 Additive schema.** Temporary encrypted columns and `enc_v` live on Aiven; `initTable` converges fresh/existing DBs; backup + counts recorded.
+- [x] **MIG-02 Dual-write + dual-read.** Expense model and list/recent/PUT paths; also fixed the pre-existing PUT/DELETE `OkPacket` crash.
+- [x] **MIG-03 Backfill.** Expense backfill: 132/132, 0 failed, 0 remaining `enc_v=0`.
+- [x] **MIG-04 Test-account verification.** End-to-end EN/SI/TA/emoji create/read/update/delete, no crypto leakage, tamper rejected; test account removed.
+- [ ] **MIG-05 Description legacy removal.** Requires: `enc_v=0` = 0 table-wide, API samples verified, one release with zero fallback hits, fresh backup. Then remove legacy description writes/reads, drop `description`, rename `temp_description_enc → description_enc` and `temp_description_iv → description_iv`, and monitor decrypt errors.
+- [ ] **MIG-06 Temp-column hygiene.** No `temp_*`/`*_legacy` column survives past its migration; pre-submission schema grep for `temp_` must be empty.
+- [ ] **MIG-07 Email legacy removal.** Requires the same evidence as MIG-05. Then remove legacy plaintext email writes/reads, drop `email`, rename `temp_email_enc → email_enc` and `temp_email_iv → email_iv`; keep `email_hmac` for lookup/uniqueness. **This item was missing before the 2026-11-03 audit.**
 
 ---
 
 ## 5. Acceptance criteria
 
-1. SQL dump without `ENC_KEY` reveals **no** readable description, email, IP, or transcript.
-2. Log grep for `amount|description|transcript|prompt|@|Bearer|BEGIN|API_KEY` empty on prod logs.
-3. `curl http://` → redirect/HSTS; DB connects with `rejectUnauthorized:true`; WebView blocks cleartext.
-4. 11th login in 15 min → 429; voice over-limit → 429 with `VOICE_*` code.
-5. `adb backup` of release build contains no JWT/expense data.
-6. Mic denied → app still works via typing; mic granted → no background recording indicator abuse.
-7. User self-delete from app cascades; Data Safety + privacy + deletion URL live.
-8. Data Safety "sharing" lists the chosen LLM provider truthfully.
-9. Migration: `enc_v=0` = 0, test-account decrypt verified (MIG-04), no `temp_*` columns remain (MIG-05/06).
+1. **After MIG-05/MIG-07:** a SQL dump without `ENC_KEY` reveals no readable description or email. (Not true while legacy plaintext columns remain.)
+2. Release log grep for `amount|description|transcript|prompt|@|Bearer|BEGIN|API_KEY` is empty.
+3. `curl http://` redirects or returns HSTS; DB connects with `rejectUnauthorized:true`; WebView blocks cleartext.
+4. 11th login in 15 minutes returns 429; voice over-limit returns 429 with the expected code.
+5. `adb backup` of a release build contains no JWT/expense data.
+6. Mic denied -> typing still works; mic granted -> no background-recording indicator abuse.
+7. User self-delete cascades correctly; Data Safety + privacy policy + hosted deletion URL are live.
+8. Data Safety "sharing" lists Cohere and infrastructure providers truthfully.
+9. Migration: `enc_v=0` = 0, test-account decrypt verified, no `temp_*` columns remain.
+10. Production dependency audit is triaged; no unmitigated critical/high runtime advisories ship.
+11. `/api/expenses/test-db` returns 404 when `NODE_ENV=production`.
 
 ---
 
-## 6. Phased rollout (suggested)
+## 6. Remaining release gates
 
-| Phase | Ships | Notes |
-|-------|-------|-------|
-| P0 (this week) | LOG-01, MOB-01, PLAY-01 ✅shipped, D-6 provider pick | Zero-migration wins; locks mobile privacy story |
-| P1 | ENC-01–05+07 ✅ENC-01/02 done, MIG-01–04 ✅done, AUTH-04/05/06, STORE-01/MOB-02 | Description + email encryption shipped (PR #42 + dev); remaining: IP/reason, rate limits, secure storage |
-| P2 | AUTH-01/02/03, TLS-01/02, APP-01, MOB-03–06, PLAY-02–05 | Merge mobile branch, signed `aab`, store submission |
+| Gate | Required items | Blocking? |
+|------|----------------|-----------|
+| G1 — Data at rest | `MIG-05`, `MIG-07`, `ENC-03` + `ENC-04` production runs, `ENC-05` decision, `OPS-02` | Production: yes |
+| G2 — Mobile client | `STORE-01`, `STORE-02`, `MOB-02`, `MOB-03`, `MOB-04`, `MOB-05`, `MOB-06` | Production: yes (APP-01 optional) |
+| G3 — Release binary | Signed AAB, Play App Signing, 64-bit check, version bump, production API/CORS | Production: yes |
+| G4 — Play Console | `PLAY-02`, `PLAY-03`, `PLAY-05`, `PLAY-06`, `PLAY-07` | Production: yes |
+| G5 — Ops/deps/docs | `OPS-01` platform confirm, `OPS-02`, `OPS-03`, `DEP-01`, `DOC-01` | Production: yes |
+| G6 — Pre-launch | Internal track + clean pre-launch report | Final gate |
+| Backlog | `APP-01` app lock, Cohere paid/ZDR upgrade | Not required for first release |
 
 ---
 
 ## 7. Open questions for owner
 
-1. Email-login keep (HMAC index) or username-only to simplify ENC-02? — *open*
-2. ~~Prod LLM provider pick~~ DECIDED: Cohere (2026-10-11), reconfirmed 2026-10-20. Free tier confirmed 2026-10-13: 30-day retention, training opt-out absent, no DPA. Upgrade to paid/ZDR later for stronger posture? (D-6)
-3. ~~Retention OK~~ **RESOLVED 2026-10-20: 90/30/30 confirmed** (reset rows >90d, logs >30d, voice artifacts >30d — OPS-01/ENC-03 numbers).
-4. ~~Prod `ENC_KEY` + `LLM_*_API_KEY` holder~~ **RESOLVED 2026-10-20: Render env** (no external KMS; rotation = dashboard var swap per ENC-05).
-5. Merge `feature/mobile-capacitor-plan` to `main` now, or after P1 encryption lands? — *open*
+1. ~~Email-login keep or username-only?~~ **Resolved:** email login kept via the HMAC blind index; legacy plaintext email must be removed (`MIG-07`).
+2. **Cohere free tier:** 30-day retention and no training opt-out. Keep disclosure + typing fallback for v1, or upgrade to a paid/ZDR plan before release?
+3. ~~Retention OK?~~ **Resolved 2026-10-20:** 90/30/30 (reset rows, logs, voice artifacts).
+4. ~~Prod `ENC_KEY` + `LLM_*_API_KEY` holder?~~ **Resolved 2026-10-20:** Render env; rotation via dashboard.
+5. ~~Merge `feature/mobile-capacitor-plan`?~~ **Resolved:** merged to `main` via PR #35.
+6. **ENC-05:** is single-key v1 acceptable for the first Play release, or must `ENC_KEY_ID`/rotation be implemented first?
+7. **Legacy cleanup:** drop legacy plaintext columns before first Play submission (recommended) or ship with documented risk?
+8. **Dependency remediation:** how far to upgrade `axios`/`react-router`/`react-scripts` before release versus documenting accepted risk?
+
+---
+
+*Changelog: v1 created 2026-10-10. v2 added encryption/MIG items. v3 2026-11-03: audited `main` @ `d5b9e42`; corrected stale branch/transport/token/log statuses; marked MOB-01, MOB-06, MOB-07, PLAY-04, STORE-02, and MOB-03 as partial/code-shipped where appropriate; added API-01/02/03, MIG-07, DEP-01, PLAY-06, PLAY-07, DOC-01; recorded the HIBP hostname typo fix and production `/test-db` 404 gate; replaced the stale P0/P1/P2 table with current release gates.*

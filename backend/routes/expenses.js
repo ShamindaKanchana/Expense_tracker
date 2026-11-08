@@ -63,8 +63,12 @@ const expenseBodySchema = z
   })
   .strict();
 
-// Test database connection (MySQL)
+// Test database connection (MySQL) — development only. Never expose schema
+// or connectivity diagnostics from a production API (LOG-01/API hardening).
 router.get('/test-db', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: 'Not found' });
+  }
   try {
     const ping = await db.query('SELECT 1 AS ok');
     const tables = await db.query(

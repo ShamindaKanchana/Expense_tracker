@@ -10,7 +10,7 @@ Product requirements that guide design and implementation. These are **not** dep
 | [date-range-reports.md](./date-range-reports.md) | **Implemented** | Custom date-range report: presets/custom range → category donut + paginated expense list |
 | [expense-edit.md](./expense-edit.md) | **Implemented** | Edit/delete recent expenses from Dashboard + Monthly Report, with a server-enforced 24-hour edit window |
 | [voice-expense-input.md](./voice-expense-input.md) | **Implementation in progress** | Voice input: mic → browser STT → LLM draft preview → confirm → reuse POST /api/expenses |
-| [playstore-data-safety.md](./playstore-data-safety.md) | **Draft v2** | Play Store readiness: column encryption + mobile (Capacitor/voice) hardening + account deletion |
+| [playstore-data-safety.md](./playstore-data-safety.md) | **Living checklist** | Play Store readiness: current shipped controls, remaining risk register, and submission release gates |
 
 ## How to use
 
