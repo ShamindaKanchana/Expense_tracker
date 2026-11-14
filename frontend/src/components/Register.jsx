@@ -83,7 +83,7 @@ const Register = ({ setIsAuthenticated }) => {
         password: formData.password
       });
 
-      setAuth(response.token, response.user, true);
+      await setAuth(response.token, response.user, true);
 
       setIsAuthenticated(true);
       navigate('/dashboard');

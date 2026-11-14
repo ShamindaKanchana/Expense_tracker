@@ -11,6 +11,7 @@ import VoiceExpenseInput from './VoiceExpenseInput';
 import ExpenseEditModal from './ExpenseEditModal';
 import ExpenseRowActions from './ExpenseRowActions';
 import { getErrorMessage } from '../utils/errorMessage';
+import { getToken, getUser } from '../utils/authStorage';
 import './Dashboard.css';
 
 // Register ChartJS components
@@ -41,14 +42,9 @@ const Dashboard = () => {
   
   // Log the current user's ID on component mount
   useEffect(() => {
-    try {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        const user = JSON.parse(userData);
-        console.log('🔐 Logged in user ID:', user.id);
-      }
-    } catch (error) {
-      console.error('Error getting user ID:', error);
+    const user = getUser();
+    if (user) {
+      console.log('🔐 Logged in user ID:', user.id);
     }
   }, []);
 
@@ -73,7 +69,7 @@ const Dashboard = () => {
     const fetchCategoryData = async () => {
       console.group('=== Starting Category Data Fetch ===');
       try {
-        console.log('🔑 Using token for categories fetch:', localStorage.getItem('token') ? 'Token exists' : 'No token');
+        console.log('🔑 Using token for categories fetch:', getToken() ? 'Token exists' : 'No token');
         
         const response = await api.get('/expenses/categories');
         console.log('📡 API Response status:', response.status);

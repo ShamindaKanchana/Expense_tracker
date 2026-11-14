@@ -13,7 +13,13 @@ import AdminLogin from './components/admin/AdminLogin';
 import AdminDashboard from './components/admin/AdminDashboard';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-import { getToken, setAuth, getUser } from './utils/authStorage';
+import {
+  getRememberMe,
+  getToken,
+  getUser,
+  initAuthStorage,
+  setAuth,
+} from './utils/authStorage';
 import { authApi } from './services/api';
 import './App.css';
 
@@ -26,6 +32,9 @@ function App() {
 
   useEffect(() => {
     const bootstrap = async () => {
+      // Load secure native storage before any sync getToken() call.
+      await initAuthStorage();
+
       if (getToken()) {
         setIsAuthenticated(true);
         setLoading(false);
@@ -37,8 +46,7 @@ function App() {
       const token = await authApi.refresh();
       if (token) {
         const user = getUser();
-        // Preserve the previous remember-me bucket (default localStorage).
-        setAuth(token, user, true);
+        await setAuth(token, user, getRememberMe());
         setIsAuthenticated(true);
       }
       setLoading(false);
