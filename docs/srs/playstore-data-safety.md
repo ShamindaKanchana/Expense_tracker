@@ -49,9 +49,9 @@
 
 | # | Item | Current state | Required action |
 |---|------|---------------|-----------------|
-| S-1 | `expenses.description` | Encrypted `temp_*` columns exist and are backfilled, but **new writes still dual-write legacy plaintext `description`**. A raw DB dump still exposes it. | `MIG-05` |
+| S-1 | `expenses.description` | Encrypted `temp_*` columns are backfilled and **new writes are encrypted-only** (legacy column receives an empty tombstone). Pre-migration rows still contain legacy plaintext `description` until the column is dropped. | `MIG-05` |
 | S-2 | `expenses.amount` | Plaintext by decision (`SUM()` aggregation). | Keep documented; compensate with TLS, no-logging, admin isolation (`ENC-06`). |
-| S-3 | `users.email` | Encrypted `temp_*` columns + HMAC exist, but **new writes still dual-write legacy plaintext `email`**. There is no email legacy-removal item yet. | `MIG-07` |
+| S-3 | `users.email` | Encrypted `temp_*` columns + HMAC exist and **new signups are encrypted-only**. Existing pre-migration accounts still contain legacy plaintext `email` until the column is dropped. | `MIG-07` |
 | S-4 | `password_reset_requests.request_ip` | New rows are minimized; existing production rows still need the backfill. | Run `ENC-03` backfill. |
 | S-5 | `password_reset_requests.reject_reason` | New writes use enum code + encrypted note; legacy plaintext rows still need migration. | Run `ENC-04` migration. |
 | S-6 | JWT storage in WebView | Access token still mirrored in `localStorage`/`sessionStorage`; secure native storage not implemented. | `STORE-01`, `MOB-02` |
@@ -117,8 +117,8 @@ remaining step on shipped code.
 
 ### A — Column-level encryption
 
-- [x] **ENC-01 `expenses.description` encrypted at rest.** AES-256-GCM `temp_description_enc`/`temp_description_iv` + `enc_v`; dual-write/dual-read; ciphertext stripped from API responses; 132/132 backfilled. Legacy `description` is still dual-written and retained until `MIG-05`.
-- [x] **ENC-02 `users.email` encrypted at rest.** AES-256-GCM `temp_email_enc`/`temp_email_iv` + `email_hmac` blind index; dual-write/read; 4/4 backfilled; email login works. Legacy `email` is still dual-written and retained until `MIG-07`.
+- [x] **ENC-01 `expenses.description` encrypted at rest.** AES-256-GCM `temp_description_enc`/`temp_description_iv` + `enc_v`; encrypted-write/dual-read; ciphertext stripped from API responses; 176/176 backfilled. Legacy `description` is a tombstone on new/updated rows and remains on pre-migration rows until `MIG-05`.
+- [x] **ENC-02 `users.email` encrypted at rest.** AES-256-GCM `temp_email_enc`/`temp_email_iv` + `email_hmac` blind index; encrypted-write/dual-read; 4/4 backfilled; email login works. Legacy `email` is no longer written and remains on pre-migration rows until `MIG-07`.
 - [x] **ENC-03 `request_ip` minimized.** `/24` IPv4 + `/48` IPv6 truncation on insert; unrecognized values stored as NULL; never returned to admin. **PENDING:** run `node scripts/backfill-request-ip-minimization.js` once against production.
 - [x] **ENC-04 `reject_reason` structured.** Enum `reject_reason_code` + optional AES-256-GCM-encrypted note; admin reject route validates `{code, note}`; supersede writes code only. **PENDING:** run `node scripts/migrate-reject-reason.js` once against production.
 - [ ] **ENC-05 Key management — PARTIAL.** `ENC_KEY` is env-only and validated as 32 bytes. `ENC_KEY_ID` is documented but unused; there is no key-version rotation or background re-encrypt. Dev key must differ from prod.
@@ -180,12 +180,12 @@ remaining step on shipped code.
 > keeps the app working with rollback intact.
 
 - [x] **MIG-01 Additive schema.** Temporary encrypted columns and `enc_v` live on Aiven; `initTable` converges fresh/existing DBs; backup + counts recorded.
-- [x] **MIG-02 Dual-write + dual-read.** Expense model and list/recent/PUT paths; also fixed the pre-existing PUT/DELETE `OkPacket` crash.
-- [x] **MIG-03 Backfill.** Expense backfill: 132/132, 0 failed, 0 remaining `enc_v=0`.
+- [x] **MIG-02 Encrypted-write + dual-read.** Expense model and list/recent/PUT paths; legacy plaintext writes removed; also fixed the pre-existing PUT/DELETE `OkPacket` crash.
+- [x] **MIG-03 Backfill.** Expense backfill: 176/176, 0 failed, 0 remaining `enc_v=0` (verified 2026-11-14).
 - [x] **MIG-04 Test-account verification.** End-to-end EN/SI/TA/emoji create/read/update/delete, no crypto leakage, tamper rejected; test account removed.
-- [ ] **MIG-05 Description legacy removal.** Requires: `enc_v=0` = 0 table-wide, API samples verified, one release with zero fallback hits, fresh backup. Then remove legacy description writes/reads, drop `description`, rename `temp_description_enc → description_enc` and `temp_description_iv → description_iv`, and monitor decrypt errors.
+- [ ] **MIG-05 Description legacy removal — PHASE A READY.** Encrypted-only writes are implemented; new/updated rows write an empty tombstone to `description` and no longer store plaintext. Read fallback remains. Requires: deploy Phase A, one release with zero fallback hits, fresh backup. Then remove fallback reads, drop `description`, rename `temp_description_enc → description_enc` and `temp_description_iv → description_iv`, and monitor decrypt errors.
 - [ ] **MIG-06 Temp-column hygiene.** No `temp_*`/`*_legacy` column survives past its migration; pre-submission schema grep for `temp_` must be empty.
-- [ ] **MIG-07 Email legacy removal.** Requires the same evidence as MIG-05. Then remove legacy plaintext email writes/reads, drop `email`, rename `temp_email_enc → email_enc` and `temp_email_iv → email_iv`; keep `email_hmac` for lookup/uniqueness. **This item was missing before the 2026-11-03 audit.**
+- [ ] **MIG-07 Email legacy removal — PHASE A READY.** New signups write encrypted email + HMAC only; legacy `email` is no longer written. Read fallback remains. Requires the same evidence as MIG-05. Then remove fallback reads, drop `email`, rename `temp_email_enc → email_enc` and `temp_email_iv → email_iv`; keep `email_hmac` for lookup/uniqueness. **This item was missing before the 2026-11-03 audit.**
 
 ---
 
@@ -232,4 +232,4 @@ remaining step on shipped code.
 
 ---
 
-*Changelog: v1 created 2026-10-10. v2 added encryption/MIG items. v3 2026-11-03: audited `main` @ `d5b9e42`; corrected stale branch/transport/token/log statuses; marked MOB-01, MOB-06, MOB-07, PLAY-04, STORE-02, and MOB-03 as partial/code-shipped where appropriate; added API-01/02/03, MIG-07, DEP-01, PLAY-06, PLAY-07, DOC-01; recorded the HIBP hostname typo fix and production `/test-db` 404 gate; replaced the stale P0/P1/P2 table with current release gates.*
+*Changelog: v1 created 2026-10-10. v2 added encryption/MIG items. v3 2026-11-03: audited `main` @ `d5b9e42`; corrected stale branch/transport/token/log statuses; marked MOB-01, MOB-06, MOB-07, PLAY-04, STORE-02, and MOB-03 as partial/code-shipped where appropriate; added API-01/02/03, MIG-07, DEP-01, PLAY-06, PLAY-07, DOC-01; recorded the HIBP hostname typo fix and production `/test-db` 404 gate; replaced the stale P0/P1/P2 table with current release gates. v4 2026-11-14: verified 176/176 expense descriptions encrypted; implemented Phase A of MIG-05/MIG-07 (encrypted-only writes, fail-closed without keys, legacy columns kept as read fallback/tombstones) and added the verification script.*
