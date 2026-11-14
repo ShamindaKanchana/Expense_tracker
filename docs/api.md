@@ -95,7 +95,7 @@ Expense Tracker API is running
 | | |
 |--|--|
 | **Access** | Public |
-| **Description** | Create a new account with **username + password** (email not required). Returns a JWT. |
+| **Description** | Create a new account with **username + password only** (no email). Returns a JWT. |
 
 **Request body**
 
@@ -110,7 +110,8 @@ Expense Tracker API is running
 |-------|----------|-------|
 | `username` | Yes | Min 3 characters, unique |
 | `password` | Yes | Min 6 characters |
-| `email` | No | Optional; stored if provided (legacy). New UI does not send it |
+
+Unknown fields, including `email`, are rejected.
 
 **Success:** `201`
 
@@ -119,8 +120,7 @@ Expense Tracker API is running
   "token": "<jwt>",
   "user": {
     "id": 1,
-    "username": "jane",
-    "email": null
+    "username": "jane"
   }
 }
 ```
@@ -129,7 +129,7 @@ Expense Tracker API is running
 
 | Status | When |
 |--------|------|
-| `400` | Missing fields, short username/password, or duplicate username/email |
+| `400` | Missing fields, short username/password, unknown field, or duplicate username |
 | `500` | Server error |
 
 ---
@@ -139,7 +139,7 @@ Expense Tracker API is running
 | | |
 |--|--|
 | **Access** | Public |
-| **Description** | Sign in with **username or email** + password; returns a JWT. Existing email users and new username-only users both work. |
+| **Description** | Sign in with **username or email** + password; returns a JWT. Email is accepted only for legacy accounts; new accounts are username-only. |
 
 **Request body**
 

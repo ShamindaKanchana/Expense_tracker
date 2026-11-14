@@ -16,7 +16,7 @@ our Play Store Data Safety declaration.
 | Data | Why | Required? |
 |------|-----|-----------|
 | Username | Account identity and sign-in | Yes |
-| Email (optional) | Sign-in and account recovery (new accounts may use username only) | No |
+| Email (legacy accounts only) | Sign-in for accounts created before the username-only change; new accounts do not collect email | No |
 | Password (stored as a one-way bcrypt hash — we never store or see your plain password) | Authentication | Yes |
 | Expense records: amount, description, category, date | The app's core function — tracking your spending | Yes, when you add expenses |
 | Voice transcript, app locale, timezone (voice input only) | Sent to our language provider to extract the expense from speech | Only when you tap the mic |

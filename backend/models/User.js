@@ -1,7 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const {
-  encryptField,
   decryptField,
   normalizeEmail,
   emailHmac
@@ -101,28 +100,6 @@ class User {
     return row && row.email != null ? row.email : null;
   }
 
-  /** Strip encryption material so ciphertext/IV never leave the API (ENC-02). */
-  static stripEmailCrypto(obj) {
-    if (obj && typeof obj === 'object') {
-      delete obj.temp_email_enc;
-      delete obj.temp_email_iv;
-      delete obj.email_hmac;
-    }
-    return obj;
-  }
-
-  /**
-   * Normalize + build the encrypted envelope for an email (null-safe).
-   * Fail-closed in every environment — missing ENC_KEY/EMAIL_HMAC_PEPPER throws
-   * rather than falling back to legacy plaintext (MIG-07).
-   */
-  static encryptEmail(email) {
-    const norm = normalizeEmail(email);
-    if (!norm) return { enc: null, iv: null, hmac: null };
-    const { enc, iv } = encryptField(norm);
-    return { enc, iv, hmac: emailHmac(norm) };
-  }
-
   /** HMAC for lookup, or null when email empty / pepper missing in dev. */
   static hmacForLookup(email) {
     try {
@@ -134,30 +111,25 @@ class User {
     }
   }
 
-  // Create a new user (email optional)
+  // Create a new username-only user (no email collection)
   static async create(userData, callback) {
     try {
       const hashedPassword = await bcrypt.hash(userData.password, 10);
       const username = String(userData.username || '').trim();
-      const env = User.encryptEmail(userData.email);
-      
+
       const result = await db.query(
-        'INSERT INTO users (username, temp_email_enc, temp_email_iv, email_hmac, password) VALUES (?, ?, ?, ?, ?)',
-        [username, env.enc, env.iv, env.hmac, hashedPassword]
+        'INSERT INTO users (username, password) VALUES (?, ?)',
+        [username, hashedPassword]
       );
-      
+
       if (result.insertId) {
-        // Fetch the newly created user
         const rows = await db.query(
-          'SELECT id, username, email, temp_email_enc, temp_email_iv, created_at FROM users WHERE id = ?',
+          'SELECT id, username, created_at FROM users WHERE id = ?',
           [result.insertId]
         );
-        
+
         if (rows.length > 0) {
-          const user = rows[0];
-          user.email = User.resolveEmail(user);
-          User.stripEmailCrypto(user);
-          callback(null, user);
+          callback(null, rows[0]);
         } else {
           callback(new Error('Failed to retrieve created user'));
         }
