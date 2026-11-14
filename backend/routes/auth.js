@@ -13,8 +13,7 @@ const { checkBreached } = require('../utils/breachCheck');
 const {
   validateBody,
   usernameSchema,
-  passwordSchema,
-  emailSchema
+  passwordSchema
 } = require('../middleware/validateBody');
 const {
   loginRateLimit,
@@ -77,8 +76,7 @@ const clientIp = (req) =>
 const registerSchema = z
   .object({
     username: usernameSchema,
-    password: passwordSchema,
-    email: emailSchema
+    password: passwordSchema
   })
   .strict();
 
@@ -129,14 +127,12 @@ const resetPasswordSchema = z
   .strict();
 
 // @route   POST /api/auth/register
-// @desc    Register with username + password (email optional, not required)
+// @desc    Register with username + password (no email collection)
 // @access  Public
 router.post('/register', registerRateLimit, validateBody(registerSchema), async (req, res) => {
   try {
     const username = String(req.body.username || '').trim();
     const password = req.body.password;
-    // Optional for backward compatibility; new UI does not collect email
-    const email = req.body.email ? String(req.body.email).trim() : null;
 
     const breach = await checkBreached(password);
     if (breach.breached) {
@@ -156,21 +152,8 @@ router.post('/register', registerRateLimit, validateBody(registerSchema), async 
       return res.status(400).json({ message: 'That username is taken. Please choose a different one.' });
     }
 
-    if (email) {
-      const existingByEmail = await new Promise((resolve, reject) => {
-        User.findByEmail(email, (err, user) => {
-          if (err) reject(err);
-          else resolve(user);
-        });
-      });
-
-      if (existingByEmail) {
-        return res.status(400).json({ message: 'This email is already registered. Try signing in instead.' });
-      }
-    }
-
     const newUser = await new Promise((resolve, reject) => {
-      User.create({ username, email, password }, (err, user) => {
+      User.create({ username, password }, (err, user) => {
         if (err) reject(err);
         else resolve(user);
       });
@@ -185,18 +168,16 @@ router.post('/register', registerRateLimit, validateBody(registerSchema), async 
       token,
       user: {
         id: newUser.id,
-        username: newUser.username,
-        email: newUser.email || null
+        username: newUser.username
       }
     });
   } catch (error) {
     console.error('Registration error:', error.message);
 
     if (error.code === 'ER_DUP_ENTRY') {
-      const message = error.message?.includes('email')
-        ? 'This email is already registered. Try signing in instead.'
-        : 'That username is taken. Please choose a different one.';
-      return res.status(400).json({ message });
+      return res.status(400).json({
+        message: 'That username is taken. Please choose a different one.'
+      });
     }
 
     res.status(500).json({ message: "We couldn't create your account right now. Please try again in a moment." });

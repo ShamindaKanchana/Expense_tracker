@@ -30,12 +30,4 @@ const passwordSchema = z
   .min(10, 'Your password needs at least 10 characters.')
   .max(128);
 
-const emailSchema = z
-  .string()
-  .trim()
-  .email()
-  .max(254)
-  .nullable()
-  .optional();
-
-module.exports = { validateBody, usernameSchema, passwordSchema, emailSchema };
+module.exports = { validateBody, usernameSchema, passwordSchema };
