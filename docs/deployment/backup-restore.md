@@ -97,3 +97,25 @@ SELECT COUNT(*) AS legacy_email_rows
 - [ ] Row-count comparison.
 - [ ] Any errors and how they were resolved.
 - [ ] Update `OPS-02` in the SRS.
+
+## Test log
+
+### 2026-11-14 — PASS
+
+- **Source:** Aiven `expense_tracker` via `mysqldump` (single-transaction, routines/triggers/events) over `ssl-mode=REQUIRED`.
+- **Dump:** temporary GPG symmetric AES-256 encrypted file, removed after the test.
+- **Restore target:** temporary local MySQL 8.0.46 scratch instance.
+- **Counts matched:**
+
+| Check | Production | Restored |
+|-------|------------|----------|
+| `users` | 11 | 11 |
+| `expenses` | 176 | 176 |
+| `enc_v = 0` | 0 | 0 |
+| missing ciphertext | 0 | 0 |
+| legacy description rows | 176 | 176 |
+| legacy email rows | 4 | 4 |
+| email HMAC rows | 4 | 4 |
+
+- **Checksums:** all five tables (`admins`, `expenses`, `password_reset_requests`, `refresh_tokens`, `users`) matched.
+- **Caveat:** local `.env` has no `DB_CA_CERT`, so the dump connection encrypted traffic but did not verify the Aiven CA. Aiven disk-encryption confirmation and a durable off-host encrypted backup are still pending.
