@@ -557,11 +557,12 @@ router.put('/:id', auth, validateBody(expenseBodySchema), async (req, res) => {
       });
     }
 
-    // Find and update the expense (dual-write MIG-02: legacy + encrypted)
+    // MIG-05: encrypted write only; legacy column gets a non-sensitive
+    // tombstone until it is dropped.
     const cryptoEnv = Expense.encryptDescription(String(description).trim());
     await db.query(
-      'UPDATE expenses SET amount = ?, description = ?, temp_description_enc = ?, temp_description_iv = ?, enc_v = ?, category = ?, date = ? WHERE id = ? AND user_id = ?',
-      [amount, description.trim(), cryptoEnv.enc, cryptoEnv.iv, cryptoEnv.encV, normalizedCategory, date || new Date(), id, userId]
+      "UPDATE expenses SET amount = ?, description = '', temp_description_enc = ?, temp_description_iv = ?, enc_v = ?, category = ?, date = ? WHERE id = ? AND user_id = ?",
+      [amount, cryptoEnv.enc, cryptoEnv.iv, cryptoEnv.encV, normalizedCategory, date || new Date(), id, userId]
     );
 
     // Return the updated expense. A no-op update (same values) can report

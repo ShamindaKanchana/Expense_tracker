@@ -114,19 +114,13 @@ class Expense {
   }
 
   /**
-   * Dual-write envelope (MIG-02): returns { enc, iv, encV } for the given text.
-   * Fail-closed in production (no key = error); in development fall back to
-   * legacy-only (enc_v 0) with a one-time warning so local dev keeps working.
+   * Encrypted-write envelope (MIG-05): returns { enc, iv, encV } for the text.
+   * Fail-closed in every environment — a missing/invalid ENC_KEY throws rather
+   * than falling back to legacy plaintext.
    */
   static encryptDescription(description) {
-    try {
-      const { enc, iv } = encryptField(description);
-      return { enc, iv, encV: 1 };
-    } catch (err) {
-      if (process.env.NODE_ENV === 'production') throw err;
-      console.warn('⚠️  ' + err.message + ' Writing legacy plaintext (dev only).');
-      return { enc: null, iv: null, encV: 0 };
-    }
+    const { enc, iv } = encryptField(description);
+    return { enc, iv, encV: 1 };
   }
 
   constructor(expenseData = {}) {
@@ -142,12 +136,13 @@ class Expense {
   async save(callback) {
     try {
       if (this.id) {
-        // Update existing expense (dual-write MIG-02: legacy + encrypted)
+        // Update existing expense (MIG-05: encrypted write only; legacy column
+        // is overwritten with a non-sensitive tombstone until it is dropped).
         const cryptoEnv = Expense.encryptDescription(this.description);
         const sql = `
           UPDATE expenses 
           SET amount = ?, 
-              description = ?, 
+              description = '',
               temp_description_enc = ?,
               temp_description_iv = ?,
               enc_v = ?,
@@ -159,7 +154,6 @@ class Expense {
         
         const params = [
           this.amount,
-          this.description,
           cryptoEnv.enc,
           cryptoEnv.iv,
           cryptoEnv.encV,
@@ -189,17 +183,17 @@ class Expense {
           callback(new Error('No expense found with the given ID'));
         }
       } else {
-        // Create new expense (dual-write MIG-02: legacy + encrypted)
+        // Create new expense (MIG-05: encrypted write only; legacy column gets
+        // a non-sensitive tombstone until it is dropped).
         const cryptoEnv = Expense.encryptDescription(this.description);
         const sql = `
           INSERT INTO expenses (user_id, amount, description, temp_description_enc, temp_description_iv, enc_v, category, date) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, '', ?, ?, ?, ?, ?)
         `;
         
         const params = [
           this.userId,
           this.amount,
-          this.description,
           cryptoEnv.enc,
           cryptoEnv.iv,
           cryptoEnv.encV,
