@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { getErrorMessage } from '../utils/errorMessage';
-import { clearAuth, getToken } from '../utils/authStorage';
+import { clearAuth, getToken, updateToken } from '../utils/authStorage';
 import { clearAdminAuth, getAdminToken } from '../utils/adminStorage';
 
 const API_URL = API_BASE_URL;
@@ -96,15 +96,7 @@ api.interceptors.response.use(
         const newToken = await refreshAccessToken();
         if (newToken) {
           // Keep persistent storage in sync so a page reload still works.
-          const stored = getToken();
-          if (stored) {
-            // Preserve whichever storage bucket the old token lived in.
-            if (localStorage.getItem('token')) {
-              localStorage.setItem('token', newToken);
-            } else {
-              sessionStorage.setItem('token', newToken);
-            }
-          }
+          await updateToken(newToken);
           error.config._authRetried = true;
           error.config.headers.Authorization = `Bearer ${newToken}`;
           return api.request(error.config);
@@ -118,7 +110,7 @@ api.interceptors.response.use(
       if (isAdminApi) {
         clearAdminAuth();
       } else {
-        clearAuth();
+        await clearAuth();
         sessionStorage.setItem(
           'authMessage',
           'Your session has expired. Please sign in again.'

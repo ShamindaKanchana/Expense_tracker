@@ -59,8 +59,8 @@ const Navbar = ({ setIsAuthenticated }) => {
 
   const handleLogout = () => {
     // AUTH-02: revoke the refresh session server-side, then drop local state.
-    authApi.logout().finally(() => {
-      clearAuth();
+    authApi.logout().finally(async () => {
+      await clearAuth();
       setIsAuthenticated(false);
       navigate('/login');
     });

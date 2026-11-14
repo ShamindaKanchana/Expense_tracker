@@ -70,7 +70,7 @@ const Login = ({ setIsAuthenticated }) => {
     try {
       const { token, user } = await authApi.login(formData.login.trim(), formData.password);
 
-      setAuth(token, user, rememberMe);
+      await setAuth(token, user, rememberMe);
 
       setIsAuthenticated(true);
       navigate('/dashboard');

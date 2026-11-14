@@ -43,7 +43,7 @@ const Account = ({ setIsAuthenticated }) => {
         const data = await authApi.getMe();
         if (cancelled) return;
         setProfile(data);
-        setStoredUser({
+        await setStoredUser({
           id: data.id,
           username: data.username,
           email: data.email || null
@@ -137,8 +137,8 @@ const Account = ({ setIsAuthenticated }) => {
   };
 
   const handleLogout = () => {
-    authApi.logout().finally(() => {
-      clearAuth();
+    authApi.logout().finally(async () => {
+      await clearAuth();
       setIsAuthenticated(false);
       navigate('/login');
     });
@@ -156,7 +156,7 @@ const Account = ({ setIsAuthenticated }) => {
     setDeletingAccount(true);
     try {
       await authApi.deleteAccount(deletePassword);
-      clearAuth();
+      await clearAuth();
       setIsAuthenticated(false);
       sessionStorage.setItem('authMessage', t('account.deletedNotice'));
       navigate('/login');
