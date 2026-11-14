@@ -11,6 +11,7 @@ Product requirements that guide design and implementation. These are **not** dep
 | [expense-edit.md](./expense-edit.md) | **Implemented** | Edit/delete recent expenses from Dashboard + Monthly Report, with a server-enforced 24-hour edit window |
 | [voice-expense-input.md](./voice-expense-input.md) | **Implementation in progress** | Voice input: mic → browser STT → LLM draft preview → confirm → reuse POST /api/expenses |
 | [playstore-data-safety.md](./playstore-data-safety.md) | **Living checklist** | Play Store readiness: current shipped controls, remaining risk register, and submission release gates |
+| [spending-insights.md](./spending-insights.md) | **Deferred — future** | Spending insights and amount-aware advice; deferred because the project is open source/free and cannot absorb per-user LLM API costs |
 
 ## How to use
 

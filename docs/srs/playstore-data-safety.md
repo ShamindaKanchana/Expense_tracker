@@ -36,7 +36,7 @@
 | Security headers | Helmet defaults + HSTS (1 year, `includeSubDomains`, `preload`); `trust proxy` for Render | `backend/server.js` |
 | DB transport | MySQL SSL with Aiven CA verification (`rejectUnauthorized:true`); production fails fast if `DB_CA_CERT` is missing | `backend/config/db.js` |
 | Field encryption | AES-256-GCM for expense description, user email, and encrypted reset-rejection notes; per-row IV + auth tag; key only from env | `backend/utils/fieldCrypto.js`, `backend/models/Expense.js`, `backend/models/User.js`, `backend/models/PasswordResetRequest.js` |
-| Email lookup | HMAC-SHA256 blind index (`email_hmac` + `EMAIL_HMAC_PEPPER`) for uniqueness/login | `backend/utils/fieldCrypto.js`, `backend/models/User.js` |
+| Email lookup | HMAC-SHA256 blind index (`email_hmac` + `EMAIL_HMAC_PEPPER`) for legacy email login | `backend/utils/fieldCrypto.js`, `backend/models/User.js` |
 | IP minimization | Reset-request IPs truncated to `/24` IPv4 or `/48` IPv6 on insert; never returned to the admin UI | `backend/models/PasswordResetRequest.js` |
 | Account deletion | Password-confirmed `DELETE /api/auth/me`; FK cascade verified; danger-zone UI in EN/SI/TA | `backend/routes/auth.js`, `frontend/src/components/Account.jsx` |
 | Android hardening | `allowBackup=false`, `fullBackupOnly=false`, `usesCleartextTraffic=false`; FileProvider not exported; only `INTERNET` + `RECORD_AUDIO` | `frontend/android/app/src/main/AndroidManifest.xml` |
@@ -51,7 +51,7 @@
 |---|------|---------------|-----------------|
 | S-1 | `expenses.description` | Encrypted `temp_*` columns are backfilled and **new writes are encrypted-only** (legacy column receives an empty tombstone). Pre-migration rows still contain legacy plaintext `description` until the column is dropped. | `MIG-05` |
 | S-2 | `expenses.amount` | Plaintext by decision (`SUM()` aggregation). | Keep documented; compensate with TLS, no-logging, admin isolation (`ENC-06`). |
-| S-3 | `users.email` | Encrypted `temp_*` columns + HMAC exist and **new signups are encrypted-only**. Existing pre-migration accounts still contain legacy plaintext `email` until the column is dropped. | `MIG-07` |
+| S-3 | `users.email` | **New signups no longer accept or store email.** Existing email accounts keep encrypted `temp_*` + HMAC for legacy sign-in, and pre-migration rows still contain plaintext `email` until the column is dropped. | `MIG-07` Phase 1 shipped; Phase 2 pending |
 | S-4 | `password_reset_requests.request_ip` | New rows are minimized; existing production rows still need the backfill. | Run `ENC-03` backfill. |
 | S-5 | `password_reset_requests.reject_reason` | New writes use enum code + encrypted note; legacy plaintext rows still need migration. | Run `ENC-04` migration. |
 | S-6 | JWT storage in WebView | Access token still mirrored in `localStorage`/`sessionStorage`; secure native storage not implemented. | `STORE-01`, `MOB-02` |
@@ -106,6 +106,7 @@ AES-256 plus our column encryption as a second layer).
 | D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **Cohere in production.** Prompts retained 30 days by default; free tier has no training opt-out and no DPA. Keep disclosure + typing fallback; upgrade to paid/ZDR later. |
 | D-7 | Legacy plaintext cleanup | Drop before first Play release vs ship with documented legacy columns | **Open — drop before submission recommended** |
 | D-8 | Encryption key rotation | Single `ENC_KEY` v1 vs versioned `ENC_KEY_ID` before Play | **Open** |
+| D-9 | Email collection and removal | Keep optional email vs username-only | **Phase 1 shipped: new signups reject email. Phase 2 pending: remove legacy email login, `users.email`, `temp_email_*`, `email_hmac`, and `EMAIL_HMAC_PEPPER` after legacy users are notified.** |
 
 ---
 
@@ -118,7 +119,7 @@ remaining step on shipped code.
 ### A — Column-level encryption
 
 - [x] **ENC-01 `expenses.description` encrypted at rest.** AES-256-GCM `temp_description_enc`/`temp_description_iv` + `enc_v`; encrypted-write/dual-read; ciphertext stripped from API responses; 176/176 backfilled. Legacy `description` is a tombstone on new/updated rows and remains on pre-migration rows until `MIG-05`.
-- [x] **ENC-02 `users.email` encrypted at rest.** AES-256-GCM `temp_email_enc`/`temp_email_iv` + `email_hmac` blind index; encrypted-write/dual-read; 4/4 backfilled; email login works. Legacy `email` is no longer written and remains on pre-migration rows until `MIG-07`.
+- [x] **ENC-02 `users.email` encrypted at rest (legacy accounts).** AES-256-GCM `temp_email_enc`/`temp_email_iv` + `email_hmac` blind index; 4/4 backfilled; legacy email login works. New signups no longer collect email; legacy plaintext `email` remains on pre-migration rows until `MIG-07` Phase 2.
 - [x] **ENC-03 `request_ip` minimized.** `/24` IPv4 + `/48` IPv6 truncation on insert; unrecognized values stored as NULL; never returned to admin. **PENDING:** run `node scripts/backfill-request-ip-minimization.js` once against production.
 - [x] **ENC-04 `reject_reason` structured.** Enum `reject_reason_code` + optional AES-256-GCM-encrypted note; admin reject route validates `{code, note}`; supersede writes code only. **PENDING:** run `node scripts/migrate-reject-reason.js` once against production.
 - [ ] **ENC-05 Key management — PARTIAL.** `ENC_KEY` is env-only and validated as 32 bytes. `ENC_KEY_ID` is documented but unused; there is no key-version rotation or background re-encrypt. Dev key must differ from prod.
@@ -149,7 +150,7 @@ remaining step on shipped code.
 ### D — Play Store account, data, and release gates
 
 - [x] **PLAY-01 In-app account deletion.** `DELETE /api/auth/me` with password confirmation; FK cascade verified; trilingual danger-zone modal; post-delete login notice. Admin delete retained.
-- [ ] **PLAY-02 Data Safety form truth.** Must declare financial info (amount/description), personal info (username/email/transcript), microphone (foreground only), app activity, and device IDs; sharing with Cohere + Aiven/Render; encryption in transit; deletion available.
+- [ ] **PLAY-02 Data Safety form truth.** Must declare financial info (amount/description), personal info (username; legacy email only for pre-migration accounts; voice transcript), microphone (foreground only), app activity, and device IDs; sharing with Cohere + Aiven/Render; encryption in transit; deletion available.
 - [ ] **PLAY-03 Privacy policy.** Draft is in `docs/privacy-policy.md`; still needs a public URL, in-app link, and final contact/date fields. The approved voice disclosure paragraph is already shown as the in-app mic hint.
 - [ ] **PLAY-04 Binary readiness — PARTIAL.** Mobile shell is merged; `targetSdk 36`, release signing config, permissions limited to `INTERNET` + `RECORD_AUDIO`. **PENDING:** signed AAB, Play App Signing registration, 64-bit verification, versionCode/versionName bump if needed, and no `REQUEST_INSTALL_PACKAGES`.
 - [ ] **PLAY-05 Pre-launch.** Internal track -> clean pre-launch report (no cleartext, no weak crypto, mic disclosure OK); content rating done; SI/TA screenshots.
@@ -185,7 +186,7 @@ remaining step on shipped code.
 - [x] **MIG-04 Test-account verification.** End-to-end EN/SI/TA/emoji create/read/update/delete, no crypto leakage, tamper rejected; test account removed.
 - [ ] **MIG-05 Description legacy removal — PHASE A READY.** Encrypted-only writes are implemented; new/updated rows write an empty tombstone to `description` and no longer store plaintext. Read fallback remains. Requires: deploy Phase A, one release with zero fallback hits, fresh backup. Then remove fallback reads, drop `description`, rename `temp_description_enc → description_enc` and `temp_description_iv → description_iv`, and monitor decrypt errors.
 - [ ] **MIG-06 Temp-column hygiene.** No `temp_*`/`*_legacy` column survives past its migration; pre-submission schema grep for `temp_` must be empty.
-- [ ] **MIG-07 Email legacy removal — PHASE A READY.** New signups write encrypted email + HMAC only; legacy `email` is no longer written. Read fallback remains. Requires the same evidence as MIG-05. Then remove fallback reads, drop `email`, rename `temp_email_enc → email_enc` and `temp_email_iv → email_iv`; keep `email_hmac` for lookup/uniqueness. **This item was missing before the 2026-11-03 audit.**
+- [ ] **MIG-07 Email legacy removal — PHASE 1 SHIPPED.** New signups reject `email`; `User.create` now inserts username-only accounts (`email = NULL`). Legacy email login remains for existing accounts. **Phase 2:** notify existing email users to use their existing username, remove email login/`findByEmail`, drop `email`, `temp_email_enc`, `temp_email_iv`, and `email_hmac`, and remove `EMAIL_HMAC_PEPPER` from the production env. **This item was missing before the 2026-11-03 audit.**
 
 ---
 
@@ -215,13 +216,13 @@ remaining step on shipped code.
 | G4 — Play Console | `PLAY-02`, `PLAY-03`, `PLAY-05`, `PLAY-06`, `PLAY-07` | Production: yes |
 | G5 — Ops/deps/docs | `OPS-01` platform confirm, `OPS-02`, `OPS-03`, `DEP-01`, `DOC-01` | Production: yes |
 | G6 — Pre-launch | Internal track + clean pre-launch report | Final gate |
-| Backlog | `APP-01` app lock, Cohere paid/ZDR upgrade | Not required for first release |
+| Backlog | `APP-01` app lock, Cohere paid/ZDR upgrade, [AI spending insights](./spending-insights.md) (deferred — no per-user API budget) | Not required for first release |
 
 ---
 
 ## 7. Open questions for owner
 
-1. ~~Email-login keep or username-only?~~ **Resolved:** email login kept via the HMAC blind index; legacy plaintext email must be removed (`MIG-07`).
+1. ~~Email-login keep or username-only?~~ **Resolved:** new accounts are username-only. Legacy email login remains temporarily for the 4 existing email accounts; remove it in `MIG-07` Phase 2 after notifying them.
 2. **Cohere free tier:** 30-day retention and no training opt-out. Keep disclosure + typing fallback for v1, or upgrade to a paid/ZDR plan before release?
 3. ~~Retention OK?~~ **Resolved 2026-10-20:** 90/30/30 (reset rows, logs, voice artifacts).
 4. ~~Prod `ENC_KEY` + `LLM_*_API_KEY` holder?~~ **Resolved 2026-10-20:** Render env; rotation via dashboard.
@@ -232,4 +233,4 @@ remaining step on shipped code.
 
 ---
 
-*Changelog: v1 created 2026-10-10. v2 added encryption/MIG items. v3 2026-11-03: audited `main` @ `d5b9e42`; corrected stale branch/transport/token/log statuses; marked MOB-01, MOB-06, MOB-07, PLAY-04, STORE-02, and MOB-03 as partial/code-shipped where appropriate; added API-01/02/03, MIG-07, DEP-01, PLAY-06, PLAY-07, DOC-01; recorded the HIBP hostname typo fix and production `/test-db` 404 gate; replaced the stale P0/P1/P2 table with current release gates. v4 2026-11-14: verified 176/176 expense descriptions encrypted; implemented Phase A of MIG-05/MIG-07 (encrypted-only writes, fail-closed without keys, legacy columns kept as read fallback/tombstones) and added the verification script.*
+*Changelog: v1 created 2026-10-10. v2 added encryption/MIG items. v3 2026-11-03: audited `main` @ `d5b9e42`; corrected stale branch/transport/token/log statuses; marked MOB-01, MOB-06, MOB-07, PLAY-04, STORE-02, and MOB-03 as partial/code-shipped where appropriate; added API-01/02/03, MIG-07, DEP-01, PLAY-06, PLAY-07, DOC-01; recorded the HIBP hostname typo fix and production `/test-db` 404 gate; replaced the stale P0/P1/P2 table with current release gates. v4 2026-11-14: verified 176/176 expense descriptions encrypted; implemented Phase A of MIG-05/MIG-07 (encrypted-only writes, fail-closed without keys, legacy columns kept as read fallback/tombstones) and added the verification script. v5 2026-11-14: shipped MIG-07 Phase 1 (registration rejects email; new users are username-only); documented Phase 2 removal of legacy email login/storage and the existing users' migration path.*
