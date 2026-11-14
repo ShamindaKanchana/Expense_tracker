@@ -111,18 +111,16 @@ class User {
     return obj;
   }
 
-  /** Normalize + build the dual-write envelope for an email (null-safe). */
+  /**
+   * Normalize + build the encrypted envelope for an email (null-safe).
+   * Fail-closed in every environment — missing ENC_KEY/EMAIL_HMAC_PEPPER throws
+   * rather than falling back to legacy plaintext (MIG-07).
+   */
   static encryptEmail(email) {
     const norm = normalizeEmail(email);
-    if (!norm) return { email: null, enc: null, iv: null, hmac: null };
-    try {
-      const { enc, iv } = encryptField(norm);
-      return { email: norm, enc, iv, hmac: emailHmac(norm) };
-    } catch (err) {
-      if (process.env.NODE_ENV === 'production') throw err;
-      console.warn('⚠️  ' + err.message + ' Writing legacy plaintext email (dev only).');
-      return { email: norm, enc: null, iv: null, hmac: null };
-    }
+    if (!norm) return { enc: null, iv: null, hmac: null };
+    const { enc, iv } = encryptField(norm);
+    return { enc, iv, hmac: emailHmac(norm) };
   }
 
   /** HMAC for lookup, or null when email empty / pepper missing in dev. */
@@ -144,8 +142,8 @@ class User {
       const env = User.encryptEmail(userData.email);
       
       const result = await db.query(
-        'INSERT INTO users (username, email, temp_email_enc, temp_email_iv, email_hmac, password) VALUES (?, ?, ?, ?, ?, ?)',
-        [username, env.email, env.enc, env.iv, env.hmac, hashedPassword]
+        'INSERT INTO users (username, temp_email_enc, temp_email_iv, email_hmac, password) VALUES (?, ?, ?, ?, ?)',
+        [username, env.enc, env.iv, env.hmac, hashedPassword]
       );
       
       if (result.insertId) {
