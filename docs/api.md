@@ -139,7 +139,7 @@ Unknown fields, including `email`, are rejected.
 | | |
 |--|--|
 | **Access** | Public |
-| **Description** | Sign in with **username or email** + password; returns a JWT. Email is accepted only for legacy accounts; new accounts are username-only. |
+| **Description** | Sign in with **username + password**; returns a JWT. MIG-07 Phase 2 removed legacy email login. |
 
 **Request body**
 
@@ -150,11 +150,11 @@ Unknown fields, including `email`, are rejected.
 }
 ```
 
-Also accepted for compatibility: `identifier`, `username`, or `email` instead of `login`.
+Also accepted for compatibility: `identifier` or `username` instead of `login`. `email` is rejected.
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `login` | Yes | Username **or** email of an existing account |
+| `login` | Yes | Username of an existing account |
 | `password` | Yes | Account password |
 
 **Success:** `200`
@@ -164,8 +164,7 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
   "token": "<jwt>",
   "user": {
     "id": 1,
-    "username": "jane",
-    "email": null
+    "username": "jane"
   }
 }
 ```
@@ -174,8 +173,8 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
 
 | Status | When |
 |--------|------|
-| `400` | Missing login or password |
-| `401` | Incorrect username/email or password |
+| `400` | Missing login or password, or an unknown field such as `email` |
+| `401` | Incorrect username or password |
 | `500` | Server error |
 
 ---
@@ -217,7 +216,6 @@ Also accepted for compatibility: `identifier`, `username`, or `email` instead of
 {
   "id": 1,
   "username": "jane",
-  "email": null,
   "created_at": "2025-01-15T10:00:00.000Z"
 }
 ```
@@ -720,7 +718,7 @@ If no expenses exist: `data` is `null`.
 |--------|----------|--------|---------|
 | `GET` | `/` | Public | API health check |
 | `POST` | `/api/auth/register` | Public | Create account (username + password) + JWT |
-| `POST` | `/api/auth/login` | Public | Sign in (username or email + password) + JWT |
+| `POST` | `/api/auth/login` | Public | Sign in (username + password) + JWT |
 | `GET` | `/api/auth/me` | Private | Current user profile |
 | `POST` | `/api/auth/change-password` | Private | Change password |
 | `DELETE` | `/api/auth/me` | Private | Delete own account (password confirm, cascade) |
@@ -799,7 +797,6 @@ Seed admin via `ADMIN_USERNAME` and `ADMIN_PASSWORD` in backend `.env` (created 
     {
       "id": 1,
       "username": "jane",
-      "email": null,
       "created_at": "2026-07-01T00:00:00.000Z",
       "expense_count": 5
     }
