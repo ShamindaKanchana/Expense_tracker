@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|--------|
-| **Status** | Production cutover complete 2026-11-22; Render `EMAIL_HMAC_PEPPER` removal pending owner |
+| **Status** | Complete 2026-11-22 — production cutover, column drop, verification, and Render `EMAIL_HMAC_PEPPER` removal done |
 | **Related** | `MIG-07` in [../srs/playstore-data-safety.md](../srs/playstore-data-safety.md) |
 | **Goal** | Make login username-only, remove legacy email storage, and retire `EMAIL_HMAC_PEPPER` |
 
-> Status: the grace period ended **2026-11-15**; production login is
-> username-only and the legacy email columns were dropped on **2026-11-22**.
-> The remaining action is deleting `EMAIL_HMAC_PEPPER` from Render. Keep the
-> pre-cutover backup and passphrase until the rollback window closes.
+> Status: complete on **2026-11-22**. Production login is username-only, the
+> legacy email columns were dropped, and `EMAIL_HMAC_PEPPER` was removed from
+> Render. Keep the pre-cutover backup and passphrase until the rollback window
+> closes.
 
 ## Legacy users to confirm
 
@@ -25,7 +25,7 @@
 - [x] Phase 1 is deployed (`/api/auth/register` rejects `email`).
 - [x] The four users have been emailed their usernames and removal date.
 - [x] The grace period elapsed on 2026-11-15.
-- [x] `EMAIL_HMAC_PEPPER` was present before the cutover (needed only for rollback now).
+- [x] `EMAIL_HMAC_PEPPER` was present before the cutover and removed from Render afterwards.
 - [x] A fresh production backup exists and restore was tested (2026-11-22).
 
 ## Cutover order
@@ -50,13 +50,13 @@
    ```bash
    node scripts/verify-email-removal.js
    ```
-7. [ ] **PENDING OWNER:** Remove `EMAIL_HMAC_PEPPER` from the production environment.
+7. [x] Remove `EMAIL_HMAC_PEPPER` from the production environment (Render redeploy verified).
 8. [x] Keep `ENC_KEY`; expense descriptions still depend on it.
-9. [x] Verify:
+9. [x] Verify (completed):
    - Username signup and login.
    - Username password reset/admin approval.
    - Profile and admin pages render without email.
-   - No email decrypt/lookup errors in logs (API probes passed; owner should also check Render logs).
+   - No email decrypt/lookup errors in logs (API probes passed; owner can still check Render logs).
 10. [x] Update:
    - `MIG-07` to complete.
    - `docs/api.md`, `docs/database.md`, `docs/privacy-policy.md`.
