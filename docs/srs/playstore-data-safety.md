@@ -51,7 +51,7 @@
 |---|------|---------------|-----------------|
 | S-1 | `expenses.description` | Encrypted `temp_*` columns are backfilled and **new writes are encrypted-only** (legacy column receives an empty tombstone). Pre-migration rows still contain legacy plaintext `description` until the column is dropped. | `MIG-05` |
 | S-2 | `expenses.amount` | Plaintext by decision (`SUM()` aggregation). | Keep documented; compensate with TLS, no-logging, admin isolation (`ENC-06`). |
-| S-3 | `users.email` | **Removed.** New signups never accept or store email; Phase 2 makes login username-only and drops the legacy `email`, `temp_email_*`, and `email_hmac` columns. | `MIG-07` Phase 2 tooling shipped; production cutover pending |
+| S-3 | `users.email` | **Removed.** Login is username-only; production `email`, `temp_email_*`, and `email_hmac` columns were dropped on 2026-11-22. | Complete; remove `EMAIL_HMAC_PEPPER` from Render |
 | S-4 | `password_reset_requests.request_ip` | New rows are minimized; existing production rows still need the backfill. | Run `ENC-03` backfill. |
 | S-5 | `password_reset_requests.reject_reason` | New writes use enum code + encrypted note; legacy plaintext rows still need migration. | Run `ENC-04` migration. |
 | S-6 | JWT storage in WebView | Native user tokens now use `@aparajita/capacitor-secure-storage`; legacy WebView tokens migrate on startup. Web still uses `localStorage`/`sessionStorage` by design. | `STORE-01`, `MOB-02`; device verification pending |
@@ -106,7 +106,7 @@ AES-256 plus our column encryption as a second layer).
 | D-6 | Voice LLM provider + data sharing | Gemini / Cohere / OpenAI-compatible / DeepSeek / mock | **Cohere in production.** Prompts retained 30 days by default; free tier has no training opt-out and no DPA. Keep disclosure + typing fallback; upgrade to paid/ZDR later. |
 | D-7 | Legacy plaintext cleanup | Drop before first Play release vs ship with documented legacy columns | **Open — drop before submission recommended** |
 | D-8 | Encryption key rotation | Single `ENC_KEY` v1 vs versioned `ENC_KEY_ID` before Play | **Open** |
-| D-9 | Email collection and removal | Keep optional email vs username-only | **Username-only.** Phase 1 rejected new emails; Phase 2 removes legacy email login, `users.email`, `temp_email_*`, `email_hmac`, and `EMAIL_HMAC_PEPPER`. |
+| D-9 | Email collection and removal | Keep optional email vs username-only | **Username-only, complete 2026-11-22.** Legacy email login and columns are gone; delete `EMAIL_HMAC_PEPPER` from Render. |
 
 ---
 
@@ -119,7 +119,7 @@ remaining step on shipped code.
 ### A — Column-level encryption
 
 - [x] **ENC-01 `expenses.description` encrypted at rest.** AES-256-GCM `temp_description_enc`/`temp_description_iv` + `enc_v`; encrypted-write/dual-read; ciphertext stripped from API responses; 176/176 backfilled. Legacy `description` is a tombstone on new/updated rows and remains on pre-migration rows until `MIG-05`.
-- [x] **ENC-02 `users.email` encrypted at rest (legacy accounts) — RETIRED.** AES-256-GCM `temp_email_enc`/`temp_email_iv` + `email_hmac` blind index handled the legacy transition; `MIG-07` Phase 2 removes the columns and pepper.
+- [x] **ENC-02 `users.email` encrypted at rest (legacy accounts) — RETIRED.** AES-256-GCM `temp_email_enc`/`temp_email_iv` + `email_hmac` blind index handled the legacy transition; `MIG-07` Phase 2 dropped the columns on 2026-11-22.
 - [x] **ENC-03 `request_ip` minimized.** `/24` IPv4 + `/48` IPv6 truncation on insert; unrecognized values stored as NULL; never returned to admin. **PENDING:** run `node scripts/backfill-request-ip-minimization.js` once against production.
 - [x] **ENC-04 `reject_reason` structured.** Enum `reject_reason_code` + optional AES-256-GCM-encrypted note; admin reject route validates `{code, note}`; supersede writes code only. **PENDING:** run `node scripts/migrate-reject-reason.js` once against production.
 - [ ] **ENC-05 Key management — PARTIAL.** `ENC_KEY` is env-only and validated as 32 bytes. `ENC_KEY_ID` is documented but unused; there is no key-version rotation or background re-encrypt. Dev key must differ from prod.
@@ -186,13 +186,13 @@ remaining step on shipped code.
 - [x] **MIG-04 Test-account verification.** End-to-end EN/SI/TA/emoji create/read/update/delete, no crypto leakage, tamper rejected; test account removed.
 - [ ] **MIG-05 Description legacy removal — PHASE A READY.** Encrypted-only writes are implemented; new/updated rows write an empty tombstone to `description` and no longer store plaintext. Read fallback remains. Requires: deploy Phase A, one release with zero fallback hits, fresh backup. **2026-11-14 check:** production shows 0 tombstone rows and the latest expense write is 2026-11-01, so Phase A writes have not yet been observed; wait for the first post-deploy create/update. Then remove fallback reads, drop `description`, rename `temp_description_enc → description_enc` and `temp_description_iv → description_iv`, and monitor decrypt errors.
 - [ ] **MIG-06 Temp-column hygiene.** No `temp_*`/`*_legacy` column survives past its migration; pre-submission schema grep for `temp_` must be empty.
-- [ ] **MIG-07 Email legacy removal — PHASE 2 CODE SHIPPED.** New signups reject `email`; login is username-only (`findByLogin`); `findByEmail`, `resolveEmail`, and `EMAIL_HMAC_PEPPER` are gone from code; profile/admin/UI no longer return or render email. Added `scripts/drop-legacy-email-columns.js` and `scripts/verify-email-removal.js`. **Production cutover pending:** deploy Phase 2, verify the four legacy users, take a fresh backup, run the drop script, remove `EMAIL_HMAC_PEPPER` from Render, and then mark complete. See [email-removal-phase2.md](../deployment/email-removal-phase2.md).
+- [x] **MIG-07 Email legacy removal — COMPLETE 2026-11-22.** New signups reject `email`; login is username-only (`findByLogin`); `findByEmail`, `resolveEmail`, and `EMAIL_HMAC_PEPPER` are gone from code; profile/admin/UI no longer return or render email. **Production cutover:** Phase 2 deployed, fresh encrypted backup verified (11 users, 193 expenses, 4 legacy email rows; all-table checksums matched), and the four legacy columns were dropped; `scripts/verify-email-removal.js` passed. **PENDING OWNER:** delete `EMAIL_HMAC_PEPPER` from Render. See [email-removal-phase2.md](../deployment/email-removal-phase2.md).
 
 ---
 
 ## 5. Acceptance criteria
 
-1. **After MIG-05/MIG-07:** a SQL dump without `ENC_KEY` reveals no readable description or email. (Not true while legacy plaintext columns remain.)
+1. **After MIG-05/MIG-07:** a SQL dump without `ENC_KEY` reveals no readable description; email is no longer stored. (Description legacy plaintext remains until MIG-05.)
 2. Release log grep for `amount|description|transcript|prompt|@|Bearer|BEGIN|API_KEY` is empty.
 3. `curl http://` redirects or returns HSTS; DB connects with `rejectUnauthorized:true`; WebView blocks cleartext.
 4. 11th login in 15 minutes returns 429; voice over-limit returns 429 with the expected code.
@@ -222,7 +222,7 @@ remaining step on shipped code.
 
 ## 7. Open questions for owner
 
-1. ~~Email-login keep or username-only?~~ **Resolved:** all accounts are username-only. `MIG-07` Phase 2 removes the four legacy email accounts' storage after cutover.
+1. ~~Email-login keep or username-only?~~ **Resolved 2026-11-22:** all accounts are username-only; the four legacy email accounts' storage was dropped.
 2. **Cohere free tier:** 30-day retention and no training opt-out. Keep disclosure + typing fallback for v1, or upgrade to a paid/ZDR plan before release?
 3. ~~Retention OK?~~ **Resolved 2026-10-20:** 90/30/30 (reset rows, logs, voice artifacts).
 4. ~~Prod `ENC_KEY` + `LLM_*_API_KEY` holder?~~ **Resolved 2026-10-20:** Render env; rotation via dashboard.
@@ -233,4 +233,4 @@ remaining step on shipped code.
 
 ---
 
-*Changelog: v7 2026-11-21: MIG-07 Phase 2 code shipped — username-only login, email removed from profile/admin/UI, legacy email helpers deleted, destructive drop/verify scripts added; production cutover pending. v1 created 2026-10-10. v2 added encryption/MIG items. v3 2026-11-03: audited `main` @ `d5b9e42`; corrected stale branch/transport/token/log statuses; marked MOB-01, MOB-06, MOB-07, PLAY-04, STORE-02, and MOB-03 as partial/code-shipped where appropriate; added API-01/02/03, MIG-07, DEP-01, PLAY-06, PLAY-07, DOC-01; recorded the HIBP hostname typo fix and production `/test-db` 404 gate; replaced the stale P0/P1/P2 table with current release gates. v4 2026-11-14: verified 176/176 expense descriptions encrypted; implemented Phase A of MIG-05/MIG-07 (encrypted-only writes, fail-closed without keys, legacy columns kept as read fallback/tombstones) and added the verification script. v5 2026-11-14: shipped MIG-07 Phase 1 (registration rejects email; new users are username-only); documented Phase 2 removal of legacy email login/storage and the existing users' migration path. v6 2026-11-14: shipped STORE-01/MOB-02 code (native user tokens/profile in `@aparajita/capacitor-secure-storage`, legacy WebView token migration, no plaintext native fallback); added auth-storage unit tests and a debug Android build; device kill/reboot verification still pending. Added the 2026-11-15 email-removal Phase 2 runbook. Production probe confirmed Phase 1's strict email rejection; Phase A writes still await the first post-deploy create/update (0 tombstones, latest write 2026-11-01).*
+*Changelog: v8 2026-11-22: MIG-07 Phase 2 production cutover complete — fresh GPG backup verified (11 users, 193 expenses, 4 legacy email rows, matching checksums), email columns dropped, schema verification passed, production login probe confirms `email` is rejected. Render `EMAIL_HMAC_PEPPER` removal remains for the owner. v7 2026-11-21: MIG-07 Phase 2 code shipped — username-only login, email removed from profile/admin/UI, legacy email helpers deleted, destructive drop/verify scripts added; production cutover pending. v1 created 2026-10-10. v2 added encryption/MIG items. v3 2026-11-03: audited `main` @ `d5b9e42`; corrected stale branch/transport/token/log statuses; marked MOB-01, MOB-06, MOB-07, PLAY-04, STORE-02, and MOB-03 as partial/code-shipped where appropriate; added API-01/02/03, MIG-07, DEP-01, PLAY-06, PLAY-07, DOC-01; recorded the HIBP hostname typo fix and production `/test-db` 404 gate; replaced the stale P0/P1/P2 table with current release gates. v4 2026-11-14: verified 176/176 expense descriptions encrypted; implemented Phase A of MIG-05/MIG-07 (encrypted-only writes, fail-closed without keys, legacy columns kept as read fallback/tombstones) and added the verification script. v5 2026-11-14: shipped MIG-07 Phase 1 (registration rejects email; new users are username-only); documented Phase 2 removal of legacy email login/storage and the existing users' migration path. v6 2026-11-14: shipped STORE-01/MOB-02 code (native user tokens/profile in `@aparajita/capacitor-secure-storage`, legacy WebView token migration, no plaintext native fallback); added auth-storage unit tests and a debug Android build; device kill/reboot verification still pending. Added the 2026-11-15 email-removal Phase 2 runbook. Production probe confirmed Phase 1's strict email rejection; Phase A writes still await the first post-deploy create/update (0 tombstones, latest write 2026-11-01).*

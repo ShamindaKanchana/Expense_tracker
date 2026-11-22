@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|--------|
-| **Status** | Checklist — restore test still pending owner execution |
+| **Status** | Restore test PASSED 2026-11-14 and again for the 2026-11-22 MIG-07 pre-cutover backup |
 | **Related** | `OPS-02` in [../srs/playstore-data-safety.md](../srs/playstore-data-safety.md) |
 | **Goal** | Prove a production backup can be restored into a scratch database with matching row counts and valid encryption metadata before any destructive migration |
 
@@ -14,9 +14,9 @@
 
 - [ ] Aiven console access, or a read-only MySQL user for dumping.
 - [ ] A scratch MySQL database (never restore over production).
-- [ ] A GPG key for manual dumps; the private key is stored separately.
-- [ ] `mysqldump`, `mysql`, and `gpg` installed.
-- [ ] `backend/.env` is **not** pointed at production for local app tests.
+- [x] GPG symmetric passphrase (or public key) with the passphrase stored separately.
+- [x] `mysqldump`, `mysql`, and `gpg` installed.
+- [x] `backend/.env` was used only for the read-only dump, not local app writes.
 
 ## 1. Prefer the provider backup
 
@@ -97,3 +97,23 @@ SELECT COUNT(*) AS legacy_email_rows
 - [ ] Row-count comparison.
 - [ ] Any errors and how they were resolved.
 - [ ] Update `OPS-02` in the SRS.
+
+## 6. Test log
+
+### 2026-11-22 — MIG-07 pre-cutover backup
+
+- Source: production Aiven MySQL over TLS (`ssl-mode=REQUIRED`; no local
+  `DB_CA_CERT`, so CA identity was not verified — same caveat as the 2026-11-14 test).
+- Tool: `mysqldump --single-transaction --quick --routines --triggers --events --no-tablespaces`.
+- Encryption: `gpg --symmetric --cipher-algo AES256`; passphrase stored outside the repo.
+- Artifact: `expense-tracker-20261122T072352Z.sql.gpg` (21 KB).
+- SHA-256: `26b347a2492b2fca80a4f513f4b4691ee4ca09a480637fa0bd9c9376c5c93b50`.
+- Restore: decrypted directly into a scratch MySQL 8.0.46 database; no plaintext file written.
+- Counts before/after: users 11/11, expenses 193/193, legacy email rows 4/4,
+  `enc_v=0` 0/0, missing ciphertext 0/0.
+- Checksums matched for `users`, `expenses`, `password_reset_requests`,
+  `refresh_tokens`, and `admins`.
+- Cleanup: scratch database and temporary MySQL data directory removed.
+- **Owner action:** copy the encrypted dump and passphrase off-host; the local
+  copy alone is not a durable backup. Aiven disk-encryption confirmation still
+  needs console verification.
