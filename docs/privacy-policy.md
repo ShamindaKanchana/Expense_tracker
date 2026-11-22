@@ -16,7 +16,6 @@ our Play Store Data Safety declaration.
 | Data | Why | Required? |
 |------|-----|-----------|
 | Username | Account identity and sign-in | Yes |
-| Email (legacy accounts only) | Sign-in for accounts created before the username-only change; new accounts do not collect email | No |
 | Password (stored as a one-way bcrypt hash — we never store or see your plain password) | Authentication | Yes |
 | Expense records: amount, description, category, date | The app's core function — tracking your spending | Yes, when you add expenses |
 | Voice transcript, app locale, timezone (voice input only) | Sent to our language provider to extract the expense from speech | Only when you tap the mic |
@@ -31,7 +30,7 @@ Typing an expense works fully without ever touching the microphone.
 When you use voice entry, your speech is transcribed **on your device** and
 the resulting **text plus app locale and timezone** are sent to **Cohere**
 solely to extract the expense details. We do **not** send your username,
-email, or account ID.
+or account ID.
 
 Because speech can itself contain personal details, **avoid speaking account
 numbers or other people's names**. The same warning is shown under the mic
@@ -53,8 +52,8 @@ prevention:
 ## 4. How data is protected
 
 * **Encryption in transit:** TLS (HTTPS) between app, API, database, and Cohere.
-* **Encryption at rest:** Expense descriptions and emails are encrypted per
-  record with AES-256-GCM; database disks are encrypted by our host.
+* **Encryption at rest:** Expense descriptions are encrypted per record with
+  AES-256-GCM; database disks are encrypted by our host.
 * **Passwords:** one-way bcrypt hashes (cost 10); hashes are never returned
   by any API.
 * **Access control:** Every expense request is filtered to your own account
@@ -65,7 +64,7 @@ prevention:
 | Data | Kept until |
 |------|------------|
 | Expenses | You delete them, or delete your account |
-| Account (username, email, password hash) | You delete your account |
+| Account (username, password hash) | You delete your account |
 | Password-reset rows | 90 days |
 | Server logs | 30 days |
 | Cohere voice prompts | 30 days (their default) |
@@ -75,8 +74,8 @@ prevention:
 * **In the app:** Account → danger zone → delete your account (password
   confirmation required). This permanently wipes your account, expenses, and
   reset rows.
-* **By email:** write to the contact address above from your account email
-  and we will delete it.
+* **If you cannot sign in:** contact us at the address above with your
+  username, and we will verify ownership before deleting the account.
 
 ## 7. Children
 

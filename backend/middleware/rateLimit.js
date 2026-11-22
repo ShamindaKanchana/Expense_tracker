@@ -52,7 +52,7 @@ const loginRateLimit = createRateLimit({
   max: 10,
   keyOf: (req, ip) =>
     `login:${ip}:${String(
-      req.body.login || req.body.identifier || req.body.username || req.body.email || ''
+      req.body.login || req.body.identifier || req.body.username || ''
     )
       .trim()
       .toLowerCase()}`,

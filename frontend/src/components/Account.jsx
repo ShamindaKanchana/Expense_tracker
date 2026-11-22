@@ -45,8 +45,7 @@ const Account = ({ setIsAuthenticated }) => {
         setProfile(data);
         await setStoredUser({
           id: data.id,
-          username: data.username,
-          email: data.email || null
+          username: data.username
         });
       } catch (err) {
         if (cancelled) return;
@@ -168,7 +167,6 @@ const Account = ({ setIsAuthenticated }) => {
   };
 
   const username = profile?.username || '—';
-  const email = profile?.email;
   const initial = (profile?.username || '?').charAt(0).toUpperCase();
 
   return (
@@ -199,13 +197,6 @@ const Account = ({ setIsAuthenticated }) => {
             </span>
             <p className="account-hint">{t('account.usernameHint')}</p>
           </div>
-          {email ? (
-            <div className="account-field">
-              <span className="account-label">{t('common.email')}</span>
-              <span className="account-value">{email}</span>
-              <p className="account-hint">{t('account.emailHint')}</p>
-            </div>
-          ) : null}
         </section>
 
         <section className="account-section" aria-labelledby="account-language-heading">
