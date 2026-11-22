@@ -18,7 +18,6 @@ erDiagram
     users {
         int id PK
         varchar username UK
-        varchar email UK
         text password
         timestamp created_at
         timestamp updated_at
@@ -62,8 +61,7 @@ Stores registered accounts. Passwords are hashed with bcrypt (10 rounds) before 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | `INT` | PK, AUTO_INCREMENT | User ID (used in JWT as `userId`) |
-| `username` | `VARCHAR(50)` | UNIQUE, NOT NULL | Primary login identifier (required for all accounts) |
-| `email` | `VARCHAR(100)` | UNIQUE, NULL | Legacy only; set for older accounts, always `NULL` for new signups |
+| `username` | `VARCHAR(50)` | UNIQUE, NOT NULL | Login identifier (required for all accounts) |
 | `password` | `TEXT` | NOT NULL | bcrypt hash (never returned by API) |
 | `created_at` | `TIMESTAMP` | DEFAULT `CURRENT_TIMESTAMP` | Account creation time |
 | `updated_at` | `TIMESTAMP` | DEFAULT `CURRENT_TIMESTAMP ON UPDATE` | Last update time |
@@ -74,32 +72,29 @@ Stores registered accounts. Passwords are hashed with bcrypt (10 rounds) before 
 CREATE TABLE IF NOT EXISTS users (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) UNIQUE NOT NULL,
-  email VARCHAR(100) UNIQUE NULL,
   password TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-On startup the model also runs `ALTER TABLE users MODIFY email VARCHAR(100) UNIQUE NULL` so existing databases accept username-only accounts.
-
-**Auth model (practical):**
+**Auth model (MIG-07 Phase 2):**
 
 | Account type | Signup | Sign-in |
 |--------------|--------|---------|
-| New users | username + password (`email` = `NULL`) | username + password |
-| Existing email users | had email at signup | **email or username** + password (legacy) |
+| All accounts | username + password | username + password |
 
-Registration rejects the `email` field; new accounts cannot set one.
+Registration rejects the `email` field. The legacy email columns are removed by
+`MIG-07 Phase 2`; `scripts/drop-legacy-email-columns.js` performs the drop and
+`scripts/verify-email-removal.js` verifies it.
 
 **Model methods (`User`):**
 
 | Method | Description |
 |--------|-------------|
-| `User.create(userData, cb)` | Hash password, insert username-only user (`email` = `NULL`), return profile |
-| `User.findByEmail(email, cb)` | Find user by email (includes password hash) |
+| `User.create(userData, cb)` | Hash password, insert username-only user, return profile |
 | `User.findByUsername(username, cb)` | Find user by username |
-| `User.findByLogin(login, cb)` | Find by username **or** email (used by login) |
+| `User.findByLogin(login, cb)` | Username-only login lookup |
 | `User.comparePassword(plain, hash, cb)` | bcrypt compare |
 
 ---
@@ -201,7 +196,6 @@ There is no migration runner (e.g. Knex/Flyway) — schema changes are applied v
 |-------|-----|---------|
 | `users` | PRIMARY | `id` |
 | `users` | UNIQUE | `username` |
-| `users` | UNIQUE | `email` |
 | `expenses` | PRIMARY | `id` |
 | `expenses` | FOREIGN KEY | `user_id` → `users(id)` ON DELETE CASCADE |
 

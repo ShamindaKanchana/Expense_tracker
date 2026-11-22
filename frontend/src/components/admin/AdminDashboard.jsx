@@ -281,7 +281,6 @@ const AdminDashboard = () => {
                 <thead>
                   <tr>
                     <th>Username</th>
-                    <th>Email</th>
                     <th>Joined</th>
                     <th>Expenses</th>
                     <th>Actions</th>
@@ -291,7 +290,6 @@ const AdminDashboard = () => {
                   {users.map((user) => (
                     <tr key={user.id}>
                       <td data-label="Username">{user.username}</td>
-                      <td data-label="Email">{user.email || '—'}</td>
                       <td data-label="Joined">{formatDate(user.created_at)}</td>
                       <td data-label="Expenses">{user.expense_count ?? 0}</td>
                       <td data-label="Actions">

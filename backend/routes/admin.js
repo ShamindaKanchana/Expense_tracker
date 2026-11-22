@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 const Admin = require('../models/Admin');
-const User = require('../models/User');
 const PasswordResetRequest = require('../models/PasswordResetRequest');
 const adminAuth = require('../middleware/adminAuth');
 const { adminLoginRateLimit } = require('../middleware/rateLimit');
@@ -106,9 +105,6 @@ router.get('/users', adminAuth, async (req, res) => {
       `SELECT
          u.id,
          u.username,
-         u.email,
-         u.temp_email_enc,
-         u.temp_email_iv,
          u.created_at,
          (SELECT COUNT(*) FROM expenses e WHERE e.user_id = u.id) AS expense_count
        FROM users u
@@ -118,7 +114,6 @@ router.get('/users', adminAuth, async (req, res) => {
     const users = (rows || []).map((r) => ({
       id: r.id,
       username: r.username,
-      email: User.resolveEmail(r),
       created_at: r.created_at,
       expense_count: Number(r.expense_count) || 0
     }));

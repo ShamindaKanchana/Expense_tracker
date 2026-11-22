@@ -82,16 +82,15 @@ const registerSchema = z
 
 const loginSchema = z
   .object({
-    login: z.string().trim().min(1).max(254).optional(),
-    identifier: z.string().trim().min(1).max(254).optional(),
-    username: z.string().trim().min(1).max(30).optional(),
-    email: z.string().trim().min(1).max(254).optional(),
+    login: z.string().trim().min(1).max(30).optional(),
+    identifier: z.string().trim().min(1).max(30).optional(),
+    username: usernameSchema.optional(),
     password: z.string().min(1).max(128)
   })
   .strict()
   .refine(
-    (data) => data.login || data.identifier || data.username || data.email,
-    'Please enter your username or email.'
+    (data) => data.login || data.identifier || data.username,
+    'Please enter your username.'
   );
 
 const deleteAccountSchema = z
@@ -185,16 +184,15 @@ router.post('/register', registerRateLimit, validateBody(registerSchema), async 
 });
 
 // @route   POST /api/auth/login
-// @desc    Sign in with username or email + password
+// @desc    Sign in with username + password (MIG-07 Phase 2)
 // @access  Public
 router.post('/login', loginRateLimit, validateBody(loginSchema), async (req, res) => {
   try {
-    // Accept: login, identifier, username, or email (for older clients)
+    // Accept login/identifier aliases for older clients; email is no longer accepted.
     const login =
       req.body.login ||
       req.body.identifier ||
-      req.body.username ||
-      req.body.email;
+      req.body.username;
     const { password } = req.body;
 
     const user = await new Promise((resolve, reject) => {
@@ -205,12 +203,12 @@ router.post('/login', loginRateLimit, validateBody(loginSchema), async (req, res
     });
 
     if (!user) {
-      return res.status(401).json({ message: 'Incorrect username/email or password. Please check and try again.' });
+      return res.status(401).json({ message: 'Incorrect username or password. Please check and try again.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Incorrect username/email or password. Please check and try again.' });
+      return res.status(401).json({ message: 'Incorrect username or password. Please check and try again.' });
     }
 
     const token = jwt.sign(
@@ -226,8 +224,7 @@ router.post('/login', loginRateLimit, validateBody(loginSchema), async (req, res
       token,
       user: {
         id: user.id,
-        username: user.username,
-        email: User.resolveEmail(user)
+        username: user.username
       }
     });
   } catch (error) {
@@ -243,7 +240,7 @@ router.get('/me', auth, async (req, res) => {
   try {
     const userId = req.user.id;
     const rows = await db.query(
-      'SELECT id, username, email, temp_email_enc, temp_email_iv, created_at FROM users WHERE id = ?',
+      'SELECT id, username, created_at FROM users WHERE id = ?',
       [userId]
     );
 
@@ -255,7 +252,6 @@ router.get('/me', auth, async (req, res) => {
     res.json({
       id: user.id,
       username: user.username,
-      email: User.resolveEmail(user),
       created_at: user.created_at
     });
   } catch (error) {

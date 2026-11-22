@@ -8,7 +8,7 @@ const readline = require('readline').createInterface({
 async function updatePassword() {
   try {
     // Get user input
-    readline.question('Enter username or email: ', async (identifier) => {
+    readline.question('Enter username: ', async (identifier) => {
       readline.question('Enter new password: ', { silent: true }, async (newPassword) => {
         try {
           // Hash the new password
@@ -16,14 +16,14 @@ async function updatePassword() {
           
           // Update the password in the database
           const result = await db.query(
-            'UPDATE users SET password = ? WHERE username = ? OR email = ?',
-            [hashedPassword, identifier, identifier]
+            'UPDATE users SET password = ? WHERE username = ?',
+            [hashedPassword, identifier]
           );
 
           if (result.affectedRows > 0) {
             console.log('✅ Password updated successfully');
           } else {
-            console.log('❌ No user found with that username or email');
+            console.log('❌ No user found with that username');
           }
         } catch (err) {
           console.error('❌ Error updating password:', err.message);

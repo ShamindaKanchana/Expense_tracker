@@ -58,7 +58,6 @@ Policy today: username ≥ 3 chars, password ≥ 6 chars (`routes/auth.js:29,33,
 | `DB_HOST/USER/PASSWORD/NAME/PORT/CA_CERT` | Backend env | Never in frontend; Aiven creds only on hosting dashboard in prod |
 | `LLM_PROVIDER`, `LLM_*_API_KEY` (`GEMINI/COHERE/OPENAI/DEEPSEEK`), `VOICE_ALLOW_MOCK` | Backend env (`backend/.env.example`, `services/voice/*`) | Server-only; `VOICE_ALLOW_MOCK=false` in prod (fail closed); one prod provider only (D-6) |
 | `ENC_KEY` / `ENC_KEY_ID` | Backend env/KMS only (local `.env` + prod secrets since 2026-10-10) | 32B base64, versioned (`enc_v`), dev key ≠ prod key (ENC-05). Offline backup mandatory — loss = data loss |
-| `EMAIL_HMAC_PEPPER` | Backend env only (local `.env` + prod secrets needed) | 32B base64 blind-index pepper (ENC-02). Same backup rule as `ENC_KEY` |
 | `REACT_APP_API_URL` | Frontend build-time env (local `.env`, Vercel settings) | Rebuild after change; prod = `https://<backend>/api` |
 
 All `.env` files are gitignored — only `*.example` is committed. If a real secret ever lands in git, rotate it immediately (OPS-03).
@@ -81,7 +80,7 @@ All `.env` files are gitignored — only `*.example` is committed. If a real sec
 |------|-------|------------------------------|
 | Passwords, reset codes | bcrypt ✅ | Keep |
 | `expenses.description` | **AES-256-GCM ✅ since 2026-10-10 (PR #42)** — `temp_*` + `enc_v`, 132/132 backfilled, dual-read w/ legacy fallback until MIG-05 | Keep; drop legacy per MIG-05 |
-| `users.email` | **AES-256-GCM + HMAC blind index ✅ since 2026-10-10 (merged to `main` via PR #44)** — `temp_*` + `email_hmac`, 4/4 backfilled, login via username/email verified | Keep; drop legacy per email MIG-05 |
+| `users.email`, `temp_email_enc`, `temp_email_iv`, `email_hmac` | **Removed by MIG-07 Phase 2** — login is username-only; new accounts never stored email | Keep removed; do not recreate plaintext email columns |
 | `request_ip`, `reject_reason` | Plaintext ⚠️ | Minimization/TTL + structured enum (ENC-03–04) |
 | `expenses.amount` | Plaintext (needed for `SUM()`) | **Stays plaintext v1** by decision D-1, compensated by TLS + no-logging + isolation (ENC-06) |
 | Voice transcripts | In-memory + Cohere call, 30-day Cohere-side retention default; training opt-out absent on free tier (assume improvement use) | Prompt minimal (no username/email) + no persist; upgrade plan for ZDR/DPA (ENC-07, D-6) |
@@ -94,7 +93,7 @@ All `.env` files are gitignored — only `*.example` is committed. If a real sec
 
 ## 10. Play Store mapping (summary — full checklist in Play SRS §4D/F)
 
-Data Safety must declare: financial info (amount/description), personal info (username/email/transcript), microphone (foreground only), app activity, device IDs; **sharing includes the chosen LLM provider + infra hosts**; encryption in transit yes; deletion URL yes. Binary: Capacitor `aab`, latest `targetSdk`, 64-bit, Play App Signing, versionCode bump, internal track → pre-launch clean.
+Data Safety must declare: financial info (amount/description), personal info (username/transcript), microphone (foreground only), app activity, device IDs; **sharing includes the chosen LLM provider + infra hosts**; encryption in transit yes; deletion URL yes. Binary: Capacitor `aab`, latest `targetSdk`, 64-bit, Play App Signing, versionCode bump, internal track → pre-launch clean.
 
 ## 11. Known gaps (do not ship store build until P0+P1 land)
 
@@ -109,4 +108,4 @@ Data Safety must declare: financial info (amount/description), personal info (us
 
 ---
 
-*Changelog: v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. v3 same day: ENC-02 shipped on `dev` (email encrypted + HMAC index, 4/4 backfilled, logins verified), 61 duplicate `email_N` keys dropped. v4 same day: PLAY-01 shipped on `dev` (`DELETE /api/auth/me`, cascade verified, trilingual danger-zone UI). v5 same day: AUTH-04 shipped on `dev` (hardcoded limits, live-verified trip points). v6 2026-10-11: PR #44 merged to `main` (ENC-02 + PLAY-01 + AUTH-04 live on prod branch); `c7581ca` enforces Aiven verified SSL (`rejectUnauthorized:true` + `DB_CA_CERT`, Render redeploy verified `Successfully connected`, no unverified-SSL warning). v7 2026-11-14: native user tokens/profile moved to `@aparajita/capacitor-secure-storage` (Android Keystore AES-GCM / iOS Keychain), legacy WebView token migration added, no plaintext native fallback; debug Android build and unit tests pass; device kill/reboot verification pending. Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*
+*Changelog: v8 2026-11-21: MIG-07 Phase 2 code and destructive migration tooling — username-only login, email removed from profile/admin/UI, legacy email columns and `EMAIL_HMAC_PEPPER` retired. v1 created 2026-10-10 as security focus kickoff. v2 same day: ENC-01/MIG-01–04 shipped (PR #42, description encrypted, 132/132 backfilled), #36–38 log fixes on `main`, PUT/DELETE crash fixed, #39/#41 left open. v3 same day: ENC-02 shipped on `dev` (email encrypted + HMAC index, 4/4 backfilled, logins verified), 61 duplicate `email_N` keys dropped. v4 same day: PLAY-01 shipped on `dev` (`DELETE /api/auth/me`, cascade verified, trilingual danger-zone UI). v5 same day: AUTH-04 shipped on `dev` (hardcoded limits, live-verified trip points). v6 2026-10-11: PR #44 merged to `main` (ENC-02 + PLAY-01 + AUTH-04 live on prod branch); `c7581ca` enforces Aiven verified SSL (`rejectUnauthorized:true` + `DB_CA_CERT`, Render redeploy verified `Successfully connected`, no unverified-SSL warning). v7 2026-11-14: native user tokens/profile moved to `@aparajita/capacitor-secure-storage` (Android Keystore AES-GCM / iOS Keychain), legacy WebView token migration added, no plaintext native fallback; debug Android build and unit tests pass; device kill/reboot verification pending. Forward roadmap in [srs/playstore-data-safety.md](./srs/playstore-data-safety.md).*
