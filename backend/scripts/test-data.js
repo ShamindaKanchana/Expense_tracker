@@ -17,12 +17,12 @@ async function createTestData() {
     const userId = users[0].id;
     console.log('✅ Found test user with ID:', userId);
     
-    // Create a test expense for the user (MIG-05: encrypted write only)
+    // Create a test expense for the user (MIG-05 Phase B: encrypted storage only)
     const { enc, iv } = encryptField('Breakfast');
     const expenseResult = await db.query(
       `INSERT INTO expenses
-        (user_id, amount, description, temp_description_enc, temp_description_iv, enc_v, category, date)
-       VALUES (?, ?, '', ?, ?, 1, ?, ?)`,
+        (user_id, amount, description_enc, description_iv, enc_v, category, date)
+       VALUES (?, ?, ?, ?, 1, ?, ?)`,
       [userId, 1000, enc, iv, 'Food', '2025-09-12']
     );
     
