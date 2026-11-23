@@ -8,10 +8,12 @@
  *   node scripts/verify-encryption-migration.js
  *   node scripts/verify-encryption-migration.js --phase=b
  *   node scripts/verify-encryption-migration.js --sample=10
+ *   node scripts/verify-encryption-migration.js --all
  *
  * Phase A checks that every row has a usable encrypted copy and that writes
  * are no longer creating new plaintext. Phase B additionally requires the
  * legacy description column to be gone and temp_* columns to be renamed.
+ * --all decrypts every expense row (use before the destructive cutover).
  *
  * MIG-07 removed user email storage; use verify-email-removal.js for that.
  */
@@ -25,6 +27,7 @@ const args = Object.fromEntries(
   })
 );
 const PHASE = String(args.phase || 'a').toLowerCase();
+const ALL = Boolean(args.all);
 const SAMPLE = Math.max(0, parseInt(args.sample || '5', 10));
 
 const columnExists = async (table, column) => {
@@ -43,8 +46,9 @@ const columnExists = async (table, column) => {
 const count = (value) => Number(value) || 0;
 
 async function run() {
-  if (!process.env.ENC_KEY) {
-    console.error('❌ ENC_KEY is not set — cannot verify encrypted rows.');
+  if (!process.env.ENC_KEY && (ALL || SAMPLE > 0)) {
+    console.error('❌ ENC_KEY is not set — cannot decrypt encrypted rows.');
+    console.error('   Re-run with --sample=0 to check counts only.');
     process.exit(1);
   }
 
@@ -60,6 +64,9 @@ async function run() {
 
   if (!(await columnExists('expenses', expenseEnc))) {
     problems.push('expenses has no encrypted description column');
+  }
+  if (!(await columnExists('expenses', expenseIv))) {
+    problems.push('expenses has no encrypted description IV column');
   }
 
   const expenseSelect = hasExpenseLegacy
@@ -98,14 +105,16 @@ async function run() {
 
   let decryptFailures = 0;
   let decryptTotal = 0;
-  if (SAMPLE > 0 && (await columnExists('expenses', expenseEnc))) {
+  if ((ALL || SAMPLE > 0) && (await columnExists('expenses', expenseEnc))) {
+    const limitClause = ALL ? '' : 'LIMIT ?';
+    const sampleParams = ALL ? [] : [SAMPLE];
     const expenseRows = await db.query(
       `SELECT id, ${expenseEnc} AS enc, ${expenseIv} AS iv
          FROM expenses
         WHERE ${expenseEnc} IS NOT NULL AND ${expenseIv} IS NOT NULL
         ORDER BY id DESC
-        LIMIT ?`,
-      [SAMPLE]
+        ${limitClause}`,
+      sampleParams
     );
     decryptTotal = expenseRows.length;
     for (const row of expenseRows) {
@@ -116,7 +125,9 @@ async function run() {
         console.error(`❌ Expense decrypt failed for id=${row.id}:`, err.message);
       }
     }
-    console.log(`Decrypt smoke test: ${decryptTotal} rows, ${decryptFailures} failed`);
+    console.log(
+      `Decrypt ${ALL ? 'full check' : 'smoke test'}: ${decryptTotal} rows, ${decryptFailures} failed`
+    );
   }
   if (decryptFailures > 0) problems.push('decrypt smoke test failed');
 
@@ -124,6 +135,15 @@ async function run() {
     if (hasExpenseLegacy) problems.push('expenses.description still exists');
     if (await columnExists('expenses', 'temp_description_enc')) {
       problems.push('expenses.temp_description_enc was not renamed');
+    }
+    if (await columnExists('expenses', 'temp_description_iv')) {
+      problems.push('expenses.temp_description_iv was not renamed');
+    }
+    if (!(await columnExists('expenses', 'description_enc'))) {
+      problems.push('expenses.description_enc is missing');
+    }
+    if (!(await columnExists('expenses', 'description_iv'))) {
+      problems.push('expenses.description_iv is missing');
     }
   }
 

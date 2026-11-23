@@ -5,6 +5,9 @@
  * conditional (AND enc_v = 0) so concurrent dual-writes can't be clobbered.
  * Logs counts + ids only — never expense text (LOG-01).
  *
+ * Historical pre-Phase-B tool. After MIG-05 Phase B this script exits without
+ * changes because the legacy description and temp_description_* columns are gone.
+ *
  * Usage: node scripts/backfill-expense-encryption.js [--batch=500] [--dry-run]
  */
 const db = require('../config/db');
@@ -19,11 +22,30 @@ const args = Object.fromEntries(
 const BATCH = Math.max(1, parseInt(args.batch || '500', 10));
 const DRY_RUN = Boolean(args['dry-run']);
 
+const columnExists = async (column) => {
+  const rows = await db.query(
+    `SELECT 1
+       FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+        AND table_name = 'expenses'
+        AND column_name = ?
+      LIMIT 1`,
+    [column]
+  );
+  return rows.length > 0;
+};
+
 async function run() {
   if (!process.env.ENC_KEY) {
     console.error('❌ ENC_KEY is not set — refusing to run. See docs/security.md §8.');
     process.exit(1);
   }
+
+  if (!(await columnExists('temp_description_enc'))) {
+    console.log('✅ MIG-05 Phase B already applied; nothing to backfill.');
+    process.exit(0);
+  }
+
   let done = 0;
   let failed = 0;
   const seenIds = new Set(); // dry-run: UPDATEs don't happen, so re-select would loop forever

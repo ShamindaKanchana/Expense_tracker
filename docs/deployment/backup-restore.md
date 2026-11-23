@@ -73,11 +73,27 @@ SELECT COUNT(*) AS users FROM users;
 SELECT COUNT(*) AS expenses FROM expenses;
 SELECT COUNT(*) AS plaintext_expenses
   FROM expenses WHERE enc_v = 0;
+```
+
+Choose the encrypted-column names that match the backup's schema:
+
+```sql
+-- Pre-MIG-05 Phase B backups
 SELECT COUNT(*) AS missing_ciphertext
   FROM expenses
   WHERE temp_description_enc IS NULL OR temp_description_iv IS NULL;
 SELECT COUNT(*) AS legacy_description_rows
   FROM expenses WHERE description IS NOT NULL AND description <> '';
+
+-- Post-MIG-05 Phase B backups
+SELECT COUNT(*) AS missing_ciphertext
+  FROM expenses
+  WHERE description_enc IS NULL OR description_iv IS NULL;
+```
+
+If the backup predates MIG-07 Phase 2, also check:
+
+```sql
 SELECT COUNT(*) AS legacy_email_rows
   FROM users WHERE email IS NOT NULL;
 ```
@@ -85,7 +101,7 @@ SELECT COUNT(*) AS legacy_email_rows
 - [ ] Row counts match the pre-backup values.
 - [ ] `enc_v = 0` is 0.
 - [ ] `missing_ciphertext` is 0.
-- [ ] Record the legacy-row counts expected before `MIG-05`/`MIG-07` Phase 2.
+- [ ] Record the legacy-row counts expected before the relevant phase.
 - [ ] Optionally point a local backend at the scratch DB and run
   `npm run verify:encryption -- --sample=5`.
 - [ ] Drop the scratch database after recording the result.
@@ -117,3 +133,21 @@ SELECT COUNT(*) AS legacy_email_rows
 - **Owner action:** copy the encrypted dump and passphrase off-host; the local
   copy alone is not a durable backup. Aiven disk-encryption confirmation still
   needs console verification.
+
+### 2026-11-22 — MIG-05 Phase B pre-cutover backup
+
+- Source: production Aiven MySQL over TLS (`ssl-mode=REQUIRED`; no local
+  `DB_CA_CERT`, so CA identity was not verified).
+- Tool: `mysqldump --single-transaction --quick --routines --triggers --events --no-tablespaces`.
+- Encryption: `gpg --symmetric --cipher-algo AES256`; passphrase from
+  `~/.config/expense-tracker/backup-passphrase` (not in the repo).
+- Artifact: `expense-tracker-20261122T084242Z-mig05.sql.gpg` (21 KB).
+- SHA-256: `1f3fb6cb6190adb71f4e17dfe2a011e84c172835728cfada00099501ea4c2ccb`.
+- Restore: decrypted directly into a scratch MySQL 8.0.46 database; no plaintext file written.
+- Counts: users 11/11, expenses 193/193, `enc_v=0` 0/0, missing ciphertext 0/0,
+  legacy description rows 176/176.
+- Checksums matched production for `users`, `expenses`,
+  `password_reset_requests`, `refresh_tokens`, and `admins`.
+- Cleanup: scratch database and Docker container removed.
+- **Owner action:** copy the encrypted dump and passphrase off-host; the local
+  copy alone is not a durable backup.
