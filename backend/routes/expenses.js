@@ -324,7 +324,7 @@ router.get('/list', auth, async (req, res) => {
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
     const sql = `
-      SELECT id, description, temp_description_enc, temp_description_iv, enc_v, category, \`date\`, amount, created_at
+      SELECT id, description_enc, description_iv, enc_v, category, \`date\`, amount, created_at
       FROM expenses
       ${whereClause}
       ORDER BY \`date\` DESC
@@ -418,7 +418,7 @@ router.get('/recent', auth, async (req, res) => {
   try {
     const userId = req.user.id;
     const rows = await db.query(
-      `SELECT id, description, temp_description_enc, temp_description_iv, enc_v, category, \`date\`, amount, created_at
+      `SELECT id, description_enc, description_iv, enc_v, category, \`date\`, amount, created_at
        FROM expenses
        WHERE user_id = ?
        ORDER BY \`date\` DESC
@@ -557,11 +557,10 @@ router.put('/:id', auth, validateBody(expenseBodySchema), async (req, res) => {
       });
     }
 
-    // MIG-05: encrypted write only; legacy column gets a non-sensitive
-    // tombstone until it is dropped.
+    // MIG-05 Phase B: encrypted storage only.
     const cryptoEnv = Expense.encryptDescription(String(description).trim());
     await db.query(
-      "UPDATE expenses SET amount = ?, description = '', temp_description_enc = ?, temp_description_iv = ?, enc_v = ?, category = ?, date = ? WHERE id = ? AND user_id = ?",
+      "UPDATE expenses SET amount = ?, description_enc = ?, description_iv = ?, enc_v = ?, category = ?, date = ? WHERE id = ? AND user_id = ?",
       [amount, cryptoEnv.enc, cryptoEnv.iv, cryptoEnv.encV, normalizedCategory, date || new Date(), id, userId]
     );
 

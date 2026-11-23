@@ -11,16 +11,13 @@ const createTableQuery = `
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
-    description TEXT NOT NULL,
+    description_enc TEXT NOT NULL,
+    description_iv VARCHAR(32) NOT NULL,
+    enc_v INT NOT NULL DEFAULT 1,
     category ${CATEGORY_ENUM} NOT NULL,
     date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    -- ENC-01 migration columns (MIG-01): temp_* prefix marks them for rename
-    -- to description_enc/description_iv once legacy column is dropped (MIG-05).
-    temp_description_enc TEXT NULL,
-    temp_description_iv VARCHAR(32) NULL,
-    enc_v INT NOT NULL DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CHECK (amount >= 0)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -34,33 +31,40 @@ const initTable = async () => {
     await db.query(
       `ALTER TABLE expenses MODIFY COLUMN category ${CATEGORY_ENUM} NOT NULL`
     );
-    // MIG-01 convergence: bring pre-encryption DBs up to the encrypted schema.
-    // Duplicate-column errors mean the column is already there — safe to ignore.
-    // Deadlocks (ER_LOCK_DEADLOCK 1213) are transient under concurrent DDL
-    // (e.g. two boots racing) — retry with backoff instead of failing boot.
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    for (const alter of [
-      'ALTER TABLE expenses ADD COLUMN temp_description_enc TEXT NULL',
-      'ALTER TABLE expenses ADD COLUMN temp_description_iv VARCHAR(32) NULL',
-      'ALTER TABLE expenses ADD COLUMN enc_v INT NOT NULL DEFAULT 0'
-    ]) {
-      let done = false;
-      for (let attempt = 1; attempt <= 3 && !done; attempt += 1) {
-        try {
-          await db.query(alter);
-          done = true;
-        } catch (alterErr) {
-          if (alterErr.code === 'ER_DUP_FIELDNAME') { done = true; break; }
-          const deadlock = alterErr.code === 'ER_LOCK_DEADLOCK' || alterErr.errno === 1213;
-          if (deadlock && attempt < 3) {
-            console.warn(`Deadlock on expenses migration (attempt ${attempt}/3), retrying:`, alterErr.message);
-            await sleep(500 * attempt);
-            continue;
-          }
-          throw alterErr;
-        }
-      }
+
+    // MIG-05 Phase B removed the legacy plaintext column and renamed temp_*.
+    // Fail loudly instead of silently returning empty descriptions if the
+    // application starts against an unmigrated database.
+    const legacyRows = await db.query(
+      `SELECT column_name
+         FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'expenses'
+          AND column_name IN ('description', 'temp_description_enc', 'temp_description_iv')`
+    );
+    if (legacyRows.length > 0) {
+      throw new Error(
+        `MIG-05 Phase B schema is not applied (found ${legacyRows
+          .map((row) => row.column_name)
+          .join(', ')}). Run scripts/apply-mig05-phase-b.js first.`
+      );
     }
+
+    const requiredRows = await db.query(
+      `SELECT column_name
+         FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'expenses'
+          AND column_name IN ('description_enc', 'description_iv', 'enc_v')`
+    );
+    if (requiredRows.length !== 3) {
+      throw new Error(
+        `expenses is missing MIG-05 Phase B columns (found ${requiredRows
+          .map((row) => row.column_name)
+          .join(', ') || 'none'}).`
+      );
+    }
+
     // RPT-01: index for date-range aggregation/listing. MySQL has no
     // CREATE INDEX IF NOT EXISTS, so check first (idempotent on every boot).
     try {
@@ -88,26 +92,35 @@ initTable().catch(console.error);
 
 class Expense {
   /**
-   * Dual-read resolver (MIG-02/MIG-04): prefer decrypted temp_* columns when
-   * enc_v === 1, else fall back to legacy plaintext `description`.
-   * Never throws for clients — falls back and logs the row id only (LOG-01).
+   * MIG-05 Phase B resolver: decrypt description_enc/description_iv only.
+   * There is no plaintext fallback. Missing/corrupt ciphertext is logged and
+   * returned as an empty string so one bad row cannot break a whole page.
    */
   static resolveDescription(row) {
-    if (row && Number(row.enc_v) === 1 && row.temp_description_enc && row.temp_description_iv) {
-      try {
-        return decryptField(row.temp_description_enc, row.temp_description_iv);
-      } catch (err) {
-        console.error('Expense decrypt failed for id:', row.id, '-', err.message);
-      }
+    if (!row) return '';
+
+    if (
+      Number(row.enc_v) !== 1 ||
+      !row.description_enc ||
+      !row.description_iv
+    ) {
+      console.error('Expense has no encrypted description for id:', row.id);
+      return '';
     }
-    return row ? row.description : '';
+
+    try {
+      return decryptField(row.description_enc, row.description_iv);
+    } catch (err) {
+      console.error('Expense decrypt failed for id:', row.id, '-', err.message);
+      return '';
+    }
   }
 
   /** Strip encryption material so ciphertext/IV never leave the API (ENC-01). */
   static stripCryptoMaterial(obj) {
     if (obj && typeof obj === 'object') {
-      delete obj.temp_description_enc;
-      delete obj.temp_description_iv;
+      delete obj.description_enc;
+      delete obj.description_iv;
       delete obj.enc_v;
     }
     return obj;
@@ -127,7 +140,10 @@ class Expense {
     this.id = expenseData.id || null;
     this.userId = expenseData.userId || expenseData.user_id || null;
     this.amount = expenseData.amount || 0;
-    this.description = Expense.resolveDescription(expenseData) || '';
+    this.description =
+      expenseData.description_enc || expenseData.description_iv
+        ? Expense.resolveDescription(expenseData) || ''
+        : expenseData.description || '';
     this.category = expenseData.category || '';
     this.date = expenseData.date || new Date().toISOString();
   }
@@ -136,15 +152,13 @@ class Expense {
   async save(callback) {
     try {
       if (this.id) {
-        // Update existing expense (MIG-05: encrypted write only; legacy column
-        // is overwritten with a non-sensitive tombstone until it is dropped).
+        // Update existing expense (MIG-05 Phase B: encrypted storage only).
         const cryptoEnv = Expense.encryptDescription(this.description);
         const sql = `
           UPDATE expenses 
           SET amount = ?, 
-              description = '',
-              temp_description_enc = ?,
-              temp_description_iv = ?,
+              description_enc = ?,
+              description_iv = ?,
               enc_v = ?,
               category = ?, 
               date = ?,
@@ -183,12 +197,11 @@ class Expense {
           callback(new Error('No expense found with the given ID'));
         }
       } else {
-        // Create new expense (MIG-05: encrypted write only; legacy column gets
-        // a non-sensitive tombstone until it is dropped).
+        // Create new expense (MIG-05 Phase B: encrypted storage only).
         const cryptoEnv = Expense.encryptDescription(this.description);
         const sql = `
-          INSERT INTO expenses (user_id, amount, description, temp_description_enc, temp_description_iv, enc_v, category, date) 
-          VALUES (?, ?, '', ?, ?, ?, ?, ?)
+          INSERT INTO expenses (user_id, amount, description_enc, description_iv, enc_v, category, date)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         
         const params = [

@@ -27,7 +27,9 @@ erDiagram
         int id PK
         int user_id FK
         decimal amount
-        text description
+        text description_enc
+        varchar description_iv
+        int enc_v
         enum category
         timestamp date
         timestamp created_at
@@ -103,12 +105,19 @@ Registration rejects the `email` field. The legacy email columns are removed by
 
 Stores individual expense records. Every row belongs to exactly one user.
 
+> **MIG-05 Phase B:** this is the target schema. The application now reads and
+> writes only encrypted columns. Production still has the legacy plaintext
+> `description` column until the Phase B cutover; see
+> [deployment/description-removal-phase2.md](./deployment/description-removal-phase2.md).
+
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | `INT` | PK, AUTO_INCREMENT | Expense ID |
 | `user_id` | `INT` | NOT NULL, FK → `users.id` | Owner |
 | `amount` | `DECIMAL(10,2)` | NOT NULL, `CHECK (amount >= 0)` | Expense amount |
-| `description` | `TEXT` | NOT NULL | What the expense was for |
+| `description_enc` | `TEXT` | NOT NULL | AES-256-GCM ciphertext (base64, tag prepended) |
+| `description_iv` | `VARCHAR(32)` | NOT NULL | Per-row base64 IV/nonce |
+| `enc_v` | `INT` | NOT NULL, DEFAULT 1 | Encryption format version |
 | `category` | `ENUM(...)` | NOT NULL | One of the fixed category values (see below) |
 | `date` | `TIMESTAMP` | DEFAULT `CURRENT_TIMESTAMP` | When the expense occurred |
 | `created_at` | `TIMESTAMP` | DEFAULT `CURRENT_TIMESTAMP` | Row creation time |
@@ -125,7 +134,9 @@ CREATE TABLE IF NOT EXISTS expenses (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   amount DECIMAL(10, 2) NOT NULL,
-  description TEXT NOT NULL,
+  description_enc TEXT NOT NULL,
+  description_iv VARCHAR(32) NOT NULL,
+  enc_v INT NOT NULL DEFAULT 1,
   category ENUM('Food', 'Transport', 'Entertainment', 'Bills', 'Shopping', 'Construction', 'Health', 'Education', 'Others') NOT NULL,
   date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -142,6 +153,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 | `new Expense(data).save(cb)` | Insert or update an expense |
 | `Expense.findById(id, cb)` | Get one expense by ID |
 | `Expense.findByUser(userId, cb)` | All expenses for a user (newest first) |
+| `Expense.resolveDescription(row)` | Decrypt `description_enc`/`description_iv`; no plaintext fallback |
 | `Expense.getByCategory(userId, cb)` | Sum amounts grouped by category |
 | `Expense.getMonthlySummary(userId, year, month, cb)` | Totals grouped by year/month |
 | `Expense.getRecent(userId, limit, cb)` | Latest N expenses |
