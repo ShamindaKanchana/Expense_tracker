@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|--------|
-| **Status** | Restore test PASSED 2026-11-14 and again for the 2026-11-22 MIG-07 pre-cutover backup |
+| **Status** | Restore test PASSED 2026-11-14, and again for the 2026-11-22 MIG-07 and MIG-05 pre-cutover backups |
 | **Related** | `OPS-02` in [../srs/playstore-data-safety.md](../srs/playstore-data-safety.md) |
 | **Goal** | Prove a production backup can be restored into a scratch database with matching row counts and valid encryption metadata before any destructive migration |
 
@@ -149,5 +149,7 @@ SELECT COUNT(*) AS legacy_email_rows
 - Checksums matched production for `users`, `expenses`,
   `password_reset_requests`, `refresh_tokens`, and `admins`.
 - Cleanup: scratch database and Docker container removed.
-- **Owner action:** copy the encrypted dump and passphrase off-host; the local
-  copy alone is not a durable backup.
+- **Off-host copy completed 2026-11-23** (owner confirmed; passphrase stored
+  separately).
+- Retained as the rollback artifact for the completed MIG-05 Phase B cutover;
+  production was verified at 193 expenses with no plaintext description column.
