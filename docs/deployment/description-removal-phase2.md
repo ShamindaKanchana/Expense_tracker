@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|--------|
-| **Status** | Code ready; production cutover pending |
+| **Status** | **COMPLETE 2026-11-23** — DDL applied, Phase B deployed, verified |
 | **Related** | `MIG-05`, `MIG-06` in [../srs/playstore-data-safety.md](../srs/playstore-data-safety.md) |
 | **Goal** | Remove the legacy plaintext `expenses.description` column and make the encrypted columns permanent |
 
@@ -24,19 +24,19 @@ and will be removed by the drop.
 
 ## Preconditions
 
-- [ ] Maintenance window agreed; users will not use the app during the cutover.
-- [ ] Render backend service can be suspended and resumed, or a temporary
-      `RENDER_API_KEY` + service ID is available.
-- [ ] Full decrypt check passes in production (Render shell, where `ENC_KEY` is set):
+- [x] Maintenance window agreed; users will not use the app during the cutover.
+- [x] Render shell unavailable on the free plan, so the migration was run locally
+      against production using `backend/.env` and the production `ENC_KEY`.
+- [x] Full decrypt check passes against production:
       ```bash
       cd backend
       npm run verify:encryption -- --all
       ```
       Expected: `enc_v0=0`, `missing_encrypted=0`, `Decrypt full check: 193 rows, 0 failed`.
-- [ ] Fresh encrypted backup created and restore-tested:
+- [x] Fresh encrypted backup created and restore-tested:
       `docs/deployment/backup-restore.md`.
-- [ ] Backup and passphrase copied off-host, or an off-host destination is ready.
-- [ ] Phase B code is built and ready to deploy immediately after the DDL.
+- [x] Backup and passphrase copied off-host (owner confirmed 2026-11-23).
+- [x] Phase B code is built and ready to deploy immediately after the DDL.
 
 ## Code changes
 
@@ -53,40 +53,40 @@ and will be removed by the drop.
 
 ## Cutover order
 
-1. [ ] Announce the maintenance window and suspend the Render backend service.
-       Old code cannot run after the column rename, so do not leave the API
-       serving during the DDL.
-2. [ ] Take the fresh GPG backup and record row counts. Do not proceed without
+1. [x] Announce the maintenance window and stop writes. The free Render plan has
+       no shell/API suspend, so the migration was run locally with no active
+       users; the API returned errors only during the DDL/deploy window.
+2. [x] Take the fresh GPG backup and record row counts. Do not proceed without
        a successful restore test.
-3. [ ] Run the preflight dry run in the Render shell (or against production with
-       the production `ENC_KEY`):
+3. [x] Run the preflight dry run against production with the production
+       `ENC_KEY`:
        ```bash
        cd backend
        npm run mig05:dry-run
        ```
        Expected: 193 rows, `enc_v0=0`, `missing_encrypted=0`, every row decrypts.
-4. [ ] Apply the schema migration:
+4. [x] Apply the schema migration:
        ```bash
        MIG05_CONFIRM=APPLY_PHASE_B npm run mig05:apply
        ```
        This single `ALTER TABLE` drops `description` and renames
        `temp_description_enc` → `description_enc` and
        `temp_description_iv` → `description_iv`.
-5. [ ] Deploy the Phase B backend immediately.
-6. [ ] Verify the deployed schema and decrypt path:
+5. [x] Deploy the Phase B backend immediately (PR #62; `main` `83a4a3f`).
+6. [x] Verify the deployed schema and decrypt path:
        ```bash
        npm run verify:encryption -- --phase=b --all
        ```
        Expected: no `description` or `temp_description_*` columns, `enc_v=0` is
        0, missing encrypted data is 0, and the decrypt check passes.
-7. [ ] Resume the service and smoke-test:
+7. [x] Smoke-test:
        - Sign in.
        - Create an expense and confirm the description renders.
        - Edit and delete that expense.
        - Reload the dashboard and expense list.
        - Check Render logs for `Expense has no encrypted description` and
          `Expense decrypt failed`.
-8. [ ] Update `MIG-05` / `MIG-06` in the SRS, `docs/security.md`,
+8. [x] Update `MIG-05` / `MIG-06` in the SRS, `docs/security.md`,
        `docs/database.md`, and the backup/restore queries.
 
 ## Expected downtime
@@ -118,4 +118,28 @@ and will be removed by the drop.
   (SHA-256 `1f3fb6cb6190adb71f4e17dfe2a011e84c172835728cfada00099501ea4c2ccb`),
   restored into a scratch MySQL 8.0.46 database; counts and all five table
   checksums matched production.
-- Remaining: off-host backup copy, maintenance window, apply, deploy.
+- Off-host backup copy completed by the owner on 2026-11-23.
+
+## Post-cutover verification log
+
+### 2026-11-23
+
+- DDL applied: 193 expenses, `enc_v0=0`, missing encrypted data 0.
+- Deployed PR #62; `main` = `83a4a3f`.
+- Production schema: `description` and `temp_description_*` gone;
+  `description_enc`/`description_iv` NOT NULL; `enc_v` default 1.
+- Phase B verification: 193/193 rows decrypted, 0 failures,
+  `legacy_plaintext=0`.
+- API smoke test with a temporary user: register, create, recent, update,
+  delete; DB row verified encrypted; temporary user/expenses removed.
+- Post-cleanup counts: 11 users, 193 expenses, no `temp_*`/`*_legacy`
+  columns.
+- Off-host backup copy confirmed by the owner.
+
+## Follow-ups
+
+- Normalize expense `date` on the server (or tighten the schema): the API
+  accepts any string up to 40 chars, but MySQL `TIMESTAMP` rejects ISO 8601
+  values with a trailing `Z`. The frontend sends `YYYY-MM-DD`, so the app is
+  unaffected; a smoke test using `new Date().toISOString()` returned 500.
+- Keep the pre-cutover backup and passphrase until the rollback window closes.

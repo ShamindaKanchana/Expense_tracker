@@ -105,9 +105,10 @@ Registration rejects the `email` field. The legacy email columns are removed by
 
 Stores individual expense records. Every row belongs to exactly one user.
 
-> **MIG-05 Phase B:** this is the target schema. The application now reads and
-> writes only encrypted columns. Production still has the legacy plaintext
-> `description` column until the Phase B cutover; see
+> **MIG-05 Phase B complete 2026-11-23:** this is the live production schema.
+> The legacy plaintext `description` column and `temp_description_*` columns
+> were dropped; the application reads and writes only
+> `description_enc`/`description_iv`. See
 > [deployment/description-removal-phase2.md](./deployment/description-removal-phase2.md).
 
 | Column | Type | Constraints | Description |
