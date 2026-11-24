@@ -153,3 +153,13 @@ SELECT COUNT(*) AS legacy_email_rows
   separately).
 - Retained as the rollback artifact for the completed MIG-05 Phase B cutover;
   production was verified at 193 expenses with no plaintext description column.
+
+### 2026-11-24 — Aiven provider backups confirmed (OPS-02)
+
+- Aiven Console: automatic daily full backups with point-in-time transaction
+  logs; latest 18 hours, oldest 3 days, 823 MB stored in `do-sgp1`.
+- Aiven documents at-rest encryption for both service volumes and backups by
+  default (LUKS/AES-256 for volumes; AES-256-CTR + HMAC-SHA256 for backup files).
+  There is no customer-facing disk-encryption toggle.
+- The manual GPG dump remains the downloadable/restorable artifact; provider
+  backups are an additional layer.
